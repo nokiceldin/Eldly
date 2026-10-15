@@ -75,6 +75,15 @@ export function iso(s: Day) {
     week: 1 + Math.round(diff(monday(t), monday(`${y}-01-04`)) / 7),
   };
 }
+// Change these two values when a new school term begins.
+export const SCHOOL_WEEK_REFERENCE_MONDAY: Day = "2026-10-12";
+export const SCHOOL_WEEK_REFERENCE_NUMBER = 8;
+export function schoolWeek(day: Day): number {
+  return (
+    SCHOOL_WEEK_REFERENCE_NUMBER +
+    Math.floor(diff(monday(day), SCHOOL_WEEK_REFERENCE_MONDAY) / 7)
+  );
+}
 export const format = (
   s: Day,
   opts: Intl.DateTimeFormatOptions = { month: "long", day: "numeric" },
@@ -97,7 +106,7 @@ export function matches(r: Routine, d: Day) {
     (r.paused && d >= (r.pausedFrom || r.start))
   )
     return false;
-  const w = iso(d).week;
+  const w = Math.abs(schoolWeek(d));
   if (r.frequency === "daily") return true;
   if (!r.weekdays.includes((parse(d).getDay() + 6) % 7)) return false;
   return r.frequency === "odd"
@@ -191,7 +200,7 @@ export function seed(data: Data, today: Day): Data {
         id: uid(),
         title,
         category: title.match(/CS\d+/)?.[0] || "Personal",
-        notes: "Starter schedule — edit to match your classes.",
+        notes: "Starter schedule â€” edit to match your classes.",
         start,
         weekdays: [i],
         frequency: /quiz/.test(title) ? "odd" : "weekly",
@@ -209,7 +218,10 @@ export function seed(data: Data, today: Day): Data {
     ["CS361 homework reminder", start, "CS361"],
     ...[4, 7, 10].map((w) => [
       "Prepare for CS342 quiz",
-      add(monday(`${parse(today).getFullYear() + 1}-01-04`), (w - 1) * 7 + 2),
+      add(
+        SCHOOL_WEEK_REFERENCE_MONDAY,
+        (w - SCHOOL_WEEK_REFERENCE_NUMBER) * 7 + 2,
+      ),
       "CS342",
     ]),
   ].forEach(([title, scheduled, category]) =>
@@ -229,7 +241,7 @@ export function seed(data: Data, today: Day): Data {
   const deadlines = [
     ["2026-10-18", "CS342 Project 2 Part 1", "CS342"],
     ["2026-10-23", "BIOS120 Evolutionary Medicine", "BIOS120"],
-    ["2026-10-25", "Project Part 2 · course to confirm", "Other"],
+    ["2026-10-25", "Project Part 2 Â· course to confirm", "Other"],
     ["2026-10-26", "CS362 Milestone Design Presentation", "CS362"],
     ["2026-10-28", "BIOS120 Midterm 2", "BIOS120"],
     ["2026-11-06", "BIOS120 Paper", "BIOS120"],
