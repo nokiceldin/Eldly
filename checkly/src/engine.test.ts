@@ -5,6 +5,8 @@ import {
   add,
   diff,
   iso,
+  schoolWeek,
+  seed,
   monday,
   matches,
   onDay,
@@ -53,19 +55,17 @@ describe("local calendar and ISO weeks", () => {
     expect(diff("2026-11-02", "2026-10-31")).toBe(2);
     expect(add("2026-12-31", 1)).toBe("2027-01-01");
   });
-  it("matches odd and even ISO weeks at New Year", () => {
-    expect(
-      matches(
-        routine({ start: "2020-01-01", weekdays: [4], frequency: "odd" }),
-        "2021-01-01",
-      ),
-    ).toBe(true);
-    expect(
-      matches(
-        routine({ start: "2020-01-01", weekdays: [4], frequency: "even" }),
-        "2021-01-01",
-      ),
-    ).toBe(false);
+  it("matches odd and even school weeks", () => {
+    const odd = routine({
+      start: "2026-08-24",
+      weekdays: [0],
+      frequency: "odd",
+    });
+    const even = { ...odd, frequency: "even" as const };
+    expect(matches(odd, "2026-10-12")).toBe(false);
+    expect(matches(even, "2026-10-12")).toBe(true);
+    expect(matches(odd, "2026-10-19")).toBe(true);
+    expect(matches(even, "2026-10-19")).toBe(false);
   });
   it("supports daily, specific days and anchored intervals", () => {
     expect(matches(routine({ frequency: "daily" }), "2026-10-07")).toBe(true);
@@ -264,5 +264,26 @@ describe("historical weekly summaries", () => {
     };
     expect(weekReportTasks(d, "2026-10-12", "2026-10-14")).toHaveLength(1);
     expect(weekReportTasks(d, "2026-10-19", "2026-10-20")).toHaveLength(0);
+  });
+});
+
+describe("school-week defaults", () => {
+  it("anchors October 12â€“18 to school week 8 and advances on Mondays", () => {
+    expect(schoolWeek("2026-10-12")).toBe(8);
+    expect(schoolWeek("2026-10-18")).toBe(8);
+    expect(schoolWeek("2026-10-19")).toBe(9);
+    expect(schoolWeek("2026-08-24")).toBe(1);
+    expect(schoolWeek("2026-12-28")).toBe(19);
+    expect(schoolWeek("2027-01-04")).toBe(20);
+  });
+  it("loads defaults once and schedules CS342 quiz examples in school weeks", () => {
+    const d = seed(empty(), "2026-10-14");
+    expect(d.routines.length).toBeGreaterThan(0);
+    expect(seed(d, "2026-10-14")).toBe(d);
+    expect(
+      d.tasks
+        .filter((t) => t.title === "Prepare for CS342 quiz")
+        .map((t) => t.scheduled),
+    ).toEqual(["2026-09-16", "2026-10-07", "2026-10-28"]);
   });
 });
