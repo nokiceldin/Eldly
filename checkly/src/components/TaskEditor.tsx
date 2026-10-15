@@ -103,7 +103,7 @@ export default function Editor({
         <ModalClose close={close} />
         <span className="eyebrow">A LITTLE PLAN GOES A LONG WAY</span>
         <h2 id="editor-title">
-          {isExisting ? "Make it yours." : "What’s on your mind?"}
+          {isExisting ? "Make it yours." : "Whatâ€™s on your mind?"}
         </h2>
         <form
           onSubmit={(e) => {
@@ -228,8 +228,8 @@ export default function Editor({
                   <option value="interval">
                     Every two / custom number of weeks
                   </option>
-                  <option value="odd">Every odd ISO week</option>
-                  <option value="even">Every even ISO week</option>
+                  <option value="odd">Every odd school week</option>
+                  <option value="even">Every even school week</option>
                 </select>
               </label>
               {frequency === "interval" && (
@@ -289,7 +289,7 @@ export default function Editor({
               <label>
                 Notes
                 <textarea
-                  placeholder="Anything you’d like to remember…"
+                  placeholder="Anything youâ€™d like to rememberâ€¦"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                 />
