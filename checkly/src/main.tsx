@@ -28,6 +28,7 @@ import {
   monday,
   add,
   iso,
+  schoolWeek,
   format,
   parse,
   uid,
@@ -49,7 +50,7 @@ import "./style.css";
 function App() {
   const [initial] = useState(() => {
     try {
-      return { data: load(), error: "" };
+      return { data: seed(load(), localDay()), error: "" };
     } catch (e) {
       return { data: empty(), error: String(e) };
     }
@@ -267,11 +268,11 @@ function App() {
               className={
                 "week-label" + (week === monday(today) ? " current-week" : "")
               }
-              aria-label={`Week ${iso(week).week}, ${iso(week).year}${week === monday(today) ? ", current week" : ". Return to current week"}`}
+              aria-label={`Week ${schoolWeek(week)}, ${iso(week).year}${week === monday(today) ? ", current week" : ". Return to current week"}`}
               aria-current={week === monday(today) ? "date" : undefined}
               onClick={returnToToday}
             >
-              Week {iso(week).week}
+              Week {schoolWeek(week)}
             </button>
             <button
               className="week-arrow"
@@ -321,7 +322,7 @@ function App() {
                         className="day-complete"
                         aria-label="All tasks complete"
                       >
-                        ✓
+                        âœ“
                       </motion.span>
                     )}
                   </h2>
@@ -457,7 +458,7 @@ function App() {
                                 ][i],
                             )
                             .join(", ")}
-                      {r.paused ? " · paused" : ""}
+                      {r.paused ? " Â· paused" : ""}
                     </small>
                   </button>
                   <button
