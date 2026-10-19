@@ -33,3 +33,28 @@ describe('integrated Packly data', () => {
     expect(restored.critical).toBeDefined();
   });
 });
+
+describe('single-match bag', () => {
+  it('packs court essentials without overnight travel items', () => {
+    const trip = makeConfiguredTrip('Afternoon match', 'match', {...details, type:'match', durationDays:14, laundry:true});
+    expect(trip.items.map(i=>i.name)).toEqual(expect.arrayContaining(['Rack','Skor','Handduk','Vattenflaska','Match snacks / energy bars','Extra overgrips','Phone','NYCKEL']));
+    expect(trip.items.map(i=>i.name)).not.toEqual(expect.arrayContaining(['Pass']));
+    expect(trip.items.some(i=>['Visum','Shampoo','Skoldator och laddare','Jeans'].includes(i.name))).toBe(false);
+    expect(trip.details).toMatchObject({type:'match',durationDays:1,returnDate:details.startDate,laundry:false});
+    expect(trip.quantities?.['tennis-02']).toBe(2);
+    expect(trip.quantities?.['tennis-07']).toBe(1);
+    expect(trip.categories.every(c=>trip.items.some(i=>i.categoryId===c.id))).toBe(true);
+    expect(trip.critical).toContain('tennis-02');
+    expect(trip.queue).toEqual(trip.items.map(i=>i.id));
+    expect(normalizeTrip(JSON.parse(JSON.stringify(trip))).details?.type).toBe('match');
+  });
+  it('preserves custom match templates and independently resets packed statuses', () => {
+    const source=makeConfiguredTrip('First match','match',{...details,type:'match'});
+    source.statuses['tennis-02']='packed';
+    const template={id:'match-template',name:'My match bag',type:'match' as const,categories:source.categories,items:source.items,quantities:{...source.quantities,'tennis-02':3},critical:source.critical,lastMinute:source.lastMinute};
+    const next=makeConfiguredTrip('Next match','match',{...details,type:'match'},[],template);
+    expect(next.quantities?.['tennis-02']).toBe(3);
+    expect(getStatus(next,'tennis-02')).toBe('todo');
+    expect(source.statuses['tennis-02']).toBe('packed');
+  });
+});
