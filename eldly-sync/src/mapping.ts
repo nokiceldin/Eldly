@@ -1,11 +1,11 @@
 export const HABITS = [
   { id: "tennis", label: "Tennis", color: "yellow", kind: "duration" },
   { id: "fitness", label: "Fitness", color: "yellow", kind: "duration" },
-  { id: "recovery", label: "Recovery", color: "green", kind: "duration" },
+  { id: "recovery", label: "Recovery", color: "green", kind: "check" },
   { id: "praying", label: "Praying", color: "green", kind: "prayer" },
   { id: "sleep", label: "Sleep", color: "green", kind: "sleep" },
-  { id: "reading", label: "Reading", color: "blue", kind: "duration" },
-  { id: "journaling", label: "Journaling", color: "blue", kind: "duration" },
+  { id: "reading", label: "Reading", color: "blue", kind: "check" },
+  { id: "journaling", label: "Journaling", color: "blue", kind: "check" },
   { id: "no-phone", label: "No phone · first 15 min", color: "blue", kind: "check" },
   { id: "homework", label: "Finish all homework", color: "pink", kind: "check" },
   { id: "coaching", label: "Coaching", color: "pink", kind: "check" },
@@ -13,6 +13,9 @@ export const HABITS = [
   { id: "goyslop", label: "Goyslop", color: "red", kind: "check" },
   { id: "screen-time", label: "Phone use", color: "purple", kind: "phone" },
 ] as const;
+export const DAILY_CHECK_METRICS = ["recovery", "reading", "journaling"] as const;
+export const isDailyCheckMetric = (id: string) => DAILY_CHECK_METRICS.some(metric => metric === id);
+export const isCountMetric = (id: string) => HABITS.some(h => h.id === id && h.kind === "check");
 export type Habit = typeof HABITS[number];
 export type HabitId = Habit["id"];
 export type MappingEntry =
@@ -36,7 +39,7 @@ export function validEntry(id: string, entry: unknown): entry is MappingEntry {
   const habit = HABITS.find((h) => h.id === id);
   if (!habit || !entry || typeof entry !== "object") return false;
   const e = entry as Record<string, unknown>;
-  if (e.kind !== habit.kind && !(id === "screen-time" && e.kind === "duration")) return false;
+  if (e.kind !== habit.kind && !((id === "screen-time" || isDailyCheckMetric(id)) && e.kind === "duration")) return false;
   const integer = (n: unknown, min: number, max: number) => typeof n === "number" && Number.isInteger(n) && n >= min && n <= max;
   switch (e.kind) {
     case "check": return e.source === undefined || (id === "homework" && e.source === "checkly");
@@ -63,11 +66,16 @@ export function setMappingEntry(data: MappingData, day: string, id: HabitId, ent
   else delete entries[day];
   return { version: 1, entries };
 }
+/** Keep completed legacy sessions as daily check-offs without retaining their timing. */
+export function normalizeDailyChecks(data: MappingData): MappingData {
+  const entries = Object.fromEntries(Object.entries(data.entries).map(([day,row]) => [day, Object.fromEntries(Object.entries(row).map(([id,entry]) => [id, isDailyCheckMetric(id) && entry?.kind === "duration" ? {kind:"check" as const} : entry]))]));
+  return { ...data, entries };
+}
 /** Shared source for future Progress charts; sleep series stay separate, in minutes. */
 export function mappingProgress(data: MappingData, from: string, through: string) {
   return Object.entries(data.entries).filter(([day]) => day >= from && day <= through).sort(([a], [b]) => a.localeCompare(b)).map(([date, entries]) => {
     const durationMinutes: Partial<Record<HabitId, number>> = {};
-    for (const [id, e] of Object.entries(entries)) if (e?.kind === "duration" || (e?.kind === "phone" && e.minutes !== undefined)) durationMinutes[id as HabitId] = e.minutes;
+    for (const [id, e] of Object.entries(entries)) if (!isDailyCheckMetric(id) && (e?.kind === "duration" || (e?.kind === "phone" && e.minutes !== undefined))) durationMinutes[id as HabitId] = e.minutes;
     const sleep = entries.sleep;
     return {
       date,

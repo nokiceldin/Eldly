@@ -5,10 +5,10 @@ export type TripType='normal'|'tennis'|'match'|'weekend'|'custom';
 export interface TripDetails {type:TripType;startDate:string;durationDays?:number;returnDate:string;departure:string;destination:string;climate:'warm'|'mild'|'cold'|'unknown';laundry:boolean;reminderMinutes:number[];finishedAt?:number}
 export interface Feedback {itemId:string;name:string;packedQuantity:number;idealQuantity:number;rating:'too-many'|'right'|'too-few';tripType:TripType;days:number;climate:string;laundry:boolean;createdAt:number}
 export interface Template {id:string;name:string;type:TripType;categories:Category[];items:Item[];quantities:Record<string,number>;critical:string[];lastMinute:string[]}
-export interface Trip {details?:TripDetails;quantities?:Record<string,number>;critical?:string[];lastMinute?:string[];verified?:Record<string,boolean>;reflectionDone?:boolean; id:string; name:string; categories:Category[]; items:Item[]; statuses:Record<string,Status>; queue:string[]; position:number; round:number; phase:'packing'|'round'|'complete'; createdAt:number; updatedAt:number; }
+export interface Trip {equipmentVersion?:1;details?:TripDetails;quantities?:Record<string,number>;critical?:string[];lastMinute?:string[];verified?:Record<string,boolean>;reflectionDone?:boolean; id:string; name:string; categories:Category[]; items:Item[]; statuses:Record<string,Status>; queue:string[]; position:number; round:number; phase:'packing'|'round'|'complete'; createdAt:number; updatedAt:number; }
 export interface State { templates?:Template[]; feedback?:Feedback[]; observations?:{itemId:string;type:TripType;unused:boolean;date:number}[]; wishlist?:{name:string;type:TripType;date:number}[]; trips:Trip[]; activeId:string; theme:'light'|'dark'|'system'; sound:boolean; }
 const groups:[string,string,string[]][]=[
- ['tennis','🎾','NYCKEL|Rack|Shorts|T-shirt|Skor|Handduk|Tennis strumpor|Uppvärmnings material|Keps/pannband|Knäskydd|Handledskydd|Underställ|Svettband|Vattenflaska|Dämpare|Bollar|Löparskor (Fys)|Elektrolyter'.split('|')],
+ ['tennis','🎾','NYCKEL|Rack|Shorts|T-shirt|Skor|Handduk|Tennis strumpor|Uppvärmnings material|Keps/pannband|Knäskydd|Handledskydd|Underställ|Svettband|Vattenflaska|Dämpare|Bollar|Löparskor (Fys)|Elektrolyter|Shoe laces|Shoe glue'.split('|')],
  ['clothes','👕','Eventuellt badshorts|Shorts|Skor|Tshirt|Jeans|Mjukisbyxor|Keps|Jacka|Tröja|Hoodie|Vanliga strumpor|Kallingar|Skjorta|Bucket hat|Flip Flop|Solglasögon'.split('|')],
  ['tech','💻','Laddare|Klocka|Beats|Airpods och laddare|EU connect adapter|Laddare till hörlurar|Skoldator och laddare|Eventuellt pluggmaterial|Maskin till strängar|Strängar|Massagepistol och laddare|PS4 kanske|Högtalare|Laddare till flyg|Hörlurar för flyg|Powerbank'.split('|')],
  ['health','🧴','Shampoo|Parfym|Deodorant|Kamm|Tandkräm|Tandborste|Tandtråd|Flux|Solkräm|Lindor|Tejp|Krämer|Nessecär|Rakmaskin|Ögonbrynkniv'.split('|')],
@@ -32,7 +32,7 @@ export function newTrip(name:string, source?:Trip):Trip {
  return {id:uid(),name,categories,items,statuses:{},queue:items.map(i=>i.id),position:0,round:1,phase:'packing',createdAt:now,updatedAt:now};
 }
 export function tripDays(t:Trip){if(t.details?.durationDays)return Math.max(1,t.details.durationDays);const a=t.details?.startDate,b=t.details?.returnDate;if(!a||!b)return 7;return Math.max(1,Math.round((new Date(b+'T12:00:00').getTime()-new Date(a+'T12:00:00').getTime())/86400000)+1)}
-export function suggestedQuantity(item:Item,details:TripDetails, days:number,feedback:Feedback[]=[]){
+export function suggestedQuantity(item:Item,details:TripDetails, days:number,feedback:Feedback[]=[],history:Trip[]=[]){
  const n=item.name.toLowerCase();let base=1;
  if(details.type==='match') return ['tennis-02','tennis-04','tennis-14','match-snacks','match-overgrips'].includes(item.id)?2:1;
  if(n==='kallingar'||n==='vanliga strumpor'||n==='tennis strumpor')base=days+1;
@@ -43,14 +43,15 @@ export function suggestedQuantity(item:Item,details:TripDetails, days:number,fee
  if(details.type==='tennis'&&item.categoryId==='tennis'&&['shorts','t-shirt','tennis strumpor'].includes(n))base+=Math.ceil(days/4);
  if(details.climate==='cold'&&['shorts','t-shirt'].includes(n))base=Math.max(1,base-1);
  const similar=feedback.filter(f=>f.itemId===item.id&&f.tripType===details.type&&f.laundry===details.laundry&&Math.abs(f.days-days)<=3&&f.climate===details.climate);
- if(similar.length>=2){const samples=similar.slice(-5);base=Math.round(samples.reduce((a,f)=>a+f.idealQuantity,0)/samples.length)}
+ if(similar.length>=1){const samples=similar.slice(-5);base=Math.round(samples.reduce((a,f)=>a+f.idealQuantity,0)/samples.length)}
+ if(!similar.length){const samples=history.filter(t=>t.details?.finishedAt&&t.details.type===details.type&&Math.abs(tripDays(t)-days)<=3&&t.statuses[item.id]==='packed').slice(-5).map(t=>t.quantities?.[item.id]||1).sort((a,b)=>a-b);if(samples.length)base=samples[Math.floor(samples.length/2)];}
  return Math.max(1,base);
 }
-export function makeConfiguredTrip(name:string,type:TripType,details:TripDetails,feedback:Feedback[]=[],template?:Template){
+export function makeConfiguredTrip(name:string,type:TripType,details:TripDetails,feedback:Feedback[]=[],template?:Template,history:Trip[]=[]){
  if(type==='match') details={...details,type,durationDays:1,returnDate:details.startDate,laundry:false};
  const items=(template?.items||(type==='match'?matchItems:defaultItems.filter(i=>type==='tennis'||type==='custom'||(type==='normal'?i.categoryId!=='tennis':i.categoryId!=='tennis'&&(!['tech-09','tech-10','tech-11','tech-12','tech-13','health-10','health-11'].includes(i.id)))))).map(i=>({...i}));
  const base=newTrip(name);const categories=(template?.categories||defaultCategories).filter(c=>items.some(i=>i.categoryId===c.id)).map(c=>({...c}));const days=details.durationDays|| (details.startDate&&details.returnDate?Math.max(1,Math.round((new Date(details.returnDate).getTime()-new Date(details.startDate).getTime())/86400000)+1):3);
- const quantities=Object.fromEntries(items.map(i=>[i.id,template?.quantities?.[i.id]||suggestedQuantity(i,details,days,feedback)]));
+ const quantities=Object.fromEntries(items.map(i=>[i.id,template?.quantities?.[i.id]||suggestedQuantity(i,details,days,feedback,history)]));
  const critical=template?.critical||items.filter(i=>type==='match'?['tennis-01','tennis-02','tennis-05','tennis-14','match-phone'].includes(i.id):['Pass','Plånbok','NYCKEL','Visum'].includes(i.name)).map(i=>i.id);
  const lastMinute=template?.lastMinute||items.filter(i=>['NYCKEL','Plånbok','Tandborste','Laddare'].includes(i.name)).map(i=>i.id);
  return {...base,items,categories,queue:items.map(i=>i.id),details,quantities,critical,lastMinute,verified:{}};
@@ -66,5 +67,7 @@ export const sortedItems=(t:Trip)=>t.categories.flatMap(c=>t.items.filter(i=>i.c
 export function normalizeTrip(t:Trip):Trip {
  const ids=new Set(t.items.map(i=>i.id));
  const queue=Array.isArray(t.queue)?t.queue.filter(id=>ids.has(id)):t.items.map(i=>i.id);
- return {...t,quantities:t.quantities||{},critical:t.critical||t.items.filter(i=>['Pass','Plånbok','NYCKEL','Visum'].includes(i.name)).map(i=>i.id),lastMinute:t.lastMinute||[],verified:t.verified||{},queue,position:Math.max(0,Math.min(t.position||0,queue.length)),round:t.round||1,phase:t.phase||'packing'};
+ const tennisList=t.details?.type==='tennis'||(!t.details&&t.items.some(i=>i.id==='tennis-02'));
+ const additions=tennisList&&!t.equipmentVersion?defaultItems.filter(i=>['tennis-19','tennis-20'].includes(i.id)&&!ids.has(i.id)):[];
+ return {...t,...(tennisList?{equipmentVersion:1 as const}:{}),items:[...t.items,...additions],...(additions.length&&t.phase==='complete'?{phase:'packing' as const}:{}),quantities:t.quantities||{},critical:t.critical||t.items.filter(i=>['Pass','Plånbok','NYCKEL','Visum'].includes(i.name)).map(i=>i.id),lastMinute:t.lastMinute||[],verified:t.verified||{},queue:[...queue,...additions.map(i=>i.id)],position:Math.max(0,Math.min(t.position||0,queue.length)),round:t.round||1,phase:additions.length&&t.phase==='complete'?'packing':t.phase||'packing'};
 }

@@ -1,5 +1,5 @@
 type AppName = "checkly" | "progress" | "mapping" | "packly";
-/** Shared dimensional app tiles; Packly keeps its original bag-and-check mark. */
+/** Shared dimensional app tiles; Pack keeps its original bag-and-check mark. */
 export default function AppIcon({ app }: { app: AppName }) {
   const palette = { checkly: ["#89d68c", "#3a9b60", "#39965a"], progress: ["#7eaffb", "#4672d6", "#4a77d9"], mapping: ["#f1cf76", "#d89745", "#cc8d3c"], packly: ["#8970ff", "#6349ed", "#7054ef"] }[app];
   const id = `app-icon-${app}`;

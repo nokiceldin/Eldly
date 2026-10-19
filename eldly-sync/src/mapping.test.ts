@@ -63,3 +63,13 @@ describe("monthly mapping records", () => {
     expect(validateMapping({ version: 1, entries: { "2027-02-29": { coaching: { kind: "check" } } } })).toBe(false);
   });
 });
+
+it('converts old timed reading, recovery and journaling to daily check-offs', async()=>{
+ const { normalizeDailyChecks }=await import('./mapping');
+ let data=emptyMapping();
+ for(const id of ['reading','recovery','journaling'] as const)data=setMappingEntry(data,'2026-10-16',id,{kind:'duration',minutes:20});
+ const migrated=normalizeDailyChecks(data);
+ for(const id of ['reading','recovery','journaling'] as const)expect(migrated.entries['2026-10-16'][id]).toEqual({kind:'check'});
+ expect(validateMapping(migrated)).toBe(true);
+ expect(data.entries['2026-10-16'].reading).toEqual({kind:'duration',minutes:20});
+});

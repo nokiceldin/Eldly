@@ -1,6 +1,7 @@
+import { TRACKING_START } from "./tracking";
 import { add, diff, format, localDay, monday, parse } from "./engine";
-import { HABITS, type HabitId, type MappingData } from "./mapping";
-export const METRICS = ["tennis", "fitness", "recovery", "praying", "reading", "journaling", "sleep", "screen-time"] as const satisfies readonly HabitId[];
+import { isCountMetric, HABITS, type HabitId, type MappingData } from "./mapping";
+export const METRICS = ["tennis", "fitness", "recovery", "praying", "reading", "journaling", "sleep", "screen-time", "no-phone", "homework", "coaching", "porn", "goyslop"] as const satisfies readonly HabitId[];
 export type Metric = typeof METRICS[number];
 export type Period = "week" | "month" | "year" | "all" | "custom";
 export interface Range { from: string; to: string }
@@ -9,8 +10,8 @@ export function periodRange(period: Exclude<Period, "custom">, anchor: string, d
   if (period === "week") return { from: monday(anchor), to: add(monday(anchor), 6) };
   if (period === "month") return { from: localDay(new Date(year, month, 1, 12)), to: localDay(new Date(year, month + 1, 0, 12)) };
   if (period === "year") return { from: `${year}-01-01`, to: `${year}-12-31` };
-  const dates = Object.keys(data.entries).sort();
-  return { from: dates[0] && dates[0] < anchor ? dates[0] : anchor, to: dates.at(-1) && dates.at(-1)! > anchor ? dates.at(-1)! : anchor };
+  const dates = Object.keys(data.entries).filter(date => date >= TRACKING_START).sort();
+  return { from: TRACKING_START, to: dates.at(-1) && dates.at(-1)! > anchor ? dates.at(-1)! : anchor };
 }
 export function shiftPeriod(anchor: string, period: Period, direction: number) {
   const d = parse(anchor);
@@ -21,11 +22,12 @@ export function metricValues(data: MappingData, metric: Metric, range: Range, di
   const values: { date: string; value: number; secondary: number }[] = [];
   const through = range.to < localDay() ? range.to : localDay();
   // Blank elapsed days represent zero; future dates have not happened yet.
-  for (let date = range.from; date <= through; date = add(date, 1)) {
+  for (let date = range.from < TRACKING_START ? TRACKING_START : range.from; date <= through; date = add(date, 1)) {
     const entry = data.entries[date]?.[metric];
     let value = 0, secondary = 0;
     if (dimension === "pickups") value = entry?.kind === "phone" ? entry.pickups ?? 0 : 0;
     else if (entry?.kind === "phone") value = entry.minutes ?? 0;
+    else if (isCountMetric(metric) && entry) value = 1;
     else if (entry?.kind === "duration") value = entry.minutes;
     else if (entry?.kind === "prayer") value = entry.count;
     else if (entry?.kind === "sleep") { value = entry.nightMinutes; secondary = entry.dayMinutes; }
@@ -40,6 +42,7 @@ export function metricStats(data: MappingData, metric: Metric, range: Range, dim
   return { days: values.length, total, average: values.length ? total / values.length : null, best, eightHourDays: metric === "sleep" ? values.filter(d => d.value + d.secondary >= 480).length : 0 };
 }
 export function chartSeries(data: MappingData, metric: Metric, range: Range, dimension: "primary" | "pickups" = "primary") {
+  range = { ...range, from: range.from < TRACKING_START ? TRACKING_START : range.from };
   const length = diff(range.to, range.from) + 1;
   const group = length <= 45 ? "day" : length <= 180 ? "week" : length <= 1461 ? "month" : "year";
   const values = metricValues(data, metric, range, dimension);
@@ -57,6 +60,7 @@ export function chartSeries(data: MappingData, metric: Metric, range: Range, dim
   return { bins, group };
 }
 export function humanValue(value: number, metric: Metric) {
+  if (isCountMetric(metric)) return `${Number.isInteger(value) ? value : value.toFixed(1)} ${value === 1 ? "day" : "days"}`;
   if (metric === "praying") return `${Number.isInteger(value) ? value : value.toFixed(1)}`;
   const minutes = Math.round(value);
   return minutes >= 60 ? `${Math.floor(minutes / 60)}h${minutes % 60 ? ` ${minutes % 60}m` : ""}` : `${minutes}m`;

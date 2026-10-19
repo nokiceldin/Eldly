@@ -1,5 +1,7 @@
+import { addRequestedRoutines } from "./personalRoutines";
+import { GOALS } from "./goals";
 import { writeLocal } from "./sync/local";
-import { validateMapping } from "./mapping";
+import { normalizeDailyChecks, validateMapping } from "./mapping";
 import { empty, localDay, syncChecklyHomework, type Data } from "./engine";
 const KEY = "checkly-data-v1";
 const date = (x: unknown) =>
@@ -80,25 +82,29 @@ export function validate(x: unknown): x is Data {
     d.categories.every((c) => typeof c === "string") &&
     typeof d.sampleLoaded === "boolean" &&
     typeof d.sound === "boolean" &&
+    (d.personalRoutinesVersion === undefined || d.personalRoutinesVersion === 1) &&
+    (d.goalPlans === undefined || (Array.isArray(d.goalPlans) && d.goalPlans.every(p => p && typeof p.id === "string" && date(p.from) && p.targets && GOALS.every(g => typeof p.targets[g.id] === "number" && Number.isFinite(p.targets[g.id]) && p.targets[g.id] >= 0)))) &&
+    (d.recapSeen === undefined || (!!d.recapSeen && typeof d.recapSeen === "object" && !Array.isArray(d.recapSeen) && Object.entries(d.recapSeen).every(([key, seen]) => /^(week|month|year):\d{4}-\d{2}-\d{2}$/.test(key) && seen === true))) &&
     (d.soundDesignVersion === undefined || d.soundDesignVersion === 1)
   );
 }
 export function load(): Data {
   try {
     const raw = localStorage.getItem(KEY);
-    if (!raw) return empty();
+    if (!raw) return addRequestedRoutines(empty());
     const d = JSON.parse(raw);
     if (!validate(d))
       throw Error(
         "Saved data is not compatible. Export or restore a valid backup.",
       );
-    return syncChecklyHomework(d.soundDesignVersion === 1 ? d : { ...d, sound: true, soundDesignVersion: 1 }, localDay());
+    if (d.mapping) d.mapping = normalizeDailyChecks(d.mapping);
+    return addRequestedRoutines(syncChecklyHomework(d.soundDesignVersion === 1 ? d : { ...d, sound: true, soundDesignVersion: 1 }, localDay()));
   } catch (e) {
     throw e;
   }
 }
 export const persist = (d: Data) =>
-  writeLocal(KEY, syncChecklyHomework(d, localDay()));
+  writeLocal(KEY, syncChecklyHomework(d.mapping ? { ...d, mapping: normalizeDailyChecks(d.mapping) } : d, localDay()));
 export function download(d: Data) {
   const a = document.createElement("a");
   a.href = URL.createObjectURL(

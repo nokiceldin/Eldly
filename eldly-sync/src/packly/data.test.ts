@@ -3,8 +3,8 @@ import { completed, defaultItems, getStatus, makeConfiguredTrip, newTrip, normal
 const details: TripDetails = { type:'normal',startDate:'2026-10-16',durationDays:3,returnDate:'2026-10-18',departure:'',destination:'',climate:'mild',laundry:false,reminderMinutes:[] };
 describe('integrated Packly data', () => {
   it('retains the full starter packing lists and trip types', () => {
-    expect(defaultItems).toHaveLength(74);
-    expect(makeConfiguredTrip('Tennis','tennis',{...details,type:'tennis'}).items).toHaveLength(74);
+    expect(defaultItems).toHaveLength(76);
+    expect(makeConfiguredTrip('Tennis','tennis',{...details,type:'tennis'}).items).toHaveLength(76);
     expect(makeConfiguredTrip('Normal','normal',details).items).toHaveLength(56);
   });
   it('keeps trips independent and preserves packed status through a save/reload', () => {
@@ -22,7 +22,7 @@ describe('integrated Packly data', () => {
     trip.statuses[trip.items[2].id]='unpacked';
     expect(completed(trip)).toBe(2);
     expect(packedCount(trip)).toBe(1);
-    expect(remaining(trip)).toHaveLength(72);
+    expect(remaining(trip)).toHaveLength(74);
   });
   it('normalizes old trip data and removes deleted items from saved queues', () => {
     const trip = newTrip('Old');
@@ -57,4 +57,25 @@ describe('single-match bag', () => {
     expect(getStatus(next,'tennis-02')).toBe('todo');
     expect(source.statuses['tennis-02']).toBe('packed');
   });
+});
+
+describe('packing memory and equipment updates',()=>{
+ it('adds laces and glue once to old tennis lists without changing packed items',()=>{
+  const old=makeConfiguredTrip('Tournament','tennis',{...details,type:'tennis'});
+  old.items=old.items.filter(i=>!['tennis-19','tennis-20'].includes(i.id));old.queue=old.items.map(i=>i.id);old.statuses['tennis-02']='packed';
+  const migrated=normalizeTrip(old);
+  expect(migrated.items.map(i=>i.name)).toEqual(expect.arrayContaining(['Shoe laces','Shoe glue']));
+  expect(migrated.statuses['tennis-02']).toBe('packed');
+  expect(normalizeTrip(migrated).items).toHaveLength(76);
+  migrated.items=migrated.items.filter(i=>i.id!=='tennis-19');
+  expect(normalizeTrip(migrated).items.some(i=>i.id==='tennis-19')).toBe(false);
+ });
+ it('retains quantities from completed trips for the next similar packing list',()=>{
+  const old=makeConfiguredTrip('Previous','tennis',{...details,type:'tennis',finishedAt:100});
+  old.quantities!['tennis-07']=5;old.statuses['tennis-07']='packed';
+  const next=makeConfiguredTrip('Next','tennis',{...details,type:'tennis'},[],undefined,[old]);
+  expect(next.quantities?.['tennis-07']).toBe(5);
+  expect(getStatus(next,'tennis-07')).toBe('todo');
+  expect(old.details?.finishedAt).toBe(100);
+ });
 });

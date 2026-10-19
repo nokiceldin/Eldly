@@ -1311,8 +1311,6 @@ input {
 .eldly-brand h1 { margin: 0; }
 .trackly-title { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .trackly-sound { min-width: 44px; min-height: 44px; display: grid; place-items: center; color: #b7bcac; border: 1px solid #ffffff13; border-radius: 13px; background: #ffffff04; }
-.trackly-encouragement { position: fixed; left: 50%; bottom: calc(28px + env(safe-area-inset-bottom)); z-index: 60; pointer-events: none; display: grid; place-items: center; padding: 9px 15px; border: 1px solid #9cdaa840; background: #2b3b2b; border-radius: 22px; font-size: 32px; box-shadow: 0 6px 24px #0004; transform: translateX(-50%); animation: trackly-thumbs 1.4s ease-out both; }
-@keyframes trackly-thumbs { 0% { opacity: 0; transform: translate(-50%, 12px) scale(.65); } 18% { opacity: 1; transform: translate(-50%, 0) scale(1.1); } 30%, 75% { opacity: 1; transform: translate(-50%, 0) scale(1); } 100% { opacity: 0; transform: translate(-50%, -10px) scale(.96); } }
 /* Progress keeps the charts up front; extra controls appear on request. */
 .progress-heading.progress-heading-minimal { align-items: center; margin-bottom: 12px; }
 .progress-header-actions { display: flex; align-items: center; gap: 8px; }
@@ -1357,3 +1355,84 @@ input {
 
 /* Keep sliding weeks inside the page without creating horizontal scrolling. */
 .note-page { overflow-x: clip; }
+
+.eldly-heading { position: relative; }
+.eldly-cloud-settings { position: absolute; top: 0; right: 0; width: 44px; height: 44px; display: grid; place-items: center; color: #a8ad9e; border: 1px solid #ffffff12; border-radius: 13px; }
+.eldly-cloud-settings:focus-visible { outline: 2px solid #c9c1ae; outline-offset: 3px; }
+
+.eldly-recap-settings { position: absolute; top: 0; right: 54px; width: 44px; height: 44px; display: grid; place-items: center; color: #b9b1a1; border: 1px solid #ffffff12; border-radius: 13px; }
+.eldly-recap-settings:focus-visible { outline: 2px solid #c9c1ae; outline-offset: 3px; }
+.recap-dialog { box-sizing: border-box; width: min(720px, calc(100% - 28px)); max-height: calc(100dvh - 36px); margin: auto; padding: 28px; border: 1px solid #655e50; border-radius: 25px; color: #eee9df; background: #25241f; box-shadow: 0 24px 90px #0007; overflow-y: auto; }
+.recap-dialog::backdrop { background: #000a; backdrop-filter: blur(5px); }
+.recap-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.recap-heading h1 { margin: 8px 0; font-size: 34px; letter-spacing: -.04em; }
+.recap-heading p,.recap-comparison { margin: 0; color: #c2b9a8; font-size: 13px; line-height: 1.5; }
+.recap-eyebrow { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: #d2bfa0; }
+.recap-heading button { min-width: 44px; min-height: 44px; display: grid; place-items: center; }
+.recap-topline { display: flex; gap: 42px; margin: 26px 0; }
+.recap-topline strong { font-size: 32px; }
+.recap-topline span { display: block; font-size: 12px; font-weight: 400; color: #c2b9a8; margin-top: 4px; }
+.recap-insights { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.recap-insights section { border: 1px solid #ffffff14; border-radius: 16px; padding: 18px; background: #ffffff03; }
+.recap-dialog h2 { margin: 0 0 12px; font-size: 16px; }
+.recap-insights section:first-child h2 { color: #c4d2b5; }
+.recap-insights section:last-child h2 { color: #e3b8a0; }
+.recap-insights ul { margin: 0; padding-left: 17px; font-size: 13px; line-height: 1.8; }
+.recap-insights p { font-size: 13px; line-height: 1.6; color: #bcb4a5; }
+.recap-data { margin-top: 26px; }
+.recap-table-scroll { overflow-x: auto; }
+.recap-data table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; }
+.recap-data th,.recap-data td { text-align: right; padding: 12px 8px; border-bottom: 1px solid #ffffff10; white-space: nowrap; }
+.recap-data th:first-child { text-align: left; padding-left: 0; }
+.recap-data tbody th { font-weight: 400; color: #d1cabc; }
+.recap-done { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; width: 100%; margin-top: 24px; border-radius: 13px; background: #d0bea1; color: #29251f; font-weight: 600; }
+.recap-dialog :focus-visible { outline: 2px solid #e7d2ae; outline-offset: 3px; }
+@media(max-width: 540px) { .recap-dialog { padding: 20px; } .recap-insights { grid-template-columns: 1fr; } .recap-heading h1 { font-size: 28px; } }
+
+.goals-panel { margin: 0 0 22px; border: 1px solid #ffffff15; border-radius: 16px; padding: 4px 18px 14px; background: #24251f; }
+.goals-panel h2 { margin: 14px 0; font-size: 15px; color: #d2c7b2; }
+.goals-panel h3 { margin: 24px 0 8px; font-size: 15px; }
+.goal-rows { display: grid; }
+.goal-row { display: flex; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid #ffffff0e; }
+.goal-row > div { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.goal-row > div:last-child { text-align: right; flex-shrink: 0; }
+.goal-row strong { font-size: 13px; font-weight: 500; }
+.goal-row span { font-size: 11px; color: #b6ad9b; }
+.goal-row.goal-met > div:last-child span { color: #bbd3a4; }
+.goal-period-label { margin: 0 0 14px; font-size: 12px; line-height: 1.5; color: #b6ad9b; }
+.recap-goals { display: grid; grid-template-columns: repeat(2,1fr); gap: 9px; margin-top: 14px; }
+.recap-goals > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; border: 1px solid #ffffff10; border-radius: 12px; font-size: 12px; }
+.recap-goals strong { font-size: 16px; text-align: right; white-space: nowrap; }
+.recap-goals small { display: block; margin-top: 3px; font-size: 10px; color: #b6ad9b; font-weight: 400; }
+.goal-week-history { margin-top: 18px; }
+.goal-week-history summary { display: flex; align-items: center; justify-content: space-between; min-height: 44px; font-size: 13px; cursor: pointer; }
+.goal-week-history > details { border-top: 1px solid #ffffff12; }
+@media(max-width: 540px) { .recap-goals { grid-template-columns: 1fr; } }
+
+.metric-card { position: relative; }
+.metric-open-button { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; border-radius: inherit; cursor: pointer; }
+.metric-open-button:hover { background: #ffffff03; }
+.metric-open-button:focus-visible { outline: 2px solid var(--metric-color); outline-offset: 4px; }
+.metric-detail-stats { margin: 18px 0 26px; }
+.metric-history h2 { font-size: 17px; margin: 0 0 12px; }
+.metric-history > button { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 52px; padding: 12px 0; border-bottom: 1px solid #ffffff12; font-size: 13px; text-align: left; }
+.metric-history strong { margin-left: auto; font-weight: 500; }
+.metric-history .metric-load-more { justify-content: center; color: #c9bba4; }
+
+.task-draggable { position: relative; -webkit-touch-callout: none; }
+.task-draggable:focus-visible { outline: 2px solid #cbbca1; outline-offset: 3px; border-radius: 3px; }
+.task-draggable .note-task-title { -webkit-user-select: none; user-select: none; }
+.task-drop-day { min-height: 32px; transition: background .15s; }
+.task-drop-hover { background: #c9b99b0b; }
+.task-drag-overlay { padding: 12px 0; font-size: 21px; font-weight: 500; color: #eadbc1; text-shadow: 0 2px 10px #0008; pointer-events: none; }
+.task-dragging { cursor: grabbing; }
+.task-dragging .swipe-content { pointer-events: none; }
+
+.goal-suggestions { display: grid; gap: 12px; }
+.goal-suggestions > div { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 0; border-bottom: 1px solid #ffffff15; }
+.goal-suggestions strong { font-size: 14px; }
+.goal-suggestions p { margin: 6px 0 0; font-size: 12px; line-height: 1.5; color: #bcb09b; }
+.goal-suggestions button { flex-shrink: 0; min-height: 44px; border: 1px solid #b7a180; border-radius: 10px; padding: 8px 12px; font-size: 12px; color: #e4d4b9; }
+.goal-suggestions button:disabled { opacity: .5; }
+
+@media(max-width:540px) { .eldly-heading { padding-top: 56px; } }

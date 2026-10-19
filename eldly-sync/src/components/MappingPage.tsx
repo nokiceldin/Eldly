@@ -7,7 +7,7 @@ const COLORS = { yellow: "#f3cf6d", green: "#9cdaa8", blue: "#93c9f0", pink: "#e
 export default function MappingPage({ onHome }: { onHome: () => void }) {
   const today = localDay();
   const [month, setMonth] = useState(today.slice(0, 7) + "-01");
-  const { data, error, save: write, sound, setSound, encouragement } = useMappingData();
+  const { data, error, save: write, sound, setSound } = useMappingData();
   const [editor, setEditor] = useState<{ habit: Habit; day: string } | null>(null);
   const scroll = useRef<HTMLDivElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
@@ -21,7 +21,7 @@ export default function MappingPage({ onHome }: { onHome: () => void }) {
   return (
     <main className="mapping-page">
       <button className="eldly-back" onClick={onHome}><ChevronLeft size={20} /> Home</button>
-      <header className="mapping-title trackly-title"><div><h1 ref={heading} tabIndex={-1}>Trackly</h1></div><button className="trackly-sound" aria-label={sound ? "Mute Checkly and Trackly sounds" : "Enable Checkly and Trackly sounds"} aria-pressed={sound} onClick={() => setSound(!sound)}>{sound ? <Volume2 size={20} /> : <VolumeX size={20} />}</button></header>
+      <header className="mapping-title trackly-title"><div><h1 ref={heading} tabIndex={-1}>Track</h1></div><button className="trackly-sound" aria-label={sound ? "Mute Check and Track sounds" : "Enable Check and Track sounds"} aria-pressed={sound} onClick={() => setSound(!sound)}>{sound ? <Volume2 size={20} /> : <VolumeX size={20} />}</button></header>
       <div className="mapping-month-bar">
         <button aria-label="Previous month" onClick={() => shift(-1)}><ChevronLeft size={21} /></button>
         <button className="mapping-month-title" aria-label="Return to current month" onClick={() => setMonth(today.slice(0, 7) + "-01")}>{format(month, { month: "long", year: "numeric" })}</button>
@@ -49,7 +49,6 @@ export default function MappingPage({ onHome }: { onHome: () => void }) {
           </tr>)}</tbody>
         </table>
       </div>
-      {encouragement && <div key={encouragement.id} className="trackly-encouragement" role="status"><span aria-hidden="true">👍</span><span className="sr-only">Nice work. {encouragement.label} logged.</span></div>}
       {editor && <EntryEditor key={`${editor.habit.id}:${editor.day}`} habit={editor.habit} day={editor.day} entry={data.entries[editor.day]?.[editor.habit.id]}
         close={() => setEditor(null)} save={(entry) => write(editor.day, editor.habit.id, entry)} />}
     </main>

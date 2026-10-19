@@ -1,3 +1,5 @@
+import { TaskDragArea, TaskDropDay, DraggableTask } from "./components/TaskDrag";
+import { moveTaskOccurrence } from "./taskMoves";
 import { CloudBoundary } from "./sync/CloudBoundary";
 import { REMOTE_EVENT } from "./sync/local";
 import {
@@ -21,6 +23,8 @@ import {
   ArrowDown,
   Download,
   Upload,
+  Cloud,
+  History,
 } from "lucide-react";
 import { motion, MotionConfig, AnimatePresence, animate, useMotionValue, useTransform } from "motion/react";
 import {
@@ -53,6 +57,7 @@ import PacklyPage from "./packly/App";
 import { playFeedback } from "./sounds";
 import AppIcon from "./components/AppIcon";
 import ProgressPage from "./components/ProgressPage";
+import RecapDialog from "./components/RecapDialog";
 import MappingPage from "./components/MappingPage";
 import Editor from "./components/TaskEditor";
 import SwipeToDelete from "./components/SwipeToDelete";
@@ -101,6 +106,7 @@ function Checklist({ onHome }: { onHome: () => void }) {
   const [week, setWeek] = useState(monday(today));
   const weekX = useMotionValue(0);
   const weekChanging = useRef(false);
+  const [taskDragging,setTaskDragging] = useState(false);
   const [focusRequest, setFocusRequest] = useState(0);
   const focusDate = useRef(today);
   const reduce = useReducedMotion();
@@ -128,30 +134,14 @@ function Checklist({ onHome }: { onHome: () => void }) {
     };
   }, []);
   const changeWeek = async (direction: number) => {
-    if (weekChanging.current) return;
+    if (weekChanging.current || taskDragging) return;
     weekChanging.current = true;
-    const sections = Array.from(
-      document.querySelectorAll<HTMLElement>(".note-day"),
-    );
-    const visible =
-      sections.find((el) => {
-        const r = el.getBoundingClientRect();
-        return r.top <= 110 && r.bottom > 110;
-      }) ||
-      sections.reduce<HTMLElement | undefined>(
-        (best, el) =>
-          !best ||
-          Math.abs(el.getBoundingClientRect().top - 88) <
-            Math.abs(best.getBoundingClientRect().top - 88)
-            ? el
-            : best,
-        undefined,
-      );
     const width = Math.min(window.innerWidth, 680);
     if (!reduce) await animate(weekX, -direction * width, { duration: .18, ease: [.32, 0, .67, 0] });
-    focusDate.current = add(visible?.dataset.date || week, direction * 7);
+    const nextWeek = add(week,direction*7);
+    focusDate.current = nextWeek === monday(today) ? today : nextWeek;
     weekX.set(reduce ? 0 : direction * width);
-    setWeek(add(week, direction * 7));
+    setWeek(nextWeek);
     setFocusRequest((n) => n + 1);
   };
   useLayoutEffect(() => {
@@ -305,9 +295,9 @@ function Checklist({ onHome }: { onHome: () => void }) {
   };
   return (
     <MotionConfig reducedMotion="user">
-      <main className="note-page" {...weekSwipe}>
+      <main className={`note-page ${taskDragging?"task-dragging":""}`} {...weekSwipe}>
         <header className="note-toolbar week-toolbar">
-          <button className="toolbar-button eldly-home-button" aria-label="Back to Eldly home" onClick={onHome}><Home size={20} /></button>
+          <button className="toolbar-button eldly-home-button" aria-label="Back to Eldinos home" onClick={onHome}><Home size={20} /></button>
           <nav className="week-switcher" aria-label="Week navigation">
             <button
               className="week-arrow"
@@ -347,6 +337,7 @@ function Checklist({ onHome }: { onHome: () => void }) {
             {error}
           </p>
         )}
+        <TaskDragArea onActive={setTaskDragging} onMove={(task,day,index)=>setData(current=>moveTaskOccurrence(current,task,day,index,today))}>
         <motion.div
           className="days"
           key={week}
@@ -383,9 +374,10 @@ function Checklist({ onHome }: { onHome: () => void }) {
                     </span>
                   </div>
                 </div>
+                <TaskDropDay day={date} tasks={tasks}>
                 <div className="note-tasks">
                   {tasks.map((t) => (
-                    <SwipeToDelete key={t.id} onDelete={() => deleteTask(t)}>
+                    <DraggableTask key={t.id} task={t} day={date} tasks={tasks}><SwipeToDelete disabled={taskDragging} onDelete={() => deleteTask(t)}>
                       <div
                         className={[
                           "note-task",
@@ -419,7 +411,7 @@ function Checklist({ onHome }: { onHome: () => void }) {
                             t.due &&
                             !(date === today && t.scheduled < today) && (
                               <small className="task-due-note">
-                                Due {format(t.due)}
+                                Due {format(t.due)} ({format(t.due, { weekday: "long" })})
                               </small>
                             )}
                         </div>
@@ -431,9 +423,10 @@ function Checklist({ onHome }: { onHome: () => void }) {
                           onToggle={() => toggle(t, date)}
                         />
                       </div>
-                    </SwipeToDelete>
+                    </SwipeToDelete></DraggableTask>
                   ))}
                 </div>
+                </TaskDropDay>
                 <QuickAdd
                   date={date}
                   onAdd={(title) =>
@@ -454,6 +447,7 @@ function Checklist({ onHome }: { onHome: () => void }) {
             );
           })}
         </motion.div>
+        </TaskDragArea>
         <section className="important-dates" aria-labelledby="important-dates-title">
           <div className="important-dates-heading">
             <h2 id="important-dates-title">Important Dates</h2>
@@ -628,7 +622,7 @@ function Checklist({ onHome }: { onHome: () => void }) {
                 try {
                   const d = JSON.parse(await f.text());
                   if (!validate(d))
-                    throw Error("This is not a valid Checkly backup.");
+                    throw Error("This is not a valid Check backup.");
                   if (
                     confirm("Replace your current checklist with this backup?")
                   ) {
@@ -650,7 +644,7 @@ function Checklist({ onHome }: { onHome: () => void }) {
                   setData((d) => ({ ...d, sound: e.target.checked }))
                 }
               />{" "}
-              Checkly & Trackly sounds
+              Check & Track sounds
             </label>
             <details className="category-settings">
               <summary>Categories</summary>
@@ -922,13 +916,14 @@ function QuickAdd({
 }
 type Destination = "home" | "checkly" | "progress" | "mapping" | "packly";
 const destinations = [
-  { id: "checkly", emoji: "✅", title: "Checkly", description: "Your daily checklist" },
-  { id: "progress", emoji: "📈", title: "Progress", description: "See how you’re doing" },
-  { id: "mapping", emoji: "🗺️", title: "Trackly", description: "Your daily habits, tracked" },
-  { id: "packly", emoji: "🎒", title: "Packly", description: "Everything for your next trip" },
+  { id: "checkly", emoji: "✅", title: "Check", description: "Your daily checklist" },
+  { id: "progress", emoji: "📈", title: "Data", description: "See how you’re doing" },
+  { id: "mapping", emoji: "🗺️", title: "Track", description: "Your daily habits, tracked" },
+  { id: "packly", emoji: "🎒", title: "Pack", description: "Everything for your next trip" },
 ] as const;
 function currentDestination(): Destination {
-  const hash = window.location.hash.slice(1) === "trackly" ? "mapping" : window.location.hash.slice(1);
+  const section = window.location.hash.slice(1).split("/")[0];
+  const hash = section === "trackly" ? "mapping" : section;
   return destinations.some((d) => d.id === hash) ? hash as Destination : "home";
 }
 function App() {
@@ -940,7 +935,7 @@ function App() {
     return () => window.removeEventListener("hashchange", update);
   }, []);
   useEffect(() => {
-    document.title = destination === "home" ? "Eldly" : `${destinations.find((d) => d.id === destination)?.title} · Eldly`;
+    document.title = destination === "home" ? "Eldinos" : `${destinations.find((d) => d.id === destination)?.title} · Eldinos`;
     if (destination !== "checkly" && destination !== "mapping") {
       window.scrollTo({ top: 0, behavior: "instant" });
       heading.current?.focus({ preventScroll: true });
@@ -954,8 +949,9 @@ function App() {
   return (
     <main className="eldly-page">
           <header className="eldly-heading">
-            <span className="eldly-eyebrow">YOUR OWN LITTLE SPACE</span>
-            <div className="eldly-brand"><img src="/eldly-logo.png" className="eldly-logo" alt="" width="86" height="86" /><h1 ref={heading} tabIndex={-1}>Eldly<span aria-hidden="true">.</span></h1></div>
+            <button className="eldly-recap-settings" aria-label="View recaps" onClick={() => window.dispatchEvent(new Event("eldly-open-recaps"))}><History size={20} /></button>
+            <button className="eldly-cloud-settings" aria-label="Cloud sync settings" onClick={() => window.dispatchEvent(new Event("eldly-open-cloud-settings"))}><Cloud size={20} /></button>
+            <div className="eldly-brand"><img src="/eldly-logo-beige.png" className="eldly-logo" alt="" width="86" height="86" /><h1 ref={heading} tabIndex={-1}>Eldinos<span aria-hidden="true">.</span></h1></div>
 
           </header>
           <nav className="eldly-grid" aria-label="Your apps">
@@ -970,7 +966,7 @@ function App() {
     </main>
   );
 }
-createRoot(document.getElementById("root")!).render(<CloudBoundary><App /></CloudBoundary>);
+createRoot(document.getElementById("root")!).render(<CloudBoundary><App /><RecapDialog /></CloudBoundary>);
 if ("serviceWorker" in navigator)
   window.addEventListener("load", () =>
     navigator.serviceWorker.register("/sw.js").catch(() => {}),

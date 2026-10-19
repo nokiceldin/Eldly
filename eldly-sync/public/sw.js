@@ -1,10 +1,11 @@
-const CACHE = "eldly-shell-v8-public-shared";
+const CACHE = "eldly-shell-v9-recaps-goals";
 const SHELL = [
   "/",
   "/index.html",
   "/packly/icon.svg",
   "/icon.svg",
   "/eldly-logo.png",
+  "/eldly-logo-beige.png",
   "/icon-180.png",
   "/icon-192.png",
   "/icon-512.png",

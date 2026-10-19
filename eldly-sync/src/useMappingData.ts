@@ -2,13 +2,11 @@ import { REMOTE_EVENT } from "./sync/local";
 import { useEffect, useState } from "react";
 import { playFeedback, tracklySound } from "./sounds";
 import { load, persist } from "./storage";
-import { HABITS, emptyMapping, setMappingEntry, type HabitId, type MappingEntry } from "./mapping";
+import { emptyMapping, setMappingEntry, type HabitId, type MappingEntry } from "./mapping";
 export function useMappingData() {
   const [initial] = useState(() => { try { const stored = load(); return { data: stored.mapping || emptyMapping(), sound: stored.sound, error: "" }; } catch (e) { return { data: emptyMapping(), sound: false, error: String(e) }; } });
   const [data, setData] = useState(initial.data);
   const [sound, setSoundState] = useState(initial.sound);
-  const [encouragement, setEncouragement] = useState<{ id: number; label: string } | null>(null);
-  useEffect(() => { if (!encouragement) return; const timer = setTimeout(() => setEncouragement(null), 1400); return () => clearTimeout(timer); }, [encouragement]);
   const [error, setError] = useState(initial.error);
   useEffect(() => {
     const sync = () => { try { const stored = load(); setData(stored.mapping || emptyMapping()); setSoundState(stored.sound); setError(""); } catch (e) { setError(String(e)); } };
@@ -26,7 +24,6 @@ export function useMappingData() {
       if (entry && !wasMarked) {
         const feedback = tracklySound(id);
         playFeedback(feedback, stored.sound);
-        if (feedback === "track-green") setEncouragement(previous => ({ id: (previous?.id || 0) + 1, label: HABITS.find(h => h.id === id)!.label }));
       }
       return null;
     } catch (e) { const message = `Could not save: ${String(e)}`; setError(message); return message; }
@@ -35,5 +32,5 @@ export function useMappingData() {
     try { persist({ ...load(), sound: enabled, soundDesignVersion: 1 }); setSoundState(enabled); setError(""); if (enabled) playFeedback("track", true); }
     catch(e) { setError(`Could not save: ${String(e)}`); }
   };
-  return { data, error, save, sound, setSound, encouragement };
+  return { data, error, save, sound, setSound };
 }

@@ -13,9 +13,11 @@ import { Trash2 } from "lucide-react";
 export default function SwipeToDelete({
   children,
   onDelete,
+  disabled = false,
 }: {
   children: ReactNode;
   onDelete: () => void;
+  disabled?: boolean;
 }) {
   const [offset, setOffset] = useState(0);
   const [dragging, setDragging] = useState(false);
@@ -32,7 +34,7 @@ export default function SwipeToDelete({
   const reduce = useReducedMotion();
   useEffect(() => () => clearTimeout(timer.current), []);
   function down(e: PointerEvent<HTMLDivElement>) {
-    if (deleting || !e.isPrimary || e.button !== 0) return;
+    if (disabled || deleting || !e.isPrimary || e.button !== 0) return;
     moved.current = false;
     if ((e.target as HTMLElement).closest("details")) return;
     setWidth(e.currentTarget.clientWidth);
@@ -44,6 +46,7 @@ export default function SwipeToDelete({
     };
   }
   function move(e: PointerEvent<HTMLDivElement>) {
+    if (disabled) { start.current=null; setOffset(0); return; }
     const s = start.current;
     if (!s || e.pointerId !== s.id) return;
     const dx = e.clientX - s.x,
@@ -62,6 +65,7 @@ export default function SwipeToDelete({
     setOffset(Math.max(-width, Math.min(0, dx)));
   }
   function end(e: PointerEvent<HTMLDivElement>, cancel = false) {
+    if (disabled) { start.current=null; setOffset(0); return; }
     const s = start.current;
     if (!s || s.id !== e.pointerId) return;
     start.current = null;

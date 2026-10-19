@@ -1,3 +1,4 @@
+import type { WeeklyGoalPlan } from "./goals";
 import { emptyMapping, setMappingEntry, type MappingData } from "./mapping";
 import {
   CHECKLIST_RULES,
@@ -43,6 +44,9 @@ export interface Routine {
   sample?: boolean;
 }
 export interface Data {
+  recapSeen?: Record<string, true>;
+  goalPlans?: WeeklyGoalPlan[];
+  personalRoutinesVersion?: 1;
   mapping?: MappingData;
   version: 1;
   tasks: Task[];
@@ -183,6 +187,11 @@ export function allTasks(data: Data, through: Day, today: Day): Task[] {
         sample: r.sample,
       });
     }
+  }
+  // An occurrence can be dragged before its original recurrence date.
+  const seen = new Set(result.map(task => task.id));
+  for (const override of Object.values(data.overrides)) {
+    if (!seen.has(override.id) && (override.scheduled <= through || (override.completed && override.completed <= through))) result.push(override);
   }
   return result.filter((t) => !t.deleted);
 }
