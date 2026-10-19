@@ -1,4 +1,4 @@
-const CACHE = "eldly-shell-v9-recaps-goals";
+const CACHE = "eldly-shell-v10-app-icons";
 const SHELL = [
   "/",
   "/index.html",
@@ -6,9 +6,9 @@ const SHELL = [
   "/icon.svg",
   "/eldly-logo.png",
   "/eldly-logo-beige.png",
-  "/icon-180.png",
-  "/icon-192.png",
-  "/icon-512.png",
+  "/eldinos-icon-180.png",
+  "/eldinos-icon-192.png",
+  "/eldinos-icon-512.png",
   "/manifest.webmanifest",
 ];
 self.addEventListener("install", (event) => {

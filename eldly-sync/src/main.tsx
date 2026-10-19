@@ -951,7 +951,7 @@ function App() {
           <header className="eldly-heading">
             <button className="eldly-recap-settings" aria-label="View recaps" onClick={() => window.dispatchEvent(new Event("eldly-open-recaps"))}><History size={20} /></button>
             <button className="eldly-cloud-settings" aria-label="Cloud sync settings" onClick={() => window.dispatchEvent(new Event("eldly-open-cloud-settings"))}><Cloud size={20} /></button>
-            <div className="eldly-brand"><img src="/eldly-logo-beige.png" className="eldly-logo" alt="" width="86" height="86" /><h1 ref={heading} tabIndex={-1}>Eldinos<span aria-hidden="true">.</span></h1></div>
+            <div className="eldly-brand"><img src="/eldly-logo.png" className="eldly-logo" alt="" width="86" height="86" /><h1 ref={heading} tabIndex={-1}>Eldinos<span aria-hidden="true">.</span></h1></div>
 
           </header>
           <nav className="eldly-grid" aria-label="Your apps">
