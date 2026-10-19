@@ -18,16 +18,20 @@ export function shiftPeriod(anchor: string, period: Period, direction: number) {
   return localDay(new Date(d.getFullYear() + (period === "year" ? direction : 0), d.getMonth() + (period === "month" ? direction : 0), 1, 12));
 }
 export function metricValues(data: MappingData, metric: Metric, range: Range, dimension: "primary" | "pickups" = "primary") {
-  return Object.entries(data.entries).filter(([date]) => date >= range.from && date <= range.to).sort(([a], [b]) => a.localeCompare(b)).flatMap(([date, row]) => {
-    const entry = row[metric];
-    if (!entry) return [];
-    if (dimension === "pickups") return entry.kind === "phone" && entry.pickups !== undefined ? [{ date, value: entry.pickups, secondary: 0 }] : [];
-    if (entry.kind === "phone") return entry.minutes !== undefined ? [{ date, value: entry.minutes, secondary: 0 }] : [];
-    if (entry.kind === "duration") return [{ date, value: entry.minutes, secondary: 0 }];
-    if (entry.kind === "prayer") return [{ date, value: entry.count, secondary: 0 }];
-    if (entry.kind === "sleep") return [{ date, value: entry.nightMinutes, secondary: entry.dayMinutes }];
-    return [];
-  });
+  const values: { date: string; value: number; secondary: number }[] = [];
+  const through = range.to < localDay() ? range.to : localDay();
+  // Blank elapsed days represent zero; future dates have not happened yet.
+  for (let date = range.from; date <= through; date = add(date, 1)) {
+    const entry = data.entries[date]?.[metric];
+    let value = 0, secondary = 0;
+    if (dimension === "pickups") value = entry?.kind === "phone" ? entry.pickups ?? 0 : 0;
+    else if (entry?.kind === "phone") value = entry.minutes ?? 0;
+    else if (entry?.kind === "duration") value = entry.minutes;
+    else if (entry?.kind === "prayer") value = entry.count;
+    else if (entry?.kind === "sleep") { value = entry.nightMinutes; secondary = entry.dayMinutes; }
+    values.push({ date, value, secondary });
+  }
+  return values;
 }
 export function metricStats(data: MappingData, metric: Metric, range: Range, dimension: "primary" | "pickups" = "primary") {
   const values = metricValues(data, metric, range, dimension);
@@ -45,7 +49,7 @@ export function chartSeries(data: MappingData, metric: Metric, range: Range, dim
     const end = group === "day" ? start : group === "week" ? add(start, 6) : group === "month" ? localDay(new Date(d.getFullYear(), d.getMonth() + 1, 0, 12)) : `${d.getFullYear()}-12-31`;
     const to = end > range.to ? range.to : end;
     const rows = values.filter(row => row.date >= start && row.date <= to);
-    // Sleep always shows an average per recorded day; other grouped metrics show totals.
+    // Sleep always shows an average per elapsed day; other grouped metrics show totals.
     const divisor = metric === "sleep" ? rows.length || 1 : 1;
     bins.push({ from: start, to, label: group === "year" ? start.slice(0, 4) : group === "month" ? format(start, { month: "short" }) : format(start, { month: "short", day: "numeric" }), value: rows.length ? rows.reduce((s, r) => s + r.value, 0) / divisor : null, secondary: rows.reduce((s, r) => s + r.secondary, 0) / divisor, days: rows.length, exampleDate: rows[0]?.date });
     start = add(to, 1);

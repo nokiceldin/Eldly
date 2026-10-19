@@ -3,7 +3,7 @@ export const HABITS = [
   { id: "fitness", label: "Fitness", color: "yellow", kind: "duration" },
   { id: "recovery", label: "Recovery", color: "green", kind: "duration" },
   { id: "praying", label: "Praying", color: "green", kind: "prayer" },
-  { id: "sleep", label: "Sleeping 8+ hours", color: "green", kind: "sleep" },
+  { id: "sleep", label: "Sleep", color: "green", kind: "sleep" },
   { id: "reading", label: "Reading", color: "blue", kind: "duration" },
   { id: "journaling", label: "Journaling", color: "blue", kind: "duration" },
   { id: "no-phone", label: "No phone · first 15 min", color: "blue", kind: "check" },

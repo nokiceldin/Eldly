@@ -59,7 +59,7 @@ export default function ProgressPage({ onHome }: { onHome: () => void }) {
       </div>
       <div className="progress-day-values">{METRICS.map(metric => {
         const entry = details?.[metric];
-        return <button key={metric} style={{ "--metric-color": COLORS[metric] } as CSSProperties} onClick={() => setEditor(HABITS.find(h => h.id === metric)!)} aria-label={`Edit ${metricLabel(metric)} for ${format(day)}`}><span>{metricLabel(metric)}</span><strong>{entry ? entryDescription(entry) : "Not recorded"}</strong><Plus size={14} aria-hidden="true" /></button>;
+        return <button key={metric} style={{ "--metric-color": COLORS[metric] } as CSSProperties} onClick={() => setEditor(HABITS.find(h => h.id === metric)!)} aria-label={`Edit ${metricLabel(metric)} for ${format(day)}`}><span>{metricLabel(metric)}</span><strong>{entry ? entryDescription(entry) : day <= today ? humanValue(0, metric) : "Not recorded"}</strong><Plus size={14} aria-hidden="true" /></button>;
       })}</div>
     </details>
     <details className="progress-disclosure progress-more">
@@ -69,7 +69,7 @@ export default function ProgressPage({ onHome }: { onHome: () => void }) {
         <div><span>Average sleep</span><strong>{stats.sleep.average === null ? "—" : humanValue(stats.sleep.average, "sleep")}</strong></div>
         <div><span>Tennis + fitness</span><strong>{stats.tennis.days + stats.fitness.days ? humanValue(stats.tennis.total + stats.fitness.total, "tennis") : "—"}</strong></div>
       </div>}
-      <p className="progress-data-note">Averages use recorded days only. Blank days aren't counted.</p>
+      <p className="progress-data-note">Blank days count as zero in totals and averages through today. Future days are excluded.</p>
       <footer className="progress-backup"><button onClick={() => { try { download(load()); setBackupError(""); } catch(e) { setBackupError(String(e)); } }}><Download size={16} /> Export backup</button></footer>
     </details>
     {editor && <EntryEditor key={`${editor.id}:${day}`} habit={editor} day={day} entry={data.entries[day]?.[editor.id]} close={() => setEditor(null)} save={entry => save(day, editor.id, entry)} />}
@@ -130,10 +130,9 @@ function MetricCard({ metric, data, range, onSelectDay }: { metric: Metric; data
     {metric === "sleep" && <div className="metric-legend"><span><i style={{ background: COLORS.sleep }} />Night</span><span><i style={{ background: "#c5edb9" }} />Daytime</span></div>}
     {selected && (selected.value !== null || selectedPickups?.value !== null && selectedPickups?.value !== undefined) && <div className="metric-foot">{selected.label} · {selected.value !== null ? humanValue(selected.value + selected.secondary, metric) : "—"}{selectedPickups?.value !== null && selectedPickups?.value !== undefined ? ` · ${selectedPickups.value} pickups` : ""}{metric === "sleep" && selected.days > 1 ? " avg" : ""}</div>}
     {infoOpen && <div className="metric-info-panel" id={`metric-info-${metric}`}>
-      <p>{stats.days} {stats.days === 1 ? "day" : "days"} logged{stats.days ? ` · ${humanValue(stats.average!, metric)} average` : ""}</p>
-      {isPhone && <p>Pickups: {pickupStats?.total || 0} total · {pickupStats?.days || 0} days logged. Hours use the left axis; pickups use the right.</p>}
-      {metric === "sleep" && stats.days > 0 && <p>{stats.eightHourDays} of {stats.days} days reached 8 hours</p>}
-      <p>{metric === "sleep" ? "Average sleep" : "Totals"} by {group}. Missing days aren't counted in averages.</p>
+      <p>{stats.days} {stats.days === 1 ? "day" : "days"} counted{stats.days ? ` · ${humanValue(stats.average!, metric)} average` : ""}</p>
+      {isPhone && <p>Pickups: {pickupStats?.total || 0} total · {pickupStats?.days || 0} days counted. Hours use the left axis; pickups use the right.</p>}
+      <p>{metric === "sleep" ? "Average sleep" : "Totals"} by {group}. Blank days count as zero through today; future days are excluded.</p>
     </div>}
 
   </article>;
