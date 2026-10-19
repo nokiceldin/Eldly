@@ -51,3 +51,10 @@ describe("period recaps", () => {
     expect(validate({...empty(),recapSeen:[] })).toBe(false);
   });
 });
+
+
+it("excludes task completions before day one from the partial opening-week recap",()=>{
+ const task=(id:string,scheduled:string,completed:string)=>({id,title:id,scheduled,original:scheduled,completed,category:"",notes:"",carry:false,important:false,order:0});
+ const data={...empty(),tasks:[task("before","2026-10-13","2026-10-14"),task("after","2026-10-16","2026-10-17")]};
+ expect(buildRecap(data,recapWindows("2026-10-19")[0]).completed).toBe(1);
+});

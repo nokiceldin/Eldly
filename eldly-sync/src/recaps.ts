@@ -21,11 +21,12 @@ export function pendingRecaps(data: Data, today = localDay()) {
   return recapWindows(today).filter(w => !data.recapSeen?.[w.id] && first && w.range.to >= TRACKING_START);
 }
 export function buildRecap(data: Data, window: RecapWindow, today = localDay()) {
+  const from = window.range.from < TRACKING_START ? TRACKING_START : window.range.from;
   const mapping = data.mapping || emptyMapping();
   const metrics = METRICS.map(metric => ({ metric, label: metricLabel(metric), current: metricStats(mapping, metric, window.range), previous: metricStats(mapping, metric, window.previous) }));
   const marks = HABITS.filter(h => h.kind === "check").map(h => ({ ...h, days: Object.entries(mapping.entries).filter(([date, row]) => date >= window.range.from && date >= TRACKING_START && date <= window.range.to && !!row[h.id]).length }));
-  const tasks = allTasks(data, window.range.to, today).filter(t => !t.deleted && ((t.scheduled >= window.range.from && t.scheduled <= window.range.to) || (t.completed && t.completed >= window.range.from && t.completed <= window.range.to)));
-  const completed = tasks.filter(t => t.completed && t.completed >= window.range.from && t.completed <= window.range.to).length;
+  const tasks = allTasks(data, window.range.to, today).filter(t => !t.deleted && ((t.scheduled >= from && t.scheduled <= window.range.to) || (t.completed && t.completed >= from && t.completed <= window.range.to)));
+  const completed = tasks.filter(t => t.completed && t.completed >= from && t.completed <= window.range.to).length;
   const positives: string[] = [], attention: string[] = [];
   for (const row of metrics) {
     const { metric, current, previous, label } = row;
