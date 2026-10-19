@@ -31,10 +31,18 @@ export function tracklySound(id: HabitId): FeedbackSound {
   const color = HABITS.find(habit => habit.id === id)?.color;
   return color === "red" ? "track-red" : color === "green" ? "track-green" : "track";
 }
+/** Use media volume rather than the iPhone ring/silent switch where supported. */
+export function configurePlaybackAudio() {
+  try {
+    const session = (navigator as Navigator & { audioSession?: { type: string } }).audioSession;
+    if (session) session.type = "playback";
+  } catch { /* Older browsers keep their normal audio behavior. */ }
+}
 let context: AudioContext | undefined;
 /** Synthesized locally, unlocked by a click/tap; no audio downloads or new contexts per task. */
 export function playFeedback(sound: FeedbackSound, enabled: boolean) {
   if (!enabled) return;
+  configurePlaybackAudio();
   try {
     const AudioContextClass = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!AudioContextClass) return;

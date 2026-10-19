@@ -35,3 +35,22 @@ describe("completion feedback", () => {
     expect(createOscillator).toHaveBeenCalledTimes(4);
   });
 });
+
+
+describe("media-volume playback", () => {
+  afterEach(() => vi.unstubAllGlobals());
+  it("uses playback audio when supported without changing device volume", async () => {
+    const session = { type: "auto" };
+    vi.stubGlobal("navigator", { audioSession: session });
+    const { configurePlaybackAudio } = await import("./sounds");
+    configurePlaybackAudio();
+    expect(session.type).toBe("playback");
+  });
+  it("tolerates browsers without audio sessions and rejected session changes", async () => {
+    const { configurePlaybackAudio } = await import("./sounds");
+    vi.stubGlobal("navigator", {});
+    expect(() => configurePlaybackAudio()).not.toThrow();
+    vi.stubGlobal("navigator", { get audioSession() { throw Error("unavailable"); } });
+    expect(() => configurePlaybackAudio()).not.toThrow();
+  });
+});

@@ -1,3 +1,4 @@
+import { configurePlaybackAudio } from "../sounds";
 import { writeLocal, REMOTE_EVENT } from "../sync/local";
 import './styles.css';
 import {Home,Wizard,Departure,Reflection,blankDetails} from './SmartFeatures';
@@ -43,7 +44,7 @@ export default function App({onHome}:{onHome:()=>void}){
  const dark=store.theme!=='light';
  function notify(msg:string){setToast(msg);if(timer.current)clearTimeout(timer.current);timer.current=setTimeout(()=>setToast(''),3000)}
  function haptic(){if('vibrate'in navigator)navigator.vibrate(12)}
- function beep(ok:boolean){if(!store.sound)return;try{const AudioContextCtor=window.AudioContext;const ctx=new AudioContextCtor();const osc=ctx.createOscillator();const gain=ctx.createGain();osc.type='sine';osc.frequency.setValueAtTime(ok?640:340,ctx.currentTime);if(ok)osc.frequency.exponentialRampToValueAtTime(900,ctx.currentTime+.09);gain.gain.setValueAtTime(.045,ctx.currentTime);gain.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.16);osc.connect(gain);gain.connect(ctx.destination);osc.start();osc.stop(ctx.currentTime+.17);osc.onended=()=>ctx.close()}catch{}}
+ function beep(ok:boolean){if(!store.sound)return;configurePlaybackAudio();try{const AudioContextCtor=window.AudioContext;const ctx=new AudioContextCtor();const osc=ctx.createOscillator();const gain=ctx.createGain();osc.type='sine';osc.frequency.setValueAtTime(ok?640:340,ctx.currentTime);if(ok)osc.frequency.exponentialRampToValueAtTime(900,ctx.currentTime+.09);gain.gain.setValueAtTime(.045,ctx.currentTime);gain.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.16);osc.connect(gain);gain.connect(ctx.destination);osc.start();osc.stop(ctx.currentTime+.17);osc.onended=()=>ctx.close()}catch{}}
  function act(status:'packed'|'unpacked'|'skipped'){
   if(busy.current||trip.phase!=='packing'||!item)return;
   busy.current=true;setHistory(h=>[...h.slice(-24),structuredClone(trip)]);setExiting(status);haptic();beep(status==='packed');
