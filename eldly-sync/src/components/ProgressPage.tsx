@@ -69,7 +69,6 @@ export default function ProgressPage({ onHome }: { onHome: () => void }) {
         <div><span>Average sleep</span><strong>{stats.sleep.average === null ? "—" : humanValue(stats.sleep.average, "sleep")}</strong></div>
         <div><span>Tennis + fitness</span><strong>{stats.tennis.days + stats.fitness.days ? humanValue(stats.tennis.total + stats.fitness.total, "tennis") : "—"}</strong></div>
       </div>}
-      <p className="progress-data-note">Blank days count as zero in totals and averages through today. Future days are excluded.</p>
       <footer className="progress-backup"><button onClick={() => { try { download(load()); setBackupError(""); } catch(e) { setBackupError(String(e)); } }}><Download size={16} /> Export backup</button></footer>
     </details>
     {editor && <EntryEditor key={`${editor.id}:${day}`} habit={editor} day={day} entry={data.entries[day]?.[editor.id]} close={() => setEditor(null)} save={entry => save(day, editor.id, entry)} />}
@@ -131,8 +130,7 @@ function MetricCard({ metric, data, range, onSelectDay }: { metric: Metric; data
     {selected && (selected.value !== null || selectedPickups?.value !== null && selectedPickups?.value !== undefined) && <div className="metric-foot">{selected.label} · {selected.value !== null ? humanValue(selected.value + selected.secondary, metric) : "—"}{selectedPickups?.value !== null && selectedPickups?.value !== undefined ? ` · ${selectedPickups.value} pickups` : ""}{metric === "sleep" && selected.days > 1 ? " avg" : ""}</div>}
     {infoOpen && <div className="metric-info-panel" id={`metric-info-${metric}`}>
       <p>{stats.days} {stats.days === 1 ? "day" : "days"} counted{stats.days ? ` · ${humanValue(stats.average!, metric)} average` : ""}</p>
-      {isPhone && <p>Pickups: {pickupStats?.total || 0} total · {pickupStats?.days || 0} days counted. Hours use the left axis; pickups use the right.</p>}
-      <p>{metric === "sleep" ? "Average sleep" : "Totals"} by {group}. Blank days count as zero through today; future days are excluded.</p>
+      {isPhone && <p>Pickups: {pickupStats?.total || 0} total · {pickupStats?.days || 0} days counted.</p>}
     </div>}
 
   </article>;

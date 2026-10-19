@@ -269,10 +269,6 @@ export default function Editor({
                     required
                     aria-invalid={!selectedSchoolWeeks}
                   />
-                  <small>
-                    Only the listed school weeks, on the weekdays selected
-                    below.
-                  </small>
                 </label>
               )}
               {frequency === "interval" && (
@@ -310,12 +306,6 @@ export default function Editor({
               )}
               {frequency !== "daily" && !weekdaysSelected.length && (
                 <p className="late-label">Choose at least one day.</p>
-              )}
-              {editor.routine?.title && (
-                <p className="muted">
-                  Changes apply from today onward. Earlier occurrences and
-                  completion history stay saved.
-                </p>
               )}
             </div>
           )}

@@ -21,7 +21,7 @@ export default function MappingPage({ onHome }: { onHome: () => void }) {
   return (
     <main className="mapping-page">
       <button className="eldly-back" onClick={onHome}><ChevronLeft size={20} /> Home</button>
-      <header className="mapping-title trackly-title"><div><h1 ref={heading} tabIndex={-1}>Trackly</h1><p>Your days, a little more colorful.</p></div><button className="trackly-sound" aria-label={sound ? "Mute Checkly and Trackly sounds" : "Enable Checkly and Trackly sounds"} aria-pressed={sound} onClick={() => setSound(!sound)}>{sound ? <Volume2 size={20} /> : <VolumeX size={20} />}</button></header>
+      <header className="mapping-title trackly-title"><div><h1 ref={heading} tabIndex={-1}>Trackly</h1></div><button className="trackly-sound" aria-label={sound ? "Mute Checkly and Trackly sounds" : "Enable Checkly and Trackly sounds"} aria-pressed={sound} onClick={() => setSound(!sound)}>{sound ? <Volume2 size={20} /> : <VolumeX size={20} />}</button></header>
       <div className="mapping-month-bar">
         <button aria-label="Previous month" onClick={() => shift(-1)}><ChevronLeft size={21} /></button>
         <button className="mapping-month-title" aria-label="Return to current month" onClick={() => setMonth(today.slice(0, 7) + "-01")}>{format(month, { month: "long", year: "numeric" })}</button>
@@ -49,7 +49,6 @@ export default function MappingPage({ onHome }: { onHome: () => void }) {
           </tr>)}</tbody>
         </table>
       </div>
-      <p className="mapping-hint">Tap a square to log. Tap a marked square to edit or clear. Swipe across for more dates.</p>
       {encouragement && <div key={encouragement.id} className="trackly-encouragement" role="status"><span aria-hidden="true">👍</span><span className="sr-only">Nice work. {encouragement.label} logged.</span></div>}
       {editor && <EntryEditor key={`${editor.habit.id}:${editor.day}`} habit={editor.habit} day={editor.day} entry={data.entries[editor.day]?.[editor.habit.id]}
         close={() => setEditor(null)} save={(entry) => write(editor.day, editor.habit.id, entry)} />}
@@ -104,7 +103,7 @@ export function EntryEditor({ habit, day, entry, close, save }: { habit: Habit; 
       {(habit.kind === "duration" || habit.kind === "phone") && <><p>{habit.kind === "phone" ? "Screen time" : "How long?"}</p><div className="mapping-fields"><label>Hours<input autoFocus type="number" inputMode="numeric" min="0" max="24" step="1" placeholder="0" value={hours} onChange={(e) => setHours(e.target.value)} /></label><label>Minutes<input type="number" inputMode="numeric" min="0" max="59" step="1" placeholder="0" value={minutes} onChange={(e) => setMinutes(e.target.value)} /></label></div></>}
       {habit.kind === "phone" && <label className="phone-pickups-field">Pickups<input type="number" inputMode="numeric" min="0" max="1000000" step="1" placeholder="Not recorded" value={pickups} onChange={e => setPickups(e.target.value)} /></label>}
       {habit.kind === "prayer" && <label>How many times?<input autoFocus required type="number" inputMode="numeric" min="1" max="1000" step="1" value={count} onChange={(e) => setCount(e.target.value)} /></label>}
-      {habit.kind === "sleep" && <><div className="mapping-fields"><label>Night · hours<input autoFocus type="number" inputMode="decimal" min="0" max="24" step="any" placeholder="0" value={night} onChange={(e) => setNight(e.target.value)} /></label><label>Daytime · hours<input type="number" inputMode="decimal" min="0" max="24" step="any" placeholder="0" value={daytime} onChange={(e) => setDaytime(e.target.value)} /></label></div><p className="mapping-field-hint">For example, 8.5 = 8 hours 30 minutes. Log your actual sleep, even if it’s under eight hours.</p></>}
+      {habit.kind === "sleep" && <><div className="mapping-fields"><label>Night · hours<input autoFocus type="number" inputMode="decimal" min="0" max="24" step="any" placeholder="0" value={night} onChange={(e) => setNight(e.target.value)} /></label><label>Daytime · hours<input type="number" inputMode="decimal" min="0" max="24" step="any" placeholder="0" value={daytime} onChange={(e) => setDaytime(e.target.value)} /></label></div></>}
       {error && <p className="mapping-error" role="alert">{error}</p>}
       <div className="mapping-dialog-actions">{entry && <button type="button" className="mapping-clear" onClick={() => commit()}>Clear</button>}<button type="button" className="secondary" onClick={close}>Cancel</button><button className="primary" type="submit">Save</button></div>
     </form>

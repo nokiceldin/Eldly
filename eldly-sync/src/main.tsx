@@ -483,9 +483,6 @@ function Checklist({ onHome }: { onHome: () => void }) {
             <X size={21} />
           </button>
         </header>
-        <p className="options-hint">
-          Your checklist saves automatically on this device.
-        </p>
         <details className="option-group">
           <summary>
             Repeating tasks <Repeat2 size={16} />
@@ -631,10 +628,6 @@ function Checklist({ onHome }: { onHome: () => void }) {
                 e.target.value = "";
               }}
             />
-            <p className="options-hint">
-              Backups move your data between devices. There is no automatic
-              sync.
-            </p>
             <label className="sound-setting">
               <input
                 type="checkbox"
@@ -720,9 +713,6 @@ function Checklist({ onHome }: { onHome: () => void }) {
         <details className="option-group">
           <summary>Starter checklist</summary>
           <div className="option-content">
-            <p className="options-hint">
-              Optional class tasks and dates. Everything is editable.
-            </p>
             <button
               className="option-action"
               onClick={() => {
@@ -952,14 +942,14 @@ function App() {
           <header className="eldly-heading">
             <span className="eldly-eyebrow">YOUR OWN LITTLE SPACE</span>
             <div className="eldly-brand"><img src="/eldly-logo.png" className="eldly-logo" alt="" width="86" height="86" /><h1 ref={heading} tabIndex={-1}>Eldly<span aria-hidden="true">.</span></h1></div>
-            <p>A place for everything you do.</p>
+
           </header>
           <nav className="eldly-grid" aria-label="Your apps">
             {destinations.map((d) => (
               <a key={d.id} href={d.id === "mapping" ? "#trackly" : `#${d.id}`} className={`eldly-tile eldly-tile-${d.id}`}>
                 <span className="eldly-tile-icon"><AppIcon app={d.id} /></span>
                 <span className="eldly-tile-title">{d.title}</span>
-                <span className="eldly-tile-description">{d.description}</span>
+
               </a>
             ))}
           </nav>
