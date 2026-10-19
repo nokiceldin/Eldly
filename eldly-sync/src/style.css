@@ -1354,3 +1354,6 @@ input {
 .metric-info { width: 44px; height: 44px; }
 .phone-pickups-field { margin-top: 18px; }
 .phone-use-legend { justify-content: space-between; margin-top: 9px; }
+
+/* Keep sliding weeks inside the page without creating horizontal scrolling. */
+.note-page { overflow-x: clip; }

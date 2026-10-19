@@ -99,6 +99,8 @@ function Checklist({ onHome }: { onHome: () => void }) {
   const [error, setError] = useState(initial.error);
   const [today, setToday] = useState(localDay());
   const [week, setWeek] = useState(monday(today));
+  const weekX = useMotionValue(0);
+  const weekChanging = useRef(false);
   const [focusRequest, setFocusRequest] = useState(0);
   const focusDate = useRef(today);
   const reduce = useReducedMotion();
@@ -125,7 +127,9 @@ function Checklist({ onHome }: { onHome: () => void }) {
       history.scrollRestoration = previous;
     };
   }, []);
-  const changeWeek = (direction: number) => {
+  const changeWeek = async (direction: number) => {
+    if (weekChanging.current) return;
+    weekChanging.current = true;
     const sections = Array.from(
       document.querySelectorAll<HTMLElement>(".note-day"),
     );
@@ -143,11 +147,23 @@ function Checklist({ onHome }: { onHome: () => void }) {
             : best,
         undefined,
       );
+    const width = Math.min(window.innerWidth, 680);
+    if (!reduce) await animate(weekX, -direction * width, { duration: .18, ease: [.32, 0, .67, 0] });
     focusDate.current = add(visible?.dataset.date || week, direction * 7);
+    weekX.set(reduce ? 0 : direction * width);
     setWeek(add(week, direction * 7));
     setFocusRequest((n) => n + 1);
   };
-  const weekSwipe = useWeekSwipe(changeWeek);
+  useLayoutEffect(() => {
+    const animation = animate(weekX, 0, { duration: reduce ? 0 : .3, ease: [.16, 1, .3, 1] });
+    void animation.then(() => { weekChanging.current = false; });
+    return () => animation.stop();
+  }, [week, reduce, weekX]);
+  const weekSwipe = useWeekSwipe(changeWeek, offset => {
+    if (!reduce && !weekChanging.current) weekX.set(offset);
+  }, () => {
+    if (!weekChanging.current) animate(weekX, 0, { duration: reduce ? 0 : .25, ease: [.16, 1, .3, 1] });
+  });
   const [editor, setEditor] = useState<{
     task?: Task;
     routine?: Routine;
@@ -334,9 +350,7 @@ function Checklist({ onHome }: { onHome: () => void }) {
         <motion.div
           className="days"
           key={week}
-          initial={reduce ? false : { opacity: 0.5 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: reduce ? 0 : 0.16 }}
+          style={{ x: weekX }}
         >
           {Array.from({ length: 7 }, (_, i) => add(week, i)).map((date) => {
             const tasks = onDay(data, date, today);

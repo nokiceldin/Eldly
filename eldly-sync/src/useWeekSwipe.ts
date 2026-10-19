@@ -1,6 +1,6 @@
 import { useRef, type MouseEvent, type PointerEvent } from "react";
 /** Page navigation never competes with task deletion, typing, or vertical scrolling. */
-export function useWeekSwipe(changeWeek: (direction: number) => void) {
+export function useWeekSwipe(changeWeek: (direction: number) => void, onDrag?: (offset: number) => void, onCancel?: () => void) {
   const start = useRef<{
     x: number;
     y: number;
@@ -42,6 +42,7 @@ export function useWeekSwipe(changeWeek: (direction: number) => void) {
         moved.current = true;
         e.currentTarget.setPointerCapture(e.pointerId);
       }
+      onDrag?.(dx);
     },
     onPointerUp(e: PointerEvent<HTMLElement>) {
       const s = start.current;
@@ -52,8 +53,10 @@ export function useWeekSwipe(changeWeek: (direction: number) => void) {
       const dx = e.clientX - s.x;
       if (s.locked && Math.abs(dx) >= Math.min(100, innerWidth * 0.23))
         changeWeek(dx < 0 ? 1 : -1);
+      else onCancel?.();
     },
     onPointerCancel() {
+      onCancel?.();
       start.current = null;
     },
     onLostPointerCapture(e: PointerEvent<HTMLElement>) {
