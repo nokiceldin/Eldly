@@ -9,6 +9,7 @@ export function useReducedMotion() {
   return useSyncExternalStore(
     subscribe,
     () => query.matches,
+    // Default to reduced motion until the client preference is available.
     () => true,
   );
 }
