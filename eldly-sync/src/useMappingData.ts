@@ -17,7 +17,10 @@ export function useMappingData() {
   const save = (day: string, id: HabitId, entry?: MappingEntry): string | null => {
     try {
       const latest = load();
-      const wasMarked = !!latest.mapping?.entries[day]?.[id];
+      const existing = latest.mapping?.entries[day]?.[id];
+      // Linked homework is controlled by its tasks, including edits from Data.
+      if (existing?.kind === "check" && existing.source === "checkly") return null;
+      const wasMarked = !!existing;
       const mapping = setMappingEntry(latest.mapping || emptyMapping(), day, id, entry);
       persist({ ...latest, mapping });
       const stored = load(); setData(stored.mapping || emptyMapping()); setSoundState(stored.sound); setError("");

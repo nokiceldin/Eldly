@@ -34,7 +34,8 @@ export function newTrip(name:string, source?:Trip):Trip {
 export function tripDays(t:Trip){if(t.details?.durationDays)return Math.max(1,t.details.durationDays);const a=t.details?.startDate,b=t.details?.returnDate;if(!a||!b)return 7;return Math.max(1,Math.round((new Date(b+'T12:00:00').getTime()-new Date(a+'T12:00:00').getTime())/86400000)+1)}
 export function suggestedQuantity(item:Item,details:TripDetails, days:number,feedback:Feedback[]=[],history:Trip[]=[]){
  const n=item.name.toLowerCase();let base=1;
- if(details.type==='match') return ['tennis-02','tennis-04','tennis-14','match-snacks','match-overgrips'].includes(item.id)?2:1;
+ if(details.type==='match') base=['tennis-02','tennis-04','tennis-14','match-snacks','match-overgrips'].includes(item.id)?2:1;
+ else {
  if(n==='kallingar'||n==='vanliga strumpor'||n==='tennis strumpor')base=days+1;
  else if(n==='tshirt'||n==='t-shirt')base=Math.min(days,8);
  else if(n==='shorts')base=Math.max(1,Math.ceil(days/3));
@@ -42,6 +43,7 @@ export function suggestedQuantity(item:Item,details:TripDetails, days:number,fee
  if(details.laundry&&base>3)base=Math.max(3,Math.ceil(base*.65));
  if(details.type==='tennis'&&item.categoryId==='tennis'&&['shorts','t-shirt','tennis strumpor'].includes(n))base+=Math.ceil(days/4);
  if(details.climate==='cold'&&['shorts','t-shirt'].includes(n))base=Math.max(1,base-1);
+ }
  const similar=feedback.filter(f=>f.itemId===item.id&&f.tripType===details.type&&f.laundry===details.laundry&&Math.abs(f.days-days)<=3&&f.climate===details.climate);
  if(similar.length>=1){const samples=similar.slice(-5);base=Math.round(samples.reduce((a,f)=>a+f.idealQuantity,0)/samples.length)}
  if(!similar.length){const samples=history.filter(t=>t.details?.finishedAt&&t.details.type===details.type&&Math.abs(tripDays(t)-days)<=3&&t.statuses[item.id]==='packed').slice(-5).map(t=>t.quantities?.[item.id]||1).sort((a,b)=>a-b);if(samples.length)base=samples[Math.floor(samples.length/2)];}

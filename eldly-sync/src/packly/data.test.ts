@@ -79,3 +79,13 @@ describe('packing memory and equipment updates',()=>{
   expect(old.details?.finishedAt).toBe(100);
  });
 });
+
+ it('learns match-bag quantities from completed bags and explicit feedback',()=>{
+  const matchDetails={...details,type:'match' as const};
+  const old=makeConfiguredTrip('Previous match','match',{...matchDetails,finishedAt:100});
+  old.quantities!['tennis-02']=4;old.statuses['tennis-02']='packed';
+  const next=makeConfiguredTrip('Next match','match',matchDetails,[],undefined,[old]);
+  expect(next.quantities?.['tennis-02']).toBe(4);
+  const feedback={itemId:'tennis-02',name:'Rack',packedQuantity:4,idealQuantity:3,rating:'too-many' as const,tripType:'match' as const,days:1,climate:'mild',laundry:false,createdAt:200};
+  expect(makeConfiguredTrip('Adjusted match','match',matchDetails,[feedback],undefined,[old]).quantities?.['tennis-02']).toBe(3);
+ });

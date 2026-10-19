@@ -35,3 +35,9 @@ describe("dragging task occurrences",()=>{
   expect(()=>moveTaskOccurrence(result,original,"invalid",0,today)).toThrow();
  });
 });
+
+it("keeps the actual completion date when a completed task is moved",()=>{
+ const original={...task('finished',0),completed:today};
+ const result=moveTaskOccurrence({...empty(),tasks:[original]},original,"2026-10-20",0,today);
+ expect(result.tasks[0]).toMatchObject({scheduled:"2026-10-20",completed:today});
+});
