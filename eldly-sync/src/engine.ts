@@ -565,7 +565,7 @@ export function normalizeWeeklyMarkers(data: Data): Data {
   return next;
 }
 
-/** Link Checkly's real daily completion to Mapping without retroactively rewarding late work. */
+/** Link Check's real daily completion to Mapping without retroactively rewarding late work. */
 export function syncChecklyHomework(data: Data, today: Day): Data {
   const groups = new Map<Day, Task[]>();
   for (const task of allTasks(data, today, today)) {

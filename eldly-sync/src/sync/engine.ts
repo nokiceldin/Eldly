@@ -6,7 +6,7 @@ type State = {version:1; mirror: Records; baseline: Records; pending: Change[]; 
 export type Pull = {initialized:boolean; revision:number; records:{record_key:string;value:unknown;deleted:boolean}[]};
 const KEY = `eldly-shared-sync-v2:${cloudNamespace}`;
 export function enrolled() { return localStorage.getItem(KEY) !== null; }
-function read():State { const raw=localStorage.getItem(KEY); if(!raw) throw Error('Choose your starting data first.'); const state=JSON.parse(raw); if(state.version!==1) throw Error('Sync data needs a newer Eldly version.'); return {...state,baseline:flatten(state.baseline)}; }
+function read():State { const raw=localStorage.getItem(KEY); if(!raw) throw Error('Choose your starting data first.'); const state=JSON.parse(raw); if(state.version!==1) throw Error('Sync data needs a newer Eldinos version.'); return {...state,baseline:flatten(state.baseline)}; }
 function write(s:State) { localStorage.setItem(KEY,JSON.stringify({...s,baseline:inflate(s.baseline)})); }
 export async function pull(revision=0):Promise<Pull> {
   const {data,error}=await supabase!.rpc('eldly_shared_pull',{after_revision:revision});

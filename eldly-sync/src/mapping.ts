@@ -88,7 +88,7 @@ export function mappingProgress(data: MappingData, from: string, through: string
   });
 }
 export function entryDescription(entry: MappingEntry) {
-  if (entry.kind === "check") return entry.source === "checkly" ? "Completed automatically from Checkly. Undo a Checkly task to clear this mark." : "Marked";
+  if (entry.kind === "check") return entry.source === "checkly" ? "Completed in Check" : "Marked";
   if (entry.kind === "phone") return [entry.minutes !== undefined ? `Screen time ${Math.floor(entry.minutes / 60)}h ${entry.minutes % 60}m` : "", entry.pickups !== undefined ? `${entry.pickups} pickups` : ""].filter(Boolean).join(" · ");
   if (entry.kind === "prayer") return `${entry.count} ${entry.count === 1 ? "prayer" : "prayers"}`;
   const duration = (minutes: number) => `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
