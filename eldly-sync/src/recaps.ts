@@ -1,3 +1,4 @@
+import { goalPlan } from "./goals";
 import { TRACKING_START } from "./tracking";
 import { add, allTasks, diff, localDay, monday, parse, type Data } from "./engine";
 import { emptyMapping, HABITS } from "./mapping";
@@ -30,6 +31,9 @@ export function buildRecap(data: Data, window: RecapWindow, today = localDay()) 
   const positives: string[] = [], attention: string[] = [];
   for (const row of metrics) {
     const { metric, current, previous, label } = row;
+    const target = goalPlan(data,monday(window.range.to))?.targets;
+    if(metric === "sleep" && current.average !== null && current.average >= (target?.sleep ?? 510)) positives.push(`Sleep: ${humanValue(current.average,metric)} daily average`);
+    if(metric === "screen-time" && current.average !== null && current.days && current.average <= (target?.["screen-time"] ?? 240)) positives.push(`Phone use: ${humanValue(current.average,metric)} daily average`);
     const red = HABITS.find(h=>h.id===metric)?.color === "red";
     if (red && current.total > 0) attention.push(`${label}: ${humanValue(current.total,metric)}`);
     if (!red && metric !== "screen-time" && metric !== "sleep" && current.total > 0) positives.push(`${label}: ${humanValue(current.total, metric)}${metric === "praying" ? " prayers" : ""}`);

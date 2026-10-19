@@ -23,8 +23,7 @@ describe("personal weekly goals",()=>{
   const history=goalHistory(data,{from:"2026-10-19",to:add("2026-10-19",30*7-1)});
   expect(history.weeks).toHaveLength(30);
   expect(history.summary.find(g=>g.id==='sleep')).toMatchObject({met:18,total:30});
-  expect(history.summary.find(g=>g.id==='tennis-hours')).toMatchObject({met:22,total:30});
-  expect(history.summary.find(g=>g.id==='tennis-days')).toMatchObject({met:22,total:30});
+  expect(history.summary.find(g=>g.id==='tennis')).toMatchObject({met:22,total:30});
  });
  it("handles check-off goals and inclusive maximum limits",()=>{
   let mapping=emptyMapping();

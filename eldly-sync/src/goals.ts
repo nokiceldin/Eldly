@@ -50,13 +50,20 @@ export function weeklyGoals(data: Data, start: string, today = localDay()) {
 export function goalHistory(data: Data, range: Range, today = localDay()) {
   const first = [...(data.goalPlans || [initialGoalPlan(data, today)])].sort((a,b) => a.from.localeCompare(b.from))[0]?.from;
   const weeks: { from: string; to: string; results: ReturnType<typeof weeklyGoals> }[] = [];
-  if (!first || range.from > range.to) return { weeks, summary: GOALS.map(goal => ({ ...goal, met: 0, total: 0 })) };
-  const start = monday(range.from) > first ? monday(range.from) : first;
-  for (let from=start; add(from,6) <= range.to && add(from,6) < today; from=add(from,7)) {
-    const to=add(from,6);
-    if(to >= range.from) weeks.push({ from,to,results:weeklyGoals(data,from,today) });
+  if (first && range.from <= range.to) {
+    const start = monday(range.from) > first ? monday(range.from) : first;
+    for (let from=start; add(from,6) <= range.to && add(from,6) < today; from=add(from,7)) {
+      const to=add(from,6);
+      if(to >= range.from) weeks.push({ from,to,results:weeklyGoals(data,from,today) });
+    }
   }
-  return { weeks, summary: GOALS.map(goal => ({ ...goal, met: weeks.filter(w=>w.results.find(g=>g.id===goal.id)?.met).length, total:weeks.length })) };
+  const summary = GOALS.filter(goal=>goal.id!=="tennis-hours").map(goal=>({
+    id:goal.id==="tennis-days"?"tennis":goal.id,
+    label:goal.id==="tennis-days"?"Tennis · both targets":goal.label,
+    met:weeks.filter(week=>goal.id==="tennis-days"?week.results.filter(result=>result.habit==="tennis").every(result=>result.met):week.results.find(result=>result.id===goal.id)?.met).length,
+    total:weeks.length,
+  }));
+  return {weeks,summary};
 }
 
 export function goalRecommendations(data: Data, range: Range) {
