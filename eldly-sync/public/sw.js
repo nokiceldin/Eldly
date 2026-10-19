@@ -1,4 +1,4 @@
-const CACHE = "eldly-shell-v10-app-icons";
+const CACHE = "eldly-shell-v11-iphone-icons";
 const SHELL = [
   "/",
   "/index.html",
@@ -7,6 +7,12 @@ const SHELL = [
   "/eldly-logo.png",
   "/eldly-logo-beige.png",
   "/eldinos-icon-180.png",
+  "/apple-touch-icon.png",
+  "/apple-touch-icon-precomposed.png",
+  "/apple-touch-icon-180x180.png",
+  "/icon-180.png",
+  "/icon-192.png",
+  "/icon-512.png",
   "/eldinos-icon-192.png",
   "/eldinos-icon-512.png",
   "/manifest.webmanifest",
