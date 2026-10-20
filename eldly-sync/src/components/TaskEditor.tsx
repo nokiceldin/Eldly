@@ -73,6 +73,7 @@ export default function Editor({
   const [dueOffset, setDueOffset] = useState(
     editor.routine?.dueOffsetDays?.toString() || "",
   );
+  const [confirmDelete,setConfirmDelete]=useState(false);
   const [advanced, setAdvanced] = useState(!!source);
   const dialog = useRef<HTMLElement>(null);
   useEffect(() => {
@@ -374,20 +375,14 @@ export default function Editor({
             </>
           )}
           {extraActions}
+          {confirmDelete&&<div className="task-delete-confirm" role="alert"><p>{editor.routine?"Stop future occurrences of this routine?":"Delete this task?"}</p><button type="button" className="danger" onClick={onDelete}>Confirm delete</button><button type="button" onClick={()=>setConfirmDelete(false)}>Keep it</button></div>}
           <div className="form-actions">
             {isExisting && (
               <button
                 type="button"
                 className="icon-button danger"
                 aria-label="Delete task or future routine"
-                onClick={() => {
-                  if (
-                    confirm(
-                      "Delete this task or stop future occurrences of this routine?",
-                    )
-                  )
-                    onDelete();
-                }}
+                onClick={() => setConfirmDelete(true)}
               >
                 <Trash2 size={19} />
               </button>

@@ -312,7 +312,7 @@ function Checklist({ onHome }: { onHome: () => void }) {
               className={
                 "week-label" + (week === monday(today) ? " current-week" : "")
               }
-              aria-label={`Week ${schoolWeek(week)}, ${iso(week).year}${week === monday(today) ? ", current week" : ". Return to current week"}`}
+              aria-label={`Week ${isPersonalOwner()?schoolWeek(week):iso(week).week}, ${iso(week).year}${week === monday(today) ? ", current week" : ". Return to current week"}`}
               aria-current={week === monday(today) ? "date" : undefined}
               onClick={returnToToday}
             >
@@ -845,7 +845,7 @@ function Checklist({ onHome }: { onHome: () => void }) {
             )
           }
           onDelete={() => {
-            if (editor.task) update({ ...editor.task, deleted: true });
+            if (editor.task) deleteTask(editor.task);
             if (editor.routine)
               setData((d) => ({
                 ...d,
