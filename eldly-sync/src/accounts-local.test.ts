@@ -33,3 +33,11 @@ it('uses the newest target if a pending next-week goal is edited twice',async()=
  const habit={id:'custom-reading',label:'Reading',kind:'check' as const,color:'blue' as const,previousGoals:[{target:2,maximum:false,from:'2026-10-19'},{target:3,maximum:false,from:'2026-10-26'}],goal:{target:4,maximum:false,from:'2026-10-26'}};
  expect(personalGoalAt(habit,'2026-10-19')?.target).toBe(2);expect(personalGoalAt(habit,'2026-10-26')?.target).toBe(4);
 });
+
+it('stops scoring a removed goal while preserving weeks before its end date',async()=>{
+ const {personalGoalAt}=await import('./personalGoals');
+ const habit={id:'custom-reading',label:'Reading',kind:'check' as const,color:'blue' as const,previousGoals:[{target:2,maximum:false,from:'2026-10-19',until:'2026-10-26'}]};
+ expect(personalGoalAt(habit,'2026-10-19')?.target).toBe(2);expect(personalGoalAt(habit,'2026-10-26')).toBeUndefined();
+ expect(personalGoalAt({...habit,goal:{target:3,maximum:false,from:'2026-11-02'}},'2026-10-26')).toBeUndefined();
+ expect(personalGoalAt({...habit,goal:{target:3,maximum:false,from:'2026-11-02'}},'2026-11-02')?.target).toBe(3);
+});
