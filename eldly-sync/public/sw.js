@@ -1,4 +1,4 @@
-const CACHE = "eldinos-shell-v12-private-accounts";
+const CACHE = "myspace-shell-v13-personal-homes";
 const SHELL = [
   "/",
   "/index.html",

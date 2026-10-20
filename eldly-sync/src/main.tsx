@@ -1,4 +1,4 @@
-import { isPersonalOwner } from "./accountScope";
+import { isPersonalOwner, accountHomeName } from "./accountScope";
 import AccountBoundary from "./components/AccountBoundary";
 import { TaskDragArea, TaskDropDay, DraggableTask } from "./components/TaskDrag";
 import { moveTaskOccurrence } from "./taskMoves";
@@ -299,7 +299,7 @@ function Checklist({ onHome }: { onHome: () => void }) {
     <MotionConfig reducedMotion="user">
       <main className={`note-page ${taskDragging?"task-dragging":""}`} {...weekSwipe}>
         <header className="note-toolbar week-toolbar">
-          <button className="toolbar-button eldly-home-button" aria-label="Back to Eldinos home" onClick={onHome}><Home size={20} /></button>
+          <button className="toolbar-button eldly-home-button" aria-label={`Back to ${accountHomeName()} home`} onClick={onHome}><Home size={20} /></button>
           <nav className="week-switcher" aria-label="Week navigation">
             <button
               className="week-arrow"
@@ -937,7 +937,7 @@ function App() {
     return () => window.removeEventListener("hashchange", update);
   }, []);
   useEffect(() => {
-    document.title = destination === "home" ? "Eldinos" : `${destinations.find((d) => d.id === destination)?.title} · Eldinos`;
+    document.title = destination === "home" ? `${accountHomeName()} · MySpace` : `${destinations.find((d) => d.id === destination)?.title} · MySpace`;
     if (destination !== "checkly" && destination !== "mapping") {
       window.scrollTo({ top: 0, behavior: "instant" });
       heading.current?.focus({ preventScroll: true });
@@ -953,7 +953,7 @@ function App() {
           <header className="eldly-heading">
             <button className="eldly-recap-settings" aria-label="View recaps" onClick={() => window.dispatchEvent(new Event("eldly-open-recaps"))}><History size={20} /></button>
             <button className="eldly-cloud-settings" aria-label="Cloud sync settings" onClick={() => window.dispatchEvent(new Event("eldly-open-cloud-settings"))}><Cloud size={20} /></button>
-            <div className="eldly-brand"><img src="/eldly-logo.png" className="eldly-logo" alt="" width="86" height="86" /><h1 ref={heading} tabIndex={-1}>Eldinos<span aria-hidden="true">.</span></h1></div>
+            <div className="eldly-brand"><img src="/eldly-logo.png" className="eldly-logo" alt="" width="86" height="86" /><h1 ref={heading} tabIndex={-1}>{accountHomeName()}<span aria-hidden="true">.</span></h1></div>
 
           </header>
           <nav className="eldly-grid" aria-label="Your apps">
