@@ -43,8 +43,8 @@ export default function MappingPage({ onHome }: { onHome: () => void }) {
               return <td key={day} className={day === today ? "mapping-today" : ""}>
                 <button className={"mapping-cell" + (entry ? " is-marked" : "")} role="checkbox" aria-checked={!!entry}
                   aria-label={`${habit.label}, ${format(day)}`}
-                  aria-description={entry ? entry.kind === "check" && entry.source === "checkly" ? entryDescription(entry) : `${entryDescription(entry)}. ${habit.kind === "check" ? "Select to unmark." : "Select to edit or clear."}` : "Not recorded"}
-                  title={entry ? entryDescription(entry) : undefined}
+                  aria-description={entry ? entry.kind === "check" && entry.source === "checkly" ? entryDescription(entry,habit) : `${entryDescription(entry,habit)}. ${habit.kind === "check" ? "Select to unmark." : "Select to edit or clear."}` : "Not recorded"}
+                  title={entry ? entryDescription(entry,habit) : undefined}
                   onClick={() => entry?.kind === "check" && entry.source === "checkly" ? undefined : habit.kind === "check" ? write(day, habit.id, entry ? undefined : { kind: "check" }) : setEditor({ habit, day })}>
                   <span aria-hidden="true">{entry ? "×" : ""}</span>
                 </button>

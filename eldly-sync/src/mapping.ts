@@ -17,7 +17,7 @@ export const DAILY_CHECK_METRICS = ["recovery", "reading", "journaling"] as cons
 export const isDailyCheckMetric = (id: string) => DAILY_CHECK_METRICS.some(metric => metric === id);
 export const isCountMetric = (id: string, data?:MappingData) => getHabits(data).some(h => h.id === id && h.kind === "check");
 export type HabitColor = typeof HABITS[number]["color"];
-export type Habit = {id:string;label:string;color:HabitColor;kind:"check"|"duration"|"prayer"|"sleep"|"phone";archived?:boolean;goal?:{target:number;maximum:boolean;from:string}};
+export type Habit = {id:string;label:string;color:HabitColor;kind:"check"|"duration"|"prayer"|"sleep"|"phone";previousGoals?:{target:number;maximum:boolean;from:string}[];archived?:boolean;goal?:{target:number;maximum:boolean;from:string}};
 export type HabitId = string;
 export const getHabits=(data?:MappingData):readonly Habit[]=>((data?.habits??HABITS) as readonly Habit[]).filter(h=>!h.archived);
 export const mappingStart=(data:MappingData)=>data.startedOn??"2026-10-15";
@@ -59,7 +59,7 @@ export function validateMapping(value: unknown): value is MappingData {
   if (!value || typeof value !== "object") return false;
   const data = value as MappingData;
   const habits=data.habits??HABITS;
-  if(data.habits!==undefined&&(!Array.isArray(data.habits)||data.habits.length>100||!data.habits.every(h=>h&&/^[-a-zA-Z0-9_]{1,100}$/.test(h.id)&&h.label.trim().length>0&&h.label.length<=80&&["yellow","green","blue","pink","red","purple"].includes(h.color)&&["check","duration","prayer","sleep","phone"].includes(h.kind)&&(!h.goal||(Number.isFinite(h.goal.target)&&h.goal.target>0&&typeof h.goal.maximum==='boolean'&&validDate(h.goal.from))))||new Set(data.habits.map(h=>h.id)).size!==data.habits.length))return false;
+  if(data.habits!==undefined&&(!Array.isArray(data.habits)||data.habits.length>100||!data.habits.every(h=>h&&/^[-a-zA-Z0-9_]{1,100}$/.test(h.id)&&h.label.trim().length>0&&h.label.length<=80&&["yellow","green","blue","pink","red","purple"].includes(h.color)&&["check","duration","prayer","sleep","phone"].includes(h.kind)&&(!h.previousGoals||(Array.isArray(h.previousGoals)&&h.previousGoals.every(g=>Number.isFinite(g.target)&&g.target>0&&typeof g.maximum==='boolean'&&validDate(g.from))))&&(!h.goal||(Number.isFinite(h.goal.target)&&h.goal.target>0&&typeof h.goal.maximum==='boolean'&&validDate(h.goal.from))))||new Set(data.habits.map(h=>h.id)).size!==data.habits.length))return false;
   if(data.startedOn!==undefined&&!validDate(data.startedOn))return false;
   return data.version === 1 && !!data.entries && typeof data.entries === "object" && !Array.isArray(data.entries) &&
     Object.entries(data.entries).every(([day, entries]) => validDate(day) && entries && typeof entries === "object" && !Array.isArray(entries) && Object.entries(entries).every(([id, entry]) => validEntry(id, entry,habits)));
@@ -95,10 +95,10 @@ export function mappingProgress(data: MappingData, from: string, through: string
     };
   });
 }
-export function entryDescription(entry: MappingEntry) {
+export function entryDescription(entry: MappingEntry, habit?:Habit) {
   if (entry.kind === "check") return entry.source === "checkly" ? "Completed in Check" : "Marked";
   if (entry.kind === "phone") return [entry.minutes !== undefined ? `Screen time ${Math.floor(entry.minutes / 60)}h ${entry.minutes % 60}m` : "", entry.pickups !== undefined ? `${entry.pickups} pickups` : ""].filter(Boolean).join(" · ");
-  if (entry.kind === "prayer") return `${entry.count} ${entry.count === 1 ? "prayer" : "prayers"}`;
+  if (entry.kind === "prayer") return `${entry.count} ${habit&&habit.id!=="praying"?(entry.count===1?"time":"times"):entry.count === 1 ? "prayer" : "prayers"}`;
   const duration = (minutes: number) => `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
   if (entry.kind === "sleep") return `Night ${duration(entry.nightMinutes)}, daytime ${duration(entry.dayMinutes)}`;
   return duration(entry.minutes);

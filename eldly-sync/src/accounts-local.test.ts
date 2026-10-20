@@ -21,3 +21,9 @@ it('supports personal tracker definitions and units without adding owner tracker
  expect(validateMapping(logged)).toBe(true);expect(getMetrics(logged)).toEqual(['custom-run','custom-water']);expect(metricStats(logged,'custom-water',{from:localDay(),to:localDay()}).total).toBe(4);expect(humanValue(4,'custom-water',logged)).toBe('4');expect(syncChecklyHomework({...empty(),mapping:logged},localDay()).mapping).toEqual(logged);
  const archived={...logged,habits:logged.habits!.map(h=>({...h,archived:true}))};expect(validateMapping(archived)).toBe(true);expect(getHabits(archived)).toEqual([]);expect(archived.entries).toEqual(logged.entries);
 });
+
+it('retains the historical target when a personal goal changes next week',async()=>{
+ const {personalGoalAt}=await import('./personalGoals');
+ const habit={id:'custom-reading',label:'Reading',kind:'check' as const,color:'blue' as const,previousGoals:[{target:2,maximum:false,from:'2026-10-19'}],goal:{target:3,maximum:false,from:'2026-10-26'}};
+ expect(personalGoalAt(habit,'2026-10-19')?.target).toBe(2);expect(personalGoalAt(habit,'2026-10-26')?.target).toBe(3);
+});
