@@ -3,7 +3,7 @@ import { Music2, VolumeX } from 'lucide-react';
 import { scopedKey } from '../accountScope';
 import { configurePlaybackAudio } from '../sounds';
 
-const START = 15;
+const START = 16;
 /** One player lives above all app pages; the preference belongs to this account/device. */
 export default function Soundtrack() {
  const [enabled,setEnabled]=useState(()=>{try{return localStorage.getItem(scopedKey('soundtrack-enabled'))!=='false';}catch{return true;}});
@@ -12,7 +12,7 @@ export default function Soundtrack() {
   if(!enabled)return;
   const audio=player.current;
   if(!audio)return;
-  audio.src='/myspace-soundtrack.mp3#t=15';
+  audio.src=`/myspace-soundtrack.mp3#t=${START}`;
   audio.preload='metadata';
   let pending=false,disposed=false;
   const play=()=>{
