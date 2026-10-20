@@ -49,6 +49,7 @@ self.addEventListener("fetch", (event) => {
   const request = event.request;
   if (
     request.method !== "GET" ||
+    new URL(request.url).pathname === "/myspace-soundtrack.mp3" ||
     new URL(request.url).origin !== self.location.origin
   )
     return;
