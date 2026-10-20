@@ -1,3 +1,4 @@
+import { authErrorMessage } from '../authErrors';
 import PointsCounter from './PointsCounter';
 import Soundtrack from './Soundtrack';
 import { useEffect, useState, type ReactNode } from 'react';
@@ -12,7 +13,9 @@ export default function AccountBoundary({children}:{children:ReactNode}) {
  useEffect(()=>{
   let alive=true;let current:string|null=null;
   const init=async()=>{try{
-   const session=authClient?(await authClient.auth.getSession()).data.session:null;
+   const result=authClient?await authClient.auth.getSession():null;
+   const session=result?.data.session||null;
+   if(result?.error)setError(authErrorMessage(result.error));
    if(!alive)return;
    if(session){current=session.user.id;setAccountScope(current,session.user.app_metadata.legacy_owner===true,session.user.app_metadata.username||session.user.email?.split("@")[0]||"");setIdentity(session.user);}
    else if(localStorage.getItem('eldinos-guest-mode')==='1'||!authClient){current='guest';setAccountScope('guest');setIdentity('guest');}
@@ -29,7 +32,7 @@ export default function AccountBoundary({children}:{children:ReactNode}) {
  async function signIn(e:React.FormEvent){e.preventDefault();setBusy(true);setError('');try{
   if(!authClient)throw Error('Account service is not configured.');
   const result=await authClient.auth.signInWithPassword({email:usernameEmail(username),password});
-  if(result.error)throw Error('Incorrect username or password.');
+  if(result.error)throw Error(authErrorMessage(result.error));
   localStorage.removeItem('eldinos-guest-mode');window.location.hash='';window.location.reload();
  }catch(e){setError(e instanceof Error?e.message:'Could not sign in.');}finally{setBusy(false);}}
  async function logout(){setBusy(true);setError('');try{
