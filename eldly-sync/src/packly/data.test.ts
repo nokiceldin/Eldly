@@ -89,3 +89,25 @@ describe('packing memory and equipment updates',()=>{
   const feedback={itemId:'tennis-02',name:'Rack',packedQuantity:4,idealQuantity:3,rating:'too-many' as const,tripType:'match' as const,days:1,climate:'mild',laundry:false,createdAt:200};
   expect(makeConfiguredTrip('Adjusted match','match',matchDetails,[feedback],undefined,[old]).quantities?.['tennis-02']).toBe(3);
  });
+
+ it('gives other accounts an English tennis base without changing the owner or restoring removed items',async()=>{
+  const {setAccountScope}=await import('../accountScope');
+  try{
+   setAccountScope('friend');
+   const trip=makeConfiguredTrip('Tournament','tennis',{...details,type:'tennis'});
+   expect(trip.items).toHaveLength(75);
+   expect(trip.categories.map(c=>c.name)).toContain('School & personal');
+   expect(trip.items.map(i=>i.name)).toEqual(expect.arrayContaining(['Shoelaces','Shoe glue','School laptop and charger','Jeans','Sleepwear','Tickets / booking details']));
+   expect(trip.items.some(i=>/PS4|Nordea|Beats/.test(i.name))).toBe(false);
+   const school=trip.categories.find(c=>c.id==='school')!;
+   expect(trip.items.find(i=>i.name==='School laptop and charger')?.categoryId).toBe(school.id);
+   trip.items=trip.items.filter(i=>i.name!=='Shoe glue');
+   trip.items.push({id:'personal-extra',name:'My extra',categoryId:'travel'});
+   const restored=normalizeTrip(JSON.parse(JSON.stringify(trip)));
+   expect(restored.items.map(i=>i.name)).not.toContain('Shoe glue');
+   expect(restored.items.map(i=>i.name)).toContain('My extra');
+   expect(new Set(restored.items.map(i=>i.id)).size).toBe(restored.items.length);
+   setAccountScope('owner',true);
+   expect(newTrip('Owner').items).toEqual(defaultItems);
+  }finally{setAccountScope('owner',true);}
+ });
