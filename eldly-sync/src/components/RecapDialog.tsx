@@ -21,7 +21,7 @@ export default function RecapDialog() {
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const refresh = () => { try { const latest = load(); if (isPersonalOwner()&&!latest.goalPlans?.length) { persist({ ...latest, goalPlans: [initialGoalPlan(latest)] }); } setData(load()); setToday(localDay()); } catch { /* Existing save errors are displayed by the app. */ } };
-    const open = () => { refresh(); setManual(recapWindows(localDay())); };
+    const open = () => { refresh(); setManual(recapWindows(localDay()).filter(w=>w.range.to>=mappingStart(load().mapping||emptyMapping()))); };
     refresh();
     window.addEventListener(LOCAL_EVENT, refresh);
     window.addEventListener(REMOTE_EVENT, refresh);

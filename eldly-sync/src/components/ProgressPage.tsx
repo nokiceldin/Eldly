@@ -84,10 +84,12 @@ function MetricCard({ metric, data, range, onSelectDay, onOpen }: { metric: Metr
   const stats = metricStats(data, metric, range);
   const { bins, group } = chartSeries(data, metric, range);
   const [active, setActive] = useState<number | null>(null);
-  const isAverage = ["sleep","phone"].includes(getHabits(data).find(h=>h.id===metric)?.kind||"");
+  const habit=getHabits(data).find(h=>h.id===metric);
+  const isSleep=habit?.kind==="sleep";
+  const isAverage = ["sleep","phone"].includes(habit?.kind||"");
   const primary = isAverage ? stats.average : stats.total;
   const scale = getHabits(data).find(h=>h.id===metric)?.kind === "prayer" || isCountMetric(metric,data) ? 1 : 60;
-  const max = Math.max(metric === "sleep" ? 10 : 1, ...bins.map(b => b.value === null ? 0 : (b.value + b.secondary) / scale));
+  const max = Math.max(isSleep ? 10 : 1, ...bins.map(b => b.value === null ? 0 : (b.value + b.secondary) / scale));
   const ceiling = Math.ceil(max / (max > 20 ? 10 : max > 5 ? 2 : 1)) * (max > 20 ? 10 : max > 5 ? 2 : 1);
   const isPhone = getHabits(data).find(h=>h.id===metric)?.kind === "phone";
   const pickupSeries = isPhone ? chartSeries(data, metric, range, "pickups") : undefined;
@@ -132,7 +134,7 @@ function MetricCard({ metric, data, range, onSelectDay, onOpen }: { metric: Metr
       </>}
     </svg>{!stats.days && !pickupStats?.days && <span className="metric-empty">No entries</span>}</div>
     {isPhone && <div className="metric-legend phone-use-legend"><span><i style={{ background: color }} />Screen time</span><span><i style={{ background: "#9fd5bd", borderRadius: "50%" }} />Pickups{pickupStats?.average !== null && pickupStats?.average !== undefined ? ` · ${Math.round(pickupStats.average)} avg` : ""}</span></div>}
-    {metric === "sleep" && <div className="metric-legend"><span><i style={{ background: COLORS.sleep }} />Night</span><span><i style={{ background: "#c5edb9" }} />Daytime</span></div>}
+    {isSleep && <div className="metric-legend"><span><i style={{ background: COLORS.sleep }} />Night</span><span><i style={{ background: "#c5edb9" }} />Daytime</span></div>}
     {selected && (selected.value !== null || selectedPickups?.value !== null && selectedPickups?.value !== undefined) && <div className="metric-foot">{selected.label} · {selected.value !== null ? humanValue(selected.value + selected.secondary, metric,data) : "—"}{selectedPickups?.value !== null && selectedPickups?.value !== undefined ? ` · ${selectedPickups.value} pickups` : ""}{metric === "sleep" && selected.days > 1 ? " avg" : ""}</div>}
 
 
