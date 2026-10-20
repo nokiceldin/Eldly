@@ -54,3 +54,11 @@ describe("media-volume playback", () => {
     expect(() => configurePlaybackAudio()).not.toThrow();
   });
 });
+
+it('uses each account’s current custom tracker color, including recoloring',()=>{
+ const mapping={version:1 as const,entries:{},habits:[{id:'custom-habit',label:'My habit',kind:'check' as const,color:'red' as const}]};
+ expect(tracklySound('custom-habit',mapping)).toBe('track-red');
+ expect(tracklySound('custom-habit',{...mapping,habits:[{...mapping.habits[0],color:'green'}]})).toBe('track-green');
+ expect(tracklySound('custom-habit',{...mapping,habits:[{...mapping.habits[0],color:'blue'}]})).toBe('track');
+ expect(tracklySound('porn',{...mapping,habits:[{...mapping.habits[0],id:'porn',color:'blue'}]})).toBe('track');
+});

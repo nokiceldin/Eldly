@@ -26,7 +26,7 @@ export function useMappingData() {
       persist({ ...latest, mapping });
       const stored = load(); setData(stored.mapping || emptyMapping()); setSoundState(stored.sound); setError("");
       if (entry && !wasMarked) {
-        const feedback = tracklySound(id);
+        const feedback = tracklySound(id, stored.mapping);
         playFeedback(feedback, stored.sound);
       }
       return null;

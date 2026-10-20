@@ -1,4 +1,4 @@
-import { HABITS, type HabitId } from "./mapping";
+import { HABITS, getHabits, type MappingData, type HabitId } from "./mapping";
 export type FeedbackSound = "check" | "day-complete" | "track" | "track-red" | "track-green";
 interface Tone { frequency: number; at: number; length: number; volume: number; type?: OscillatorType; endFrequency?: number }
 export const FEEDBACK_TONES: Record<FeedbackSound, readonly Tone[]> = {
@@ -27,8 +27,8 @@ export const FEEDBACK_TONES: Record<FeedbackSound, readonly Tone[]> = {
     { frequency: 960, at: .045, length: .12, volume: .06 },
   ],
 };
-export function tracklySound(id: HabitId): FeedbackSound {
-  const color = HABITS.find(habit => habit.id === id)?.color;
+export function tracklySound(id: HabitId, mapping?:MappingData): FeedbackSound {
+  const color = getHabits(mapping).find(habit => habit.id === id)?.color;
   return color === "red" ? "track-red" : color === "green" ? "track-green" : "track";
 }
 /** Use media volume rather than the iPhone ring/silent switch where supported. */

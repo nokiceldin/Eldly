@@ -35,7 +35,7 @@ export function buildRecap(data: Data, window: RecapWindow, today = localDay()) 
     if(metric === "sleep" && current.average !== null && current.average >= (target?.sleep ?? 510)) positives.push(`Sleep: ${humanValue(current.average,metric,mapping)} daily average`);
     if(metric === "screen-time" && current.average !== null && current.days && current.average <= (target?.["screen-time"] ?? 240)) positives.push(`Phone use: ${humanValue(current.average,metric,mapping)} daily average`);
     const habit=getHabits(mapping).find(h=>h.id===metric);
-    const red = mapping.habits ? !!habit?.goal?.maximum : habit?.color === "red";
+    const red = habit?.color === "red" || !!habit?.goal?.maximum;
     if (red && current.total > 0) attention.push(`${label}: ${humanValue(current.total,metric,mapping)}`);
     if (!red && metric !== "screen-time" && metric !== "sleep" && current.total > 0) positives.push(`${label}: ${humanValue(current.total, metric,mapping)}${metric === "praying" ? " prayers" : ""}`);
     if (metric === "screen-time" && previous.average && current.average !== null && current.average < previous.average) positives.push(`Phone use down ${humanValue(previous.average - current.average, metric,mapping)} per day`);
