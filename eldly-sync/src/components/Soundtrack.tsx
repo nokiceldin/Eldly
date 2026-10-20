@@ -45,5 +45,5 @@ export default function Soundtrack() {
   setEnabled(next);
  }
  // Remains mounted when the menu closes, so navigating never restarts the song.
- return <><audio ref={player} preload="metadata" aria-hidden="true"/><button type="button" className="soundtrack-toggle" aria-label={enabled?'Turn background music off':'Turn background music on'} aria-pressed={enabled} onClick={toggle}>{enabled?<Music2 size={18}/>:<VolumeX size={18}/>}Music {enabled?'on':'off'}</button></>;
+ return <><audio ref={player} preload="metadata" aria-hidden="true"/><button type="button" className="soundtrack-toggle" aria-label={enabled?'Turn background music off':'Turn background music on'} aria-pressed={enabled} onClick={toggle}>{enabled?<Music2 size={18}/>:<VolumeX size={18}/>}</button></>;
 }

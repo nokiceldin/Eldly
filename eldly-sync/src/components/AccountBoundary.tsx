@@ -4,7 +4,6 @@ import type { User } from '@supabase/supabase-js';
 import { LogOut, UserRound } from 'lucide-react';
 import { authClient, usernameEmail } from '../auth';
 import { setAccountScope, isGuest } from '../accountScope';
-import { exportDevice } from '../sync/local';
 import { enrolled, synchronize } from '../sync/engine';
 export default function AccountBoundary({children}:{children:ReactNode}) {
  const [identity,setIdentity]=useState<User|'guest'|null>(null),[ready,setReady]=useState(false),[login,setLogin]=useState(false),[menu,setMenu]=useState(false);
@@ -36,9 +35,9 @@ export default function AccountBoundary({children}:{children:ReactNode}) {
   if(!isGuest()&&enrolled()&&navigator.onLine){try{await synchronize();}catch{/* Pending edits remain in this account's cache; logout must still be available. */}}
   const result=await authClient?.auth.signOut({scope:'local'});if(result?.error)throw result.error;
   localStorage.removeItem('eldinos-guest-mode');setIdentity(null);setAccountScope('locked');window.location.hash='';window.location.reload();
- }catch{setError('Could not finish signing out. Your edits are safe on this device. Retry, or export a backup first.');}finally{setBusy(false);}}
+ }catch{setError('Could not finish signing out. Your edits are safe on this device. Please retry.');}finally{setBusy(false);}}
  if(!ready)return <main className="cloud-loading"><img src="/eldly-logo.png" width="100" alt="MySpace"/><div className="cloud-loading-bar"><span/></div></main>;
  if(!identity||login)return <main className="account-login"><form onSubmit={signIn}><img src="/eldly-logo.png" width="76" height="76" alt=""/><h1>MySpace<span>.</span></h1><h2>Sign in</h2><label>Username<input autoComplete="username" autoCapitalize="none" spellCheck={false} required value={username} onChange={e=>setUsername(e.target.value)}/></label><label>Password<input type="password" autoComplete="current-password" required value={password} onChange={e=>setPassword(e.target.value)}/></label>{error&&<p role="alert">{error}</p>}<button className="account-primary" disabled={busy}>{busy?'Signing in…':'Sign in'}</button><button type="button" className="account-guest" onClick={()=>{localStorage.setItem('eldinos-guest-mode','1');window.location.hash='';window.location.reload();}}>Continue as guest</button><small>Guest data stays on this device.</small>{identity&&<button type="button" onClick={()=>setLogin(false)}>Back</button>}</form></main>;
  const name=identity==='guest'?'Guest':identity.app_metadata.username||identity.email?.split('@')[0]||'Account';
- return <>{children}<div className="account-control"><button onClick={()=>setMenu(!menu)} aria-expanded={menu}><UserRound size={15}/>{name}</button><section hidden={!menu} className="account-menu" aria-label="Account"><strong>{name}</strong><Soundtrack/><p>{identity==='guest'?'Saved only on this device':'Your private account · cloud sync'}</p>{identity==='guest'?<button onClick={()=>{setMenu(false);setLogin(true);}}>Sign in</button>:<button disabled={busy} onClick={()=>void logout()}><LogOut size={15}/>Sign out of this device</button>}<button onClick={exportDevice}>Export my backup</button>{error&&<p role="alert">{error}</p>}</section></div></>;
+ return <>{children}<div className="account-control"><button onClick={()=>setMenu(!menu)} aria-expanded={menu}><UserRound size={15}/>{name}</button><section hidden={!menu} className="account-menu" aria-label="Account"><Soundtrack/>{identity==='guest'?<button onClick={()=>{setMenu(false);setLogin(true);}}>Sign in</button>:<button disabled={busy} onClick={()=>void logout()}><LogOut size={15}/>Sign Out</button>}{error&&<p role="alert">{error}</p>}</section></div></>;
 }

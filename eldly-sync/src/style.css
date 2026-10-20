@@ -1480,3 +1480,5 @@ input {
 .task-delete-confirm{margin-top:18px;padding:14px;border:1px solid #efb1a533;border-radius:12px;background:#efb1a508}.task-delete-confirm p{margin:0 0 10px;font-size:13px}.task-delete-confirm button{min-height:40px;padding:8px 14px;font-size:13px}.task-delete-confirm .danger{color:#efb1a5}
 
 .account-menu[hidden]{display:none}
+
+.account-menu{width:auto;min-width:168px;padding:10px;display:flex;align-items:center;gap:8px;border-radius:14px}.account-menu .soundtrack-toggle{width:44px;justify-content:center;border-radius:9px}.account-menu .soundtrack-toggle[aria-pressed=false]{opacity:.5}.account-menu button:hover{background:#ffffff08}.account-menu>button{padding:0 10px;white-space:nowrap}.account-menu p[role=alert]{max-width:220px}.account-menu:has(p[role=alert]){flex-wrap:wrap}
