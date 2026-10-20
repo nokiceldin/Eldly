@@ -54,7 +54,7 @@ export default function RecapDialog() {
   const range = (r: { from: string; to: string }) => `${format(r.from, { month: "short", day: "numeric", year: "numeric" })} – ${format(r.to, { month: "short", day: "numeric", year: "numeric" })}`;
   return <dialog ref={dialog} className={`recap-dialog ${recap.period === "week" ? "recap-weekly" : ""}`} aria-labelledby="recap-title" onCancel={e => { e.preventDefault(); dismiss(); }}>
     <header className="recap-heading"><div><span className="recap-eyebrow">{labels[recap.period]} recap</span><h1 id="recap-title">{recap.period === "week" ? "Your week" : recap.period === "month" ? "Your month" : "Your year"}</h1><p>{range({ ...recap.range, from: recap.range.from < start ? start : recap.range.from })}</p></div><button aria-label="Close recap" onClick={dismiss}><X size={22} /></button></header>
-    {!personal && recap.period === "week" && data && <section className="recap-points"><span>Week’s points</span><strong>{formatPoints(pointsHistory(data.mapping||emptyMapping(),today).find(w=>w.from<=recap.range.to&&w.to>=recap.range.from)?.total||0)} <small>pts</small></strong></section>}
+    {!personal && recap.period === "week" && data && <section className="recap-points"><span>Week’s XP</span><strong>{formatPoints(pointsHistory(data.mapping||emptyMapping(),today).find(w=>w.from<=recap.range.to&&w.to>=recap.range.from)?.total||0)} <small>XP</small></strong></section>}
     {!personal && recap.period === "week" && data && <WeeklyRecap data={data} recap={recap} today={today}/>}
     {(personal||recap.period !== "week") && <>
     <div className="recap-topline"><strong>{recap.completed}<span>tasks completed</span></strong><strong>{recap.days}<span>days</span></strong></div>

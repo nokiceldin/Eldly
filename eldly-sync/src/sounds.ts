@@ -66,3 +66,30 @@ export function playFeedback(sound: FeedbackSound, enabled: boolean) {
     }
   } catch { /* Audio is optional; never interrupt saving a task. */ }
 }
+
+/** Soft rising energy pulses, timed to the arrival of each XP mote. */
+export function playXPCollection(count:number,enabled:boolean,firstArrivalMs=700,staggerMs=95){
+ if(!enabled||count<=0)return;
+ configurePlaybackAudio();
+ try{
+  const AudioContextClass=window.AudioContext||(window as Window & {webkitAudioContext?:typeof AudioContext}).webkitAudioContext;
+  if(!AudioContextClass)return;
+  if(!context||context.state==='closed')context=new AudioContextClass({latencyHint:'interactive'});
+  const ctx=context;
+  if(ctx.state==='suspended')void ctx.resume().catch(()=>{});
+  const start=ctx.currentTime+firstArrivalMs/1000;
+  for(let i=0;i<Math.min(count,40);i++){
+   const at=start+i*staggerMs/1000;
+   const tone=ctx.createOscillator(),gain=ctx.createGain();
+   tone.type='sine';
+   const frequency=560*Math.pow(2,(i%8)/18);
+   tone.frequency.setValueAtTime(frequency*.72,at);
+   tone.frequency.exponentialRampToValueAtTime(frequency,at+.055);
+   gain.gain.setValueAtTime(.0001,at);
+   gain.gain.exponentialRampToValueAtTime(.055,at+.012);
+   gain.gain.exponentialRampToValueAtTime(.0001,at+.17);
+   tone.connect(gain);gain.connect(ctx.destination);tone.start(at);tone.stop(at+.19);
+   tone.onended=()=>{tone.disconnect();gain.disconnect();};
+  }
+ }catch{/* Optional feedback must never interrupt a save. */}
+}

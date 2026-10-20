@@ -1,36 +1,47 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import { Coins, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { load } from '../storage';
 import { emptyMapping } from '../mapping';
 import { format, schoolWeek } from '../engine';
 import { formatPoints, POINT_LABELS, pointsStats } from '../points';
+import { playXPCollection } from '../sounds';
+import { xpMotes, XP_FLIGHT_MS, XP_STAGGER_MS } from '../xpEffects';
 import { LOCAL_EVENT, REMOTE_EVENT } from '../sync/local';
+function XPLogo(){return <svg viewBox="0 0 36 32" className="xp-logo" aria-hidden="true"><path d="M9 2h18l8 14-8 14H9L1 16Z" fill="currentColor" fillOpacity=".13" stroke="currentColor" strokeWidth="1.4"/><path d="m8 10 7 12m0-12L8 22M21 22V10h4a3 3 0 0 1 0 6h-4" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>;}
+type Flight={id:number;delta:number;x:number;y:number;dx:number;dy:number;motes:number[]};
 export default function PointsCounter(){
  const read=()=>pointsStats(load().mapping||emptyMapping());
- const [stats,setStats]=useState(read),[open,setOpen]=useState(false),[flight,setFlight]=useState<{id:number;delta:number;x:number;y:number;dx:number;dy:number}|null>(null);
+ const [stats,setStats]=useState(read),[open,setOpen]=useState(false),[flights,setFlights]=useState<Flight[]>([]),[shown,setShown]=useState(stats.total),[pulse,setPulse]=useState(0);
  const badge=useRef<HTMLButtonElement>(null),dialog=useRef<HTMLDialogElement>(null),total=useRef(stats.total),origin=useRef<{x:number;y:number}|null>(null);
- const flightId=useRef(0),timeout=useRef<ReturnType<typeof setTimeout>|undefined>(undefined);
+ const flightId=useRef(0),timers=useRef<ReturnType<typeof setTimeout>[]>([]);
  useEffect(()=>{
   const pointer=(e:PointerEvent)=>{origin.current={x:e.clientX,y:e.clientY};};
   const keyboard=()=>{const r=document.activeElement?.getBoundingClientRect();origin.current=r?{x:r.x+r.width/2,y:r.y+r.height/2}:null;};
   const refresh=(e:Event)=>{
    const next=read(),delta=next.total-total.current;
    total.current=next.total;setStats(next);
-   if(e.type!==LOCAL_EVENT||!delta)return;
+   if(!delta)return;
+   if(e.type!==LOCAL_EVENT){timers.current.forEach(clearTimeout);timers.current=[];setFlights([]);setShown(next.total);return;}
    const target=badge.current?.getBoundingClientRect();if(!target)return;
    const source=origin.current||{x:target.x+target.width/2,y:target.y-65};
-   setFlight({id:++flightId.current,delta,x:source.x,y:source.y,dx:target.x+target.width/2-source.x,dy:target.y+target.height/2-source.y});
-   clearTimeout(timeout.current);timeout.current=setTimeout(()=>setFlight(null),950);
+   const id=++flightId.current,motes=xpMotes(delta);
+   const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+   setFlights(old=>[...old,{id,delta,x:source.x,y:source.y,dx:target.x+target.width/2-source.x,dy:target.y+target.height/2-source.y,motes}]);
+   const schedule=(fn:()=>void,ms:number)=>{const timer=setTimeout(()=>{timers.current=timers.current.filter(t=>t!==timer);fn();},ms);timers.current.push(timer);};
+   if(delta<0||reduced)setShown(n=>n+delta);
+   else motes.forEach((value,i)=>schedule(()=>{setShown(n=>n+value);setPulse(n=>n+1);},XP_FLIGHT_MS+i*XP_STAGGER_MS));
+   if(delta>0)playXPCollection(motes.length,load().sound,reduced?0:XP_FLIGHT_MS,XP_STAGGER_MS);
+   schedule(()=>setFlights(old=>old.filter(f=>f.id!==id)),delta<0||reduced?950:XP_FLIGHT_MS+motes.length*XP_STAGGER_MS+200);
   };
   window.addEventListener('pointerdown',pointer,true);window.addEventListener('keydown',keyboard,true);
   for(const name of [LOCAL_EVENT,REMOTE_EVENT,'storage','focus'])window.addEventListener(name,refresh);
   const timer=setInterval(()=>refresh(new Event('refresh')),60000);
-  return()=>{clearInterval(timer);clearTimeout(timeout.current);window.removeEventListener('pointerdown',pointer,true);window.removeEventListener('keydown',keyboard,true);for(const name of [LOCAL_EVENT,REMOTE_EVENT,'storage','focus'])window.removeEventListener(name,refresh);};
+  return()=>{clearInterval(timer);timers.current.forEach(clearTimeout);window.removeEventListener('pointerdown',pointer,true);window.removeEventListener('keydown',keyboard,true);for(const name of [LOCAL_EVENT,REMOTE_EVENT,'storage','focus'])window.removeEventListener(name,refresh);};
  },[]);
  useEffect(()=>{if(open)dialog.current?.showModal();},[open]);
  const date=(d:string)=>format(d,{month:'short',day:'numeric'});
- return <><button ref={badge} className="points-badge" onClick={()=>setOpen(true)} aria-label={`${formatPoints(stats.total)} points. View weekly points`} title="Your total points"><Coins size={16}/><span aria-live="polite" aria-atomic="true">{formatPoints(stats.total)}</span></button>
- {open&&<dialog ref={dialog} className="points-dialog" onCancel={e=>{e.preventDefault();setOpen(false);}} aria-labelledby="points-title"><header><div><span>Your Track points</span><h2 id="points-title">Your points</h2></div><button onClick={()=>setOpen(false)} aria-label="Close points"><X size={21}/></button></header><div className="points-stats"><div><small>This week</small><strong>{formatPoints(stats.current)}</strong></div><div><small>Weekly average</small><strong>{stats.average===null?'—':formatPoints(stats.average)}</strong></div><div><small>Best week</small><strong>{stats.best?formatPoints(stats.best.total):'—'}</strong>{stats.best&&<small>Week {schoolWeek(stats.best.from)} · {date(stats.best.from)}</small>}</div></div><p className="points-caption">Average and best use completed full weeks.</p><div className="points-history">{[...stats.weeks].reverse().map(w=><details key={w.from} open={w.current}><summary><span>Week {schoolWeek(w.from)}<small>{date(w.from)} – {date(w.to)} · {w.from.slice(0,4)}{w.current?' · This week':w.partial?' · Partial week':''}</small></span><strong>{formatPoints(w.total)} <small>pts</small></strong></summary><div className="points-breakdown">{Object.entries(POINT_LABELS).map(([id,label])=><div key={id}><span>{label}</span><b className={(w.breakdown[id]||0)<0?'negative':''}>{formatPoints(w.breakdown[id]||0)}</b></div>)}</div></details>)}</div></dialog>}
- {flight&&createPortal(<div key={flight.id} aria-hidden="true" className={`points-flight ${flight.delta<0?'negative':''}`} style={{left:flight.x,top:flight.y,'--dx':`${flight.dx}px`,'--dy':`${flight.dy}px`} as CSSProperties}><Coins size={18}/>{flight.delta>0?'+':''}{formatPoints(flight.delta)}</div>,document.body)}</>;
+ return <><button ref={badge} className="points-badge xp-badge" onClick={()=>setOpen(true)} aria-label={`${formatPoints(stats.total)} XP. View weekly XP`} title="Your total XP"><XPLogo/><span className="xp-number" key={pulse}>{formatPoints(shown)}</span><span className="sr-only" aria-live="polite" aria-atomic="true">{formatPoints(stats.total)} XP</span></button>
+ {open&&<dialog ref={dialog} className="points-dialog" onCancel={e=>{e.preventDefault();setOpen(false);}} aria-labelledby="points-title"><header><div><span>Track XP</span><h2 id="points-title">Your XP</h2></div><button onClick={()=>setOpen(false)} aria-label="Close XP"><X size={21}/></button></header><div className="points-stats"><div><small>This week</small><strong>{formatPoints(stats.current)}</strong></div><div><small>Weekly average</small><strong>{stats.average===null?'—':formatPoints(stats.average)}</strong></div><div><small>Best week</small><strong>{stats.best?formatPoints(stats.best.total):'—'}</strong>{stats.best&&<small>Week {schoolWeek(stats.best.from)} · {date(stats.best.from)}</small>}</div></div><p className="points-caption">Average and best use completed full weeks.</p><div className="points-history">{[...stats.weeks].reverse().map(w=><details key={w.from} open={w.current}><summary><span>Week {schoolWeek(w.from)}<small>{date(w.from)} – {date(w.to)} · {w.from.slice(0,4)}{w.current?' · This week':w.partial?' · Partial week':''}</small></span><strong>{formatPoints(w.total)} <small>XP</small></strong></summary><div className="points-breakdown">{Object.entries(POINT_LABELS).map(([id,label])=><div key={id}><span>{label}</span><b className={(w.breakdown[id]||0)<0?'negative':''}>{formatPoints(w.breakdown[id]||0)}</b></div>)}</div></details>)}</div></dialog>}
+ {flights.length>0&&createPortal(<div aria-hidden="true" className="xp-effects">{flights.map(f=><div key={f.id}>{f.delta<0?<div className="xp-loss" style={{left:f.x,top:f.y}}>{formatPoints(f.delta)} XP</div>:<><div className="xp-gain-label" style={{left:f.x,top:f.y}}>+{formatPoints(f.delta)} XP</div>{!window.matchMedia('(prefers-reduced-motion: reduce)').matches&&f.motes.map((value,i)=><span key={i} className={`xp-mote ${value<1?'xp-mote-half':''}`} style={{left:f.x,top:f.y,'--dx':`${f.dx}px`,'--dy':`${f.dy}px`,'--scatter-x':`${Math.sin(i*2.4)*30}px`,'--scatter-y':`${-25-Math.cos(i*1.8)*18}px`,animationDelay:`${i*XP_STAGGER_MS}ms`,animationDuration:`${XP_FLIGHT_MS}ms`} as CSSProperties}><XPLogo/></span>)}</>}</div>)}</div>,document.body)}</>;
 }

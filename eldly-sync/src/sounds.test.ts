@@ -62,3 +62,16 @@ it('uses each account’s current custom tracker color, including recoloring',()
  expect(tracklySound('custom-habit',{...mapping,habits:[{...mapping.habits[0],color:'blue'}]})).toBe('track');
  expect(tracklySound('porn',{...mapping,habits:[{...mapping.habits[0],id:'porn',color:'blue'}]})).toBe('track');
 });
+
+it('times one soft XP tone per arrival and respects muted effects',async()=>{
+ vi.resetModules();
+ const starts:number[]=[];
+ const param=()=>({setValueAtTime:vi.fn(),exponentialRampToValueAtTime:vi.fn()});
+ const audio={state:'running',currentTime:10,destination:{},createOscillator:()=>({frequency:param(),connect:vi.fn(),disconnect:vi.fn(),start:(t:number)=>starts.push(t),stop:vi.fn(),onended:null}),createGain:()=>({gain:param(),connect:vi.fn(),disconnect:vi.fn()})};
+ const constructor=vi.fn(function(){return audio;});vi.stubGlobal('window',{AudioContext:constructor});
+ try{
+  const {playXPCollection}=await import('./sounds');
+  playXPCollection(4,false);expect(starts).toHaveLength(0);
+  playXPCollection(4,true,700,95);expect(starts).toHaveLength(4);expect(starts[0]).toBeCloseTo(10.7);expect(starts[3]).toBeCloseTo(10.985);
+ }finally{vi.unstubAllGlobals();vi.resetModules();}
+});
