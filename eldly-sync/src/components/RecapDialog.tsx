@@ -1,3 +1,6 @@
+import { isPersonalOwner } from "../accountScope";
+import { getHabits, mappingStart, emptyMapping } from "../mapping";
+import PersonalGoalsPanel from "./PersonalGoalsPanel";
 import WeeklyRecap from "./WeeklyRecap";
 import { TRACKING_START } from "../tracking";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -17,7 +20,7 @@ export default function RecapDialog() {
   const [applied,setApplied] = useState<string[]>([]);
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
-    const refresh = () => { try { const latest = load(); if (!latest.goalPlans?.length) { persist({ ...latest, goalPlans: [initialGoalPlan(latest)] }); } setData(load()); setToday(localDay()); } catch { /* Existing save errors are displayed by the app. */ } };
+    const refresh = () => { try { const latest = load(); if (isPersonalOwner()&&!latest.goalPlans?.length) { persist({ ...latest, goalPlans: [initialGoalPlan(latest)] }); } setData(load()); setToday(localDay()); } catch { /* Existing save errors are displayed by the app. */ } };
     const open = () => { refresh(); setManual(recapWindows(localDay())); };
     refresh();
     window.addEventListener(LOCAL_EVENT, refresh);
@@ -45,23 +48,26 @@ export default function RecapDialog() {
     } catch { setError("Could not save. Please try again."); }
   }
   if (!recap) return null;
+  const personal=!isPersonalOwner();
+  const start=mappingStart(data?.mapping||emptyMapping());
   const range = (r: { from: string; to: string }) => `${format(r.from, { month: "short", day: "numeric", year: "numeric" })} – ${format(r.to, { month: "short", day: "numeric", year: "numeric" })}`;
   return <dialog ref={dialog} className={`recap-dialog ${recap.period === "week" ? "recap-weekly" : ""}`} aria-labelledby="recap-title" onCancel={e => { e.preventDefault(); dismiss(); }}>
-    <header className="recap-heading"><div><span className="recap-eyebrow">{labels[recap.period]} recap</span><h1 id="recap-title">{recap.period === "week" ? "Your week" : recap.period === "month" ? "Your month" : "Your year"}</h1><p>{range({ ...recap.range, from: recap.range.from < TRACKING_START ? TRACKING_START : recap.range.from })}</p></div><button aria-label="Close recap" onClick={dismiss}><X size={22} /></button></header>
-    {recap.period === "week" && data && <WeeklyRecap data={data} recap={recap} today={today}/>}
-    {recap.period !== "week" && <>
+    <header className="recap-heading"><div><span className="recap-eyebrow">{labels[recap.period]} recap</span><h1 id="recap-title">{recap.period === "week" ? "Your week" : recap.period === "month" ? "Your month" : "Your year"}</h1><p>{range({ ...recap.range, from: recap.range.from < start ? start : recap.range.from })}</p></div><button aria-label="Close recap" onClick={dismiss}><X size={22} /></button></header>
+    {!personal && recap.period === "week" && data && <WeeklyRecap data={data} recap={recap} today={today}/>}
+    {(personal||recap.period !== "week") && <>
     <div className="recap-topline"><strong>{recap.completed}<span>tasks completed</span></strong><strong>{recap.days}<span>days</span></strong></div>
     <div className="recap-insights">
       <section><h2>Positives</h2>{recap.positives.length ? <ul>{recap.positives.map(text => <li key={text}>{text}</li>)}</ul> : <p>No completed activities this period.</p>}</section>
       <section><h2>Room to improve</h2>{recap.attention.length ? <ul>{recap.attention.map(text => <li key={text}>{text}</li>)}</ul> : <p>{recap.metrics.some(row=>row.previous.days)?`No declines from the previous ${recap.period}.`:"No earlier tracking period to compare."}</p>}</section>
     </div>
-    {data && goalHistory(data,recap.range,today).weeks.length > 0 && <section className="recap-data"><h2>Weekly goals</h2><div className="recap-goals">{data && goalHistory(data, recap.range, today).summary.map(goal => <div key={goal.id}><span>{goal.label}</span><strong>{goal.met} / {goal.total}<small>weeks met</small></strong></div>)}</div></section>}
+    {!personal && data && goalHistory(data,recap.range,today).weeks.length > 0 && <section className="recap-data"><h2>Weekly goals</h2><div className="recap-goals">{data && goalHistory(data, recap.range, today).summary.map(goal => <div key={goal.id}><span>{goal.label}</span><strong>{goal.met} / {goal.total}<small>weeks met</small></strong></div>)}</div></section>}
     </>}
-    {recap.period === "month" && data && goalRecommendations(data,recap.range).length > 0 && <section className="recap-data"><h2>Next month</h2><div className="goal-suggestions">{goalRecommendations(data,recap.range).map(goal=><div key={goal.id}><div><strong>{goal.label}: {goalValueLabel(goal,goal.proposed)}</strong><p>{goal.reason} · current goal {goalValueLabel(goal,goal.target)}</p></div><button disabled={applied.includes(`${recap.id}:${goal.id}`)} onClick={()=>{try {persist(applyGoalRecommendation(load(),goal.id,goal.proposed,today));setData(load());setApplied(old=>[...old,`${recap.id}:${goal.id}`]);}catch{setError("Could not save the new goal.");}}}>{applied.includes(`${recap.id}:${goal.id}`)?"Scheduled":"Use next week"}</button></div>)}</div></section>}
-    {recap.period !== "week" && <section className="recap-data"><h2>The numbers</h2><p className="recap-comparison">Compared with {range(recap.previous)}</p><div className="recap-table-scroll"><table><thead><tr><th scope="col">Activity</th><th scope="col">This {recap.period}</th><th scope="col">Previous</th></tr></thead><tbody>{recap.metrics.map(row => {
-      const average = row.metric === "sleep" || row.metric === "screen-time";
-      return <tr key={row.metric}><th scope="row">{row.label}{average ? " · daily avg" : " · total"}</th><td>{humanValue(average ? row.current.average || 0 : row.current.total, row.metric)}</td><td>{row.previous.days ? humanValue(average ? row.previous.average || 0 : row.previous.total, row.metric) : "—"}</td></tr>;
+    {!personal && recap.period === "month" && data && goalRecommendations(data,recap.range).length > 0 && <section className="recap-data"><h2>Next month</h2><div className="goal-suggestions">{goalRecommendations(data,recap.range).map(goal=><div key={goal.id}><div><strong>{goal.label}: {goalValueLabel(goal,goal.proposed)}</strong><p>{goal.reason} · current goal {goalValueLabel(goal,goal.target)}</p></div><button disabled={applied.includes(`${recap.id}:${goal.id}`)} onClick={()=>{try {persist(applyGoalRecommendation(load(),goal.id,goal.proposed,today));setData(load());setApplied(old=>[...old,`${recap.id}:${goal.id}`]);}catch{setError("Could not save the new goal.");}}}>{applied.includes(`${recap.id}:${goal.id}`)?"Scheduled":"Use next week"}</button></div>)}</div></section>}
+    {(personal||recap.period !== "week") && <section className="recap-data"><h2>The numbers</h2><p className="recap-comparison">Compared with {range(recap.previous)}</p><div className="recap-table-scroll"><table><thead><tr><th scope="col">Activity</th><th scope="col">This {recap.period}</th><th scope="col">Previous</th></tr></thead><tbody>{recap.metrics.map(row => {
+      const average = ["sleep","phone"].includes(getHabits(data?.mapping).find(h=>h.id===row.metric)?.kind||"");
+      return <tr key={row.metric}><th scope="row">{row.label}{average ? " · daily avg" : " · total"}</th><td>{humanValue(average ? row.current.average || 0 : row.current.total, row.metric,data?.mapping)}</td><td>{row.previous.days ? humanValue(average ? row.previous.average || 0 : row.previous.total, row.metric,data?.mapping) : "—"}</td></tr>;
     })}</tbody></table></div></section>}
+    {personal&&data?.mapping&&<PersonalGoalsPanel range={recap.range} mapping={data.mapping}/>}
     {error && <p role="alert">{error}</p>}
     <button className="recap-done" onClick={dismiss}>{queue.length > 1 ? "Next recap" : "Done"}<ChevronRight size={18} /></button>
   </dialog>;

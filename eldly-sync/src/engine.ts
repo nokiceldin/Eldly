@@ -1,3 +1,4 @@
+import { isPersonalOwner } from "./accountScope";
 import type { WeeklyGoalPlan } from "./goals";
 import { emptyMapping, setMappingEntry, type MappingData } from "./mapping";
 import {
@@ -223,6 +224,7 @@ export function saveTask(data: Data, t: Task): Data {
     : { ...data, tasks: [...data.tasks.filter((x) => x.id !== t.id), t] };
 }
 export function seed(data: Data, _today: Day): Data {
+  if(!isPersonalOwner())return {...data,sampleLoaded:true};
   if (data.sampleLoaded) return data;
   const routines: Routine[] = [],
     tasks: Task[] = [];
@@ -567,6 +569,7 @@ export function normalizeWeeklyMarkers(data: Data): Data {
 
 /** Link Check's real daily completion to Mapping without retroactively rewarding late work. */
 export function syncChecklyHomework(data: Data, today: Day): Data {
+  if(data.mapping?.habits!==undefined)return data;
   const groups = new Map<Day, Task[]>();
   for (const task of allTasks(data, today, today)) {
     for (const day of new Set([task.scheduled, visibleDate(task, today)])) {

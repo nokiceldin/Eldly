@@ -1,3 +1,4 @@
+import { scopedKey } from "../accountScope";
 import { validate } from '../storage';
 export const LOCAL_EVENT = 'eldly-local-save';
 export const REMOTE_EVENT = 'eldly-cloud-update';
@@ -5,12 +6,12 @@ export const KEYS = ['checkly-data-v1', 'packly-v1'] as const;
 export type Snapshot = Record<string, unknown>;
 export function writeLocal(key: string, value: unknown) {
   const text = JSON.stringify(value);
-  if (localStorage.getItem(key) === text) return;
-  localStorage.setItem(key, text);
+  if (localStorage.getItem(scopedKey(key)) === text) return;
+  localStorage.setItem(scopedKey(key), text);
   window.dispatchEvent(new Event(LOCAL_EVENT));
 }
 export function snapshot(): Snapshot {
-  return Object.fromEntries(KEYS.flatMap(key => { const raw = localStorage.getItem(key); return raw ? [[key, JSON.parse(raw)]] : []; }));
+  return Object.fromEntries(KEYS.flatMap(key => { const raw = localStorage.getItem(scopedKey(key)); return raw ? [[key, JSON.parse(raw)]] : []; }));
 }
 export function validateSnapshot(value: unknown): value is Snapshot {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
@@ -22,10 +23,10 @@ export function validateSnapshot(value: unknown): value is Snapshot {
 }
 export function restore(s: Snapshot) {
   if (!validateSnapshot(s)) throw Error('Cloud data is incompatible. Your local data has been kept.');
-  const previous = KEYS.map(key => localStorage.getItem(key));
+  const previous = KEYS.map(key => localStorage.getItem(scopedKey(key)));
   if (KEYS.every((key,i) => previous[i] === (key in s ? JSON.stringify(s[key]) : null))) return;
-  try { for (const key of KEYS) { if (key in s) localStorage.setItem(key, JSON.stringify(s[key])); else localStorage.removeItem(key); } }
-  catch (error) { KEYS.forEach((key,i) => { if (previous[i] !== null) localStorage.setItem(key,previous[i]!); else localStorage.removeItem(key); }); throw error; }
+  try { for (const key of KEYS) { if (key in s) localStorage.setItem(scopedKey(key), JSON.stringify(s[key])); else localStorage.removeItem(scopedKey(key)); } }
+  catch (error) { KEYS.forEach((key,i) => { if (previous[i] !== null) localStorage.setItem(scopedKey(key),previous[i]!); else localStorage.removeItem(scopedKey(key)); }); throw error; }
   window.dispatchEvent(new Event(REMOTE_EVENT));
 }
 export function exportDevice() {

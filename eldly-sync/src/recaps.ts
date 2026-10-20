@@ -1,8 +1,8 @@
 import { goalPlan } from "./goals";
 import { TRACKING_START } from "./tracking";
 import { add, allTasks, diff, localDay, monday, parse, type Data } from "./engine";
-import { emptyMapping, HABITS } from "./mapping";
-import { humanValue, METRICS, metricLabel, metricStats, type Range } from "./progress";
+import { emptyMapping, HABITS, getHabits, mappingStart } from "./mapping";
+import { humanValue, METRICS, getMetrics, metricLabel, metricStats, type Range } from "./progress";
 export type RecapPeriod = "week" | "month" | "year";
 export interface RecapWindow { id: string; period: RecapPeriod; range: Range; previous: Range }
 export function recapWindows(today = localDay()): RecapWindow[] {
@@ -19,13 +19,13 @@ export function recapWindows(today = localDay()): RecapWindow[] {
 export function pendingRecaps(data: Data, today = localDay()) {
   const dates = [...Object.keys(data.mapping?.entries || {}), ...data.tasks.map(t => t.scheduled), ...data.routines.map(r => r.start)].sort();
   const first = dates[0];
-  return recapWindows(today).filter(w => !data.recapSeen?.[w.id] && first && w.range.to >= TRACKING_START);
+  return recapWindows(today).filter(w => !data.recapSeen?.[w.id] && first && w.range.to >= mappingStart(data.mapping||emptyMapping()));
 }
 export function buildRecap(data: Data, window: RecapWindow, today = localDay()) {
-  const from = window.range.from < TRACKING_START ? TRACKING_START : window.range.from;
+  const from = window.range.from < mappingStart(data.mapping||emptyMapping()) ? mappingStart(data.mapping||emptyMapping()) : window.range.from;
   const mapping = data.mapping || emptyMapping();
-  const metrics = METRICS.map(metric => ({ metric, label: metricLabel(metric), current: metricStats(mapping, metric, window.range), previous: metricStats(mapping, metric, window.previous) }));
-  const marks = HABITS.filter(h => h.kind === "check").map(h => ({ ...h, days: Object.entries(mapping.entries).filter(([date, row]) => date >= window.range.from && date >= TRACKING_START && date <= window.range.to && !!row[h.id]).length }));
+  const metrics = getMetrics(mapping).map(metric => ({ metric, label: metricLabel(metric,mapping), current: metricStats(mapping, metric, window.range), previous: metricStats(mapping, metric, window.previous) }));
+  const marks = getHabits(mapping).filter(h => h.kind === "check").map(h => ({ ...h, days: Object.entries(mapping.entries).filter(([date, row]) => date >= window.range.from && date >= TRACKING_START && date <= window.range.to && !!row[h.id]).length }));
   const tasks = allTasks(data, window.range.to, today).filter(t => !t.deleted && ((t.scheduled >= from && t.scheduled <= window.range.to) || (t.completed && t.completed >= from && t.completed <= window.range.to)));
   const completed = tasks.filter(t => t.completed && t.completed >= from && t.completed <= window.range.to).length;
   const positives: string[] = [], attention: string[] = [];
@@ -34,7 +34,7 @@ export function buildRecap(data: Data, window: RecapWindow, today = localDay()) 
     const target = goalPlan(data,monday(window.range.to))?.targets;
     if(metric === "sleep" && current.average !== null && current.average >= (target?.sleep ?? 510)) positives.push(`Sleep: ${humanValue(current.average,metric)} daily average`);
     if(metric === "screen-time" && current.average !== null && current.days && current.average <= (target?.["screen-time"] ?? 240)) positives.push(`Phone use: ${humanValue(current.average,metric)} daily average`);
-    const red = HABITS.find(h=>h.id===metric)?.color === "red";
+    const red = getHabits(mapping).find(h=>h.id===metric)?.color === "red";
     if (red && current.total > 0) attention.push(`${label}: ${humanValue(current.total,metric)}`);
     if (!red && metric !== "screen-time" && metric !== "sleep" && current.total > 0) positives.push(`${label}: ${humanValue(current.total, metric)}${metric === "praying" ? " prayers" : ""}`);
     if (metric === "screen-time" && previous.average && current.average !== null && current.average < previous.average) positives.push(`Phone use down ${humanValue(previous.average - current.average, metric)} per day`);
@@ -45,5 +45,5 @@ export function buildRecap(data: Data, window: RecapWindow, today = localDay()) 
     }
   }
   if (completed) positives.unshift(`${completed} ${completed === 1 ? "task" : "tasks"} completed`);
-  return { ...window, metrics, positives, attention, completed, totalTasks: tasks.length, days: Math.max(0, diff(window.range.to, window.range.from < TRACKING_START ? TRACKING_START : window.range.from) + 1) };
+  return { ...window, metrics, positives, attention, completed, totalTasks: tasks.length, days: Math.max(0, diff(window.range.to, from) + 1) };
 }

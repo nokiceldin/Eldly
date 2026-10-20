@@ -1,0 +1,7 @@
+import { add, monday, localDay } from '../engine';
+import { getHabits, mappingStart, type MappingData } from '../mapping';
+import { metricStats, humanValue, type Range } from '../progress';
+export default function PersonalGoalsPanel({mapping,range}:{mapping:MappingData;range:Range}){
+ const today=localDay(),week=monday(range.to<today?range.to:today),goals=getHabits(mapping).filter(h=>h.goal);
+ return <section className="goals-panel"><h2>Your weekly goals</h2>{!goals.length&&<p className="personal-empty">Set an optional goal when you add or edit a tracker.</p>}{goals.map(h=>{const g=h.goal!;const average=h.kind==='sleep'||h.kind==='phone';const value=(from:string)=>{const s=metricStats(mapping,h.id,{from,to:add(from,6)});return average?s.average||0:s.total;};const actual=value(week);let total=0,met=0;const start=[monday(mappingStart(mapping)),monday(g.from),monday(range.from)].sort().at(-1)!;for(let day=start;add(day,6)<today&&add(day,6)<=range.to;day=add(day,7)){if(day<mappingStart(mapping)||day<g.from)continue;total++;const v=value(day);if(g.maximum?v<=g.target:v>=g.target)met++;}return <div key={h.id} className="goal-row"><div><strong>{h.label}</strong><span>{g.maximum?'At most':'At least'} {humanValue(g.target,h.id,mapping)}{average?'/day':'/week'}</span></div><div><strong>{humanValue(actual,h.id,mapping)}</strong><span>{met} / {total} completed weeks met</span></div></div>;})}</section>;
+}

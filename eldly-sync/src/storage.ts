@@ -1,3 +1,4 @@
+import { scopedKey, isPersonalOwner } from "./accountScope";
 import { addRequestedRoutines } from "./personalRoutines";
 import { GOALS } from "./goals";
 import { writeLocal } from "./sync/local";
@@ -90,8 +91,8 @@ export function validate(x: unknown): x is Data {
 }
 export function load(): Data {
   try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return addRequestedRoutines(empty());
+    const raw = localStorage.getItem(scopedKey(KEY));
+    if (!raw) return isPersonalOwner() ? addRequestedRoutines(empty()) : { ...empty(), categories: [], sampleLoaded: true, personalRoutinesVersion: 1, mapping: {version:1,entries:{},habits:[],startedOn:localDay()} };
     const d = JSON.parse(raw);
     if (!validate(d))
       throw Error(

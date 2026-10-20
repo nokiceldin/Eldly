@@ -1,11 +1,13 @@
+import TrackerEditor from "./TrackerEditor";
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { ChevronLeft, ChevronRight, Volume2, VolumeX, X } from "lucide-react";
 import { localDay, parse, format } from "../engine";
 import { useMappingData } from "../useMappingData";
-import { HABITS, entryDescription, type Habit, type MappingEntry } from "../mapping";
+import { HABITS, getHabits, entryDescription, type Habit, type MappingEntry } from "../mapping";
 const COLORS = { yellow: "#f3cf6d", green: "#9cdaa8", blue: "#93c9f0", pink: "#efa9ca", red: "#f09898", purple: "#baa8ed" };
 export default function MappingPage({ onHome }: { onHome: () => void }) {
   const today = localDay();
+  const [manage,setManage]=useState(false);
   const [month, setMonth] = useState(today.slice(0, 7) + "-01");
   const { data, error, save: write, sound, setSound } = useMappingData();
   const [editor, setEditor] = useState<{ habit: Habit; day: string } | null>(null);
@@ -22,6 +24,8 @@ export default function MappingPage({ onHome }: { onHome: () => void }) {
     <main className="mapping-page">
       <button className="eldly-back" onClick={onHome}><ChevronLeft size={20} /> Home</button>
       <header className="mapping-title trackly-title"><div><h1 ref={heading} tabIndex={-1}>Track</h1></div><button className="trackly-sound" aria-label={sound ? "Mute Check and Track sounds" : "Enable Check and Track sounds"} aria-pressed={sound} onClick={() => setSound(!sound)}>{sound ? <Volume2 size={20} /> : <VolumeX size={20} />}</button></header>
+      <button className="track-manage" onClick={()=>setManage(true)}>Customize trackers</button>
+      {!getHabits(data).length&&<p className="personal-empty">Add your first tracker to start your own activity map.</p>}
       <div className="mapping-month-bar">
         <button aria-label="Previous month" onClick={() => shift(-1)}><ChevronLeft size={21} /></button>
         <button className="mapping-month-title" aria-label="Return to current month" onClick={() => setMonth(today.slice(0, 7) + "-01")}>{format(month, { month: "long", year: "numeric" })}</button>
@@ -32,7 +36,7 @@ export default function MappingPage({ onHome }: { onHome: () => void }) {
         <table className="mapping-grid">
           <caption className="sr-only">{format(month, { month: "long", year: "numeric" })} activity map. Select a square to record or edit an activity.</caption>
           <thead><tr><th scope="col" className="mapping-corner">{format(month, { month: "short" })}</th>{days.map((day, i) => <th scope="col" key={day} className={day === today ? "mapping-today" : ""} aria-current={day === today ? "date" : undefined}><span>{i + 1}</span><small>{format(day, { weekday: "narrow" })}</small></th>)}</tr></thead>
-          <tbody>{HABITS.map((habit) => <tr key={habit.id} style={{ "--habit-color": COLORS[habit.color] } as CSSProperties}>
+          <tbody>{getHabits(data).map((habit) => <tr key={habit.id} style={{ "--habit-color": COLORS[habit.color] } as CSSProperties}>
             <th scope="row"><span className="mapping-marker">{habit.label}</span></th>
             {days.map((day) => {
               const entry = data.entries[day]?.[habit.id];
@@ -49,6 +53,7 @@ export default function MappingPage({ onHome }: { onHome: () => void }) {
           </tr>)}</tbody>
         </table>
       </div>
+      {manage&&<TrackerEditor close={()=>setManage(false)}/>}
       {editor && <EntryEditor key={`${editor.habit.id}:${editor.day}`} habit={editor.habit} day={editor.day} entry={data.entries[editor.day]?.[editor.habit.id]}
         close={() => setEditor(null)} save={(entry) => write(editor.day, editor.habit.id, entry)} />}
     </main>
@@ -91,7 +96,7 @@ export function EntryEditor({ habit, day, entry, close, save }: { habit: Habit; 
         commit({ kind: "duration", minutes: total });
       } else if (habit.kind === "prayer") {
         const n = Number(count);
-        if (!Number.isInteger(n) || n < 1 || n > 1000) { setError("Enter how many times you prayed."); return; }
+        if (!Number.isInteger(n) || n < 1 || n > 1000) { setError("Enter a whole-number count."); return; }
         commit({ kind: "prayer", count: n });
       } else if (habit.kind === "sleep") {
         const nightMinutes = Math.round(Number(night || 0) * 60), dayMinutes = Math.round(Number(daytime || 0) * 60);

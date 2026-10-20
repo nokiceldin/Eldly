@@ -1,4 +1,4 @@
-const CACHE = "eldly-shell-v11-iphone-icons";
+const CACHE = "eldinos-shell-v12-private-accounts";
 const SHELL = [
   "/",
   "/index.html",

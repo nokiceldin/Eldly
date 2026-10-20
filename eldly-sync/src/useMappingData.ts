@@ -1,4 +1,4 @@
-import { REMOTE_EVENT } from "./sync/local";
+import { LOCAL_EVENT, REMOTE_EVENT } from "./sync/local";
 import { useEffect, useState } from "react";
 import { playFeedback, tracklySound } from "./sounds";
 import { load, persist } from "./storage";
@@ -11,8 +11,9 @@ export function useMappingData() {
   useEffect(() => {
     const sync = () => { try { const stored = load(); setData(stored.mapping || emptyMapping()); setSoundState(stored.sound); setError(""); } catch (e) { setError(String(e)); } };
     window.addEventListener("storage", sync);
+    window.addEventListener(LOCAL_EVENT, sync);
     window.addEventListener(REMOTE_EVENT, sync);
-    return () => { window.removeEventListener("storage", sync); window.removeEventListener(REMOTE_EVENT,sync); };
+    return () => { window.removeEventListener(LOCAL_EVENT, sync); window.removeEventListener("storage", sync); window.removeEventListener(REMOTE_EVENT,sync); };
   }, []);
   const save = (day: string, id: HabitId, entry?: MappingEntry): string | null => {
     try {

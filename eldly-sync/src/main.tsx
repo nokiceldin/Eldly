@@ -1,3 +1,5 @@
+import { isPersonalOwner } from "./accountScope";
+import AccountBoundary from "./components/AccountBoundary";
 import { TaskDragArea, TaskDropDay, DraggableTask } from "./components/TaskDrag";
 import { moveTaskOccurrence } from "./taskMoves";
 import { CloudBoundary } from "./sync/CloudBoundary";
@@ -281,7 +283,7 @@ function Checklist({ onHome }: { onHome: () => void }) {
         ...(parsed.weekly ? { frequency: "weekly" as const, interval: 1 } : {}),
       };
       const old = d.routines.find((r) => r.id === updated.id);
-      if (!old) return { ...d, routines: [...d.routines, updated] };
+      if (!old) return { ...d, tasks: editor?.task&&!editor.task.routineId?d.tasks.filter(t=>t.id!==editor.task!.id):d.tasks, routines: [...d.routines, updated] };
       return {
         ...d,
         routines: [
@@ -314,7 +316,7 @@ function Checklist({ onHome }: { onHome: () => void }) {
               aria-current={week === monday(today) ? "date" : undefined}
               onClick={returnToToday}
             >
-              Week {schoolWeek(week)}
+              Week {isPersonalOwner()?schoolWeek(week):iso(week).week}
             </button>
             <button
               className="week-arrow"
@@ -718,7 +720,7 @@ function Checklist({ onHome }: { onHome: () => void }) {
             </details>
           </div>
         </details>
-        <details className="option-group">
+        {isPersonalOwner()&&<details className="option-group">
           <summary>Starter checklist</summary>
           <div className="option-content">
             <button
@@ -773,7 +775,7 @@ function Checklist({ onHome }: { onHome: () => void }) {
               Remove starter examples
             </button>
           </div>
-        </details>
+        </details>}
       </dialog>
       {editor && (
         <Editor
@@ -966,7 +968,7 @@ function App() {
     </main>
   );
 }
-createRoot(document.getElementById("root")!).render(<CloudBoundary><App /><RecapDialog /></CloudBoundary>);
+createRoot(document.getElementById("root")!).render(<AccountBoundary><CloudBoundary><App /><RecapDialog /></CloudBoundary></AccountBoundary>);
 if ("serviceWorker" in navigator)
   window.addEventListener("load", () =>
     navigator.serviceWorker.register("/sw.js").catch(() => {}),

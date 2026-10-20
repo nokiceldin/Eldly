@@ -62,7 +62,7 @@ export default function Editor({
   const [frequency, setFrequency] = useState<Routine["frequency"]>(
     editor.routine?.frequency || "weekly",
   );
-  const [interval, setInterval] = useState(editor.routine?.interval || 2);
+  const [interval, setInterval] = useState(editor.routine?.interval || 1);
   const [weekdaysSelected, setWeekdays] = useState(
     editor.routine?.weekdays || [(parse(date).getDay() + 6) % 7],
   );
@@ -115,7 +115,7 @@ export default function Editor({
         onClick={(e) => e.stopPropagation()}
       >
         <ModalClose close={close} />
-        <span className="eyebrow">A LITTLE PLAN GOES A LONG WAY</span>
+
         <h2 id="editor-title">
           {isExisting ? "Make it yours." : "What’s on your mind?"}
         </h2>
@@ -183,11 +183,11 @@ export default function Editor({
               maxLength={250}
             />
           </label>
-          {!source && (
+          {(!source || (editor.task&&!editor.task.routineId&&!editor.task.completed)) && (
             <div className="type-selector">
               {[
                 ["task", "One-time"],
-                ["routine", "Recurring"],
+                ["routine", "Weekly"],
                 ["deadline", "Important date"],
               ].map(([value, label]) => (
                 <button

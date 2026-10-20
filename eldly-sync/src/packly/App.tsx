@@ -1,3 +1,4 @@
+import { scopedKey, isPersonalOwner } from "../accountScope";
 import { configurePlaybackAudio } from "../sounds";
 import { writeLocal, REMOTE_EVENT } from "../sync/local";
 import './styles.css';
@@ -7,7 +8,7 @@ import {ArrowLeft,ArrowRight,Check,CheckCheck,ChevronDown,ChevronRight,CircleHel
 import {State,Trip,Item,Status,Category,initialState,defaultCategories,defaultItems,newTrip,uid,getStatus,resolved,completed,packedCount,remaining,normalizeTrip,sortedItems} from './data';
 import {makeConfiguredTrip,Template,Feedback} from './data';
 const STORAGE='packly-v1';
-function load():State{try{const raw=localStorage.getItem(STORAGE);if(raw){const s=JSON.parse(raw) as State;if(Array.isArray(s.trips)&&s.trips.length){const trips=s.trips.map(normalizeTrip);return {...initialState,...s,trips,activeId:trips.some(t=>t.id===s.activeId)?s.activeId:trips[0].id};}}}catch{}return initialState;}
+function load():State{try{const raw=localStorage.getItem(scopedKey(STORAGE));if(raw){const s=JSON.parse(raw) as State;if(Array.isArray(s.trips)&&s.trips.length){const trips=s.trips.map(normalizeTrip);return {...initialState,...s,trips,activeId:trips.some(t=>t.id===s.activeId)?s.activeId:trips[0].id};}}}catch{}return isPersonalOwner()?initialState:{...initialState,trips:[{...newTrip(''),items:[],categories:[],queue:[],phase:'complete',details:{type:'custom',startDate:'',returnDate:'',departure:'',destination:'',climate:'unknown',laundry:false,reminderMinutes:[],finishedAt:1}}]};}
 function download(name:string,content:string){const blob=new Blob([content],{type:'application/json'});const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)}
 function confettiBits(){return Array.from({length:38},(_,i)=>({left:`${(i*73.77)%100}%`,delay:`${(i%11)*.075}s`,duration:`${2.2+(i%7)*.19}s`,rotate:`${(i*47)%360}deg`,background:['#7c6af3','#ffcc6c','#52d5ae','#f69b9d','#9bc5ff'][i%5]}));}
 const bits=confettiBits();
