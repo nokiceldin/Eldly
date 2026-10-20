@@ -312,11 +312,11 @@ function Checklist({ onHome }: { onHome: () => void }) {
               className={
                 "week-label" + (week === monday(today) ? " current-week" : "")
               }
-              aria-label={`Week ${isPersonalOwner()?schoolWeek(week):iso(week).week}, ${iso(week).year}${week === monday(today) ? ", current week" : ". Return to current week"}`}
+              aria-label={`Week ${schoolWeek(week)}, ${iso(week).year}${week === monday(today) ? ", current week" : ". Return to current week"}`}
               aria-current={week === monday(today) ? "date" : undefined}
               onClick={returnToToday}
             >
-              Week {isPersonalOwner()?schoolWeek(week):iso(week).week}
+              Week {schoolWeek(week)}
             </button>
             <button
               className="week-arrow"
