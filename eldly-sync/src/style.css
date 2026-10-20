@@ -1436,3 +1436,42 @@ input {
 .goal-suggestions button:disabled { opacity: .5; }
 
 @media(max-width:540px) { .eldly-heading { padding-top: 56px; } }
+
+/* Weekly review: a compact visual story, scoped away from Data. */
+.recap-weekly { width:min(650px,calc(100% - 24px)); background:#1d1e1b; border-color:#ffffff19; padding:28px; }
+.recap-weekly .recap-heading { margin-bottom:24px; }
+.recap-weekly .recap-heading h1 { font-size:30px; font-weight:500; }
+.weekly-story { --week-gold:#e8c977; --week-muted:#a5a69d; }
+.week-hero { position:relative; isolation:isolate; overflow:hidden; padding:28px 24px 20px; border-radius:20px; background:#d9c5a2; color:#262820; }
+.week-kicker { display:flex; align-items:center; gap:7px; font-size:10px; font-weight:700; letter-spacing:.16em; position:relative; z-index:1; }
+.recap-dialog .week-hero h2 { font-size:clamp(32px,6vw,48px); font-weight:600; letter-spacing:-.055em; line-height:1.04; margin:26px 0 30px; max-width:85%; position:relative; z-index:1; }
+.week-hero-bottom { display:flex; justify-content:space-between; gap:12px; font-size:12px; border-top:1px solid #2528202b; padding-top:14px; position:relative; z-index:1; }
+.week-hero-lines { position:absolute; top:-60px; right:-125px; width:330px; height:330px; transform:rotate(-28deg); z-index:0; opacity:.16; }
+.week-hero-lines i { position:absolute; inset:0; border:1px solid #262820; border-radius:50%; }.week-hero-lines i:nth-child(2){inset:25px}.week-hero-lines i:nth-child(3){inset:50px}
+.week-section-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:18px; }
+.recap-dialog .week-section-heading h2 { display:flex; align-items:center; gap:8px; margin:0; font-weight:500; font-size:15px; letter-spacing:-.02em; }
+.week-section-heading>span { font-size:10px; color:var(--week-muted); white-space:nowrap; }
+.week-rhythm { margin:30px 0; }
+.week-rhythm-grid { display:grid; grid-template-columns:72px repeat(7,minmax(0,1fr)); column-gap:8px; row-gap:10px; }
+.week-rhythm-row { display:contents; }.week-rhythm-row>span { align-self:center; font-size:11px; color:#cccac0; }
+.week-day-label { text-align:center; font-size:10px; color:#a5a69d; }.week-day-label small { display:block; margin-top:4px; font-size:11px; color:#eee9df; }
+.week-day-cell { height:30px; display:flex; align-items:flex-end; padding:5px 8px; background:#ffffff04; border-radius:5px; }.week-day-cell i { display:block; width:100%; border-radius:3px; min-height:2px; }
+.week-before-start { opacity:.18; }
+.week-spotlights { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.week-spotlight { background:#ffffff04; border:1px solid #ffffff0c; border-radius:15px; padding:18px; }
+.week-spotlight-label { display:flex; align-items:center; gap:7px; font-size:11px; color:#c9c4b8; }
+.week-spotlight:first-child .week-spotlight-label svg { color:#bda8e0; }.week-spotlight:last-child .week-spotlight-label svg { color:#9abfd1; }
+.week-spotlight>strong { display:block; font-size:32px; letter-spacing:-.055em; font-weight:500; margin:15px 0 2px; }
+.week-unit { font-size:11px; color:var(--week-muted); }
+.week-delta { display:flex; align-items:center; gap:4px; font-size:10px; margin-top:16px; color:#bcb6aa; line-height:1.5; }.week-delta.is-better { color:#c9d3af; }
+.week-goal-section { margin:30px 0 0; }.week-goal-track { display:flex; gap:5px; }.week-goal-track span { flex:1; height:9px; border-radius:3px; background:#ffffff0d; }.week-goal-track .is-met { background:var(--week-gold); }
+.week-takeaways { display:grid; grid-template-columns:1fr 1fr; gap:22px; margin:25px 0 20px; }.week-takeaway-label { display:flex; align-items:center; gap:5px; font-size:10px; color:#cabb9c; letter-spacing:.04em; }
+.week-takeaways strong { display:block; font-weight:500; font-size:19px; margin-top:9px; letter-spacing:-.03em; }.week-takeaways p { font-size:11px; line-height:1.6; color:var(--week-muted); margin:5px 0; }
+.week-details { border-top:1px solid #ffffff12; }.week-details summary { display:flex; align-items:center; justify-content:space-between; cursor:pointer; list-style:none; padding:17px 0; font-size:12px; color:#cec8ba; }.week-details summary::-webkit-details-marker { display:none; }.week-details[open] summary svg { transform:rotate(180deg); }
+.week-goal-list { display:grid; grid-template-columns:1fr 1fr; gap:24px 20px; padding:4px 0 24px; }.week-goal-list>div>div:first-child { display:flex; justify-content:space-between; gap:8px; font-size:11px; }.week-goal-list strong { display:flex; align-items:center; gap:3px; font-size:9px; font-weight:400; color:#b7ab9b; white-space:nowrap; }.week-goal-list .is-met strong { color:var(--week-gold); }.week-goal-meter { height:4px; overflow:hidden; background:#ffffff0c; border-radius:4px; margin:10px 0 6px; }.week-goal-meter i { display:block; height:100%; background:#a9a392; border-radius:4px; }.week-goal-list .is-met i { background:var(--week-gold); }.week-goal-list small { font-size:10px; }.week-goal-list small span { color:var(--week-muted); }
+.week-first { padding:24px 0; }.recap-dialog .week-first h2 { font-size:24px; font-weight:500; letter-spacing:-.04em; margin:10px 0 8px; }.week-first p { margin:0; color:var(--week-muted); font-size:12px; line-height:1.6; max-width:300px; }
+.week-all-numbers { margin-top:8px; }.week-number-row { display:grid; grid-template-columns:1fr auto auto; gap:14px; align-items:center; border-top:1px solid #ffffff08; padding:12px 0; font-size:11px; }.week-number-row strong { font-weight:500; }.week-number-row>span:last-child { font-size:10px; color:var(--week-muted); text-align:right; min-width:90px; }.week-number-row small { display:block; margin-top:3px; color:var(--week-muted); font-size:9px; }
+.recap-weekly .recap-done { margin-top:15px; background:#d9c5a2; }
+@media(max-width:540px){.recap-weekly{padding:20px}.week-hero{padding:22px 18px 18px}.week-hero-bottom{font-size:10px}.week-rhythm-grid{grid-template-columns:58px repeat(7,minmax(0,1fr));column-gap:5px}.week-day-cell{padding:5px}.week-spotlight{padding:14px}.week-spotlight>strong{font-size:29px}.week-spotlight-label{font-size:10px}.week-section-heading>span{font-size:9px}.week-takeaways{gap:15px}.week-goal-list{grid-template-columns:1fr}.week-number-row{gap:8px}.week-number-row>span:last-child{min-width:78px}}
+.week-observations { display:grid; grid-template-columns:1fr 1fr; gap:22px; padding-top:24px; }.week-observations p { font-size:15px; line-height:1.4; letter-spacing:-.02em; margin:9px 0 0; }.week-observations small { display:block; color:var(--week-muted); font-size:11px; margin-top:5px; }
+@media(max-width:390px){.week-observations{gap:14px}.week-observations p{font-size:13px}}
