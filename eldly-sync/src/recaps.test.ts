@@ -58,3 +58,16 @@ it("excludes task completions before day one from the partial opening-week recap
  const data={...empty(),tasks:[task("before","2026-10-13","2026-10-14"),task("after","2026-10-16","2026-10-17")]};
  expect(buildRecap(data,recapWindows("2026-10-19")[0]).completed).toBe(1);
 });
+
+it('uses custom tracker kinds for averages, units and habit direction',()=>{
+ let mapping={version:1 as const,startedOn:'2026-10-19',habits:[{id:'custom-sleep',label:'Rest',kind:'sleep' as const,color:'green' as const},{id:'custom-phone',label:'Scrolling',kind:'phone' as const,color:'red' as const}],entries:{}};
+ let m=setMappingEntry(mapping,'2026-10-26','custom-sleep',{kind:'sleep',nightMinutes:420,dayMinutes:0});
+ m=setMappingEntry(m,'2026-10-26','custom-phone',{kind:'phone',minutes:140});
+ const recap=buildRecap({...empty(),mapping:m},recapWindows('2026-11-02')[0]);
+ expect(recap.positives).toContain('Rest: 1h daily average');
+ expect(recap.attention).toContain('Scrolling: 20m daily average');
+});
+it('does not celebrate unrecorded phone time as a zero-use achievement',()=>{
+ const data={...empty(),mapping:{version:1 as const,entries:{}}};
+ expect(buildRecap(data,recapWindows('2026-11-02')[0]).positives.some(s=>s.startsWith('Phone use:'))).toBe(false);
+});

@@ -1,3 +1,4 @@
+import { validGoalTarget } from "./trackerChanges";
 export const HABITS = [
   { id: "tennis", label: "Tennis", color: "yellow", kind: "duration" },
   { id: "fitness", label: "Fitness", color: "yellow", kind: "duration" },
@@ -59,7 +60,7 @@ export function validateMapping(value: unknown): value is MappingData {
   if (!value || typeof value !== "object") return false;
   const data = value as MappingData;
   const habits=data.habits??HABITS;
-  if(data.habits!==undefined&&(!Array.isArray(data.habits)||data.habits.length>100||!data.habits.every(h=>h&&/^[-a-zA-Z0-9_]{1,100}$/.test(h.id)&&h.label.trim().length>0&&h.label.length<=80&&["yellow","green","blue","pink","red","purple"].includes(h.color)&&["check","duration","prayer","sleep","phone"].includes(h.kind)&&(!h.previousGoals||(Array.isArray(h.previousGoals)&&h.previousGoals.every(g=>Number.isFinite(g.target)&&g.target>0&&typeof g.maximum==='boolean'&&validDate(g.from))))&&(!h.goal||(Number.isFinite(h.goal.target)&&h.goal.target>0&&typeof h.goal.maximum==='boolean'&&validDate(h.goal.from))))||new Set(data.habits.map(h=>h.id)).size!==data.habits.length))return false;
+  if(data.habits!==undefined&&(!Array.isArray(data.habits)||data.habits.length>100||!data.habits.every(h=>h&&/^[-a-zA-Z0-9_]{1,100}$/.test(h.id)&&typeof h.label==='string'&&h.label.trim().length>0&&h.label.length<=80&&["yellow","green","blue","pink","red","purple"].includes(h.color)&&["check","duration","prayer","sleep","phone"].includes(h.kind)&&(!h.previousGoals||(Array.isArray(h.previousGoals)&&h.previousGoals.every(g=>validGoalTarget(g.target,g.maximum,h.kind)&&typeof g.maximum==='boolean'&&validDate(g.from))))&&(!h.goal||(validGoalTarget(h.goal.target,h.goal.maximum,h.kind)&&typeof h.goal.maximum==='boolean'&&validDate(h.goal.from))))||new Set(data.habits.map(h=>h.id)).size!==data.habits.length))return false;
   if(data.startedOn!==undefined&&!validDate(data.startedOn))return false;
   return data.version === 1 && !!data.entries && typeof data.entries === "object" && !Array.isArray(data.entries) &&
     Object.entries(data.entries).every(([day, entries]) => validDate(day) && entries && typeof entries === "object" && !Array.isArray(entries) && Object.entries(entries).every(([id, entry]) => validEntry(id, entry,habits)));

@@ -1,3 +1,4 @@
+import { personalGoalAt } from "./personalGoals";
 import { goalPlan } from "./goals";
 import { TRACKING_START } from "./tracking";
 import { add, allTasks, diff, localDay, monday, parse, type Data } from "./engine";
@@ -25,24 +26,34 @@ export function buildRecap(data: Data, window: RecapWindow, today = localDay()) 
   const from = window.range.from < mappingStart(data.mapping||emptyMapping()) ? mappingStart(data.mapping||emptyMapping()) : window.range.from;
   const mapping = data.mapping || emptyMapping();
   const metrics = getMetrics(mapping).map(metric => ({ metric, label: metricLabel(metric,mapping), current: metricStats(mapping, metric, window.range), previous: metricStats(mapping, metric, window.previous) }));
-  const marks = getHabits(mapping).filter(h => h.kind === "check").map(h => ({ ...h, days: Object.entries(mapping.entries).filter(([date, row]) => date >= window.range.from && date >= TRACKING_START && date <= window.range.to && !!row[h.id]).length }));
   const tasks = allTasks(data, window.range.to, today).filter(t => !t.deleted && ((t.scheduled >= from && t.scheduled <= window.range.to) || (t.completed && t.completed >= from && t.completed <= window.range.to)));
   const completed = tasks.filter(t => t.completed && t.completed >= from && t.completed <= window.range.to).length;
   const positives: string[] = [], attention: string[] = [];
   for (const row of metrics) {
     const { metric, current, previous, label } = row;
-    const target = goalPlan(data,monday(window.range.to))?.targets;
-    if(metric === "sleep" && current.average !== null && current.average >= (target?.sleep ?? 510)) positives.push(`Sleep: ${humanValue(current.average,metric,mapping)} daily average`);
-    if(metric === "screen-time" && current.average !== null && current.days && current.average <= (target?.["screen-time"] ?? 240)) positives.push(`Phone use: ${humanValue(current.average,metric,mapping)} daily average`);
     const habit=getHabits(mapping).find(h=>h.id===metric);
-    const red = habit?.color === "red" || !!habit?.goal?.maximum;
-    if (red && current.total > 0) attention.push(`${label}: ${humanValue(current.total,metric,mapping)}`);
-    if (!red && metric !== "screen-time" && metric !== "sleep" && current.total > 0) positives.push(`${label}: ${humanValue(current.total, metric,mapping)}${metric === "praying" ? " prayers" : ""}`);
-    if (metric === "screen-time" && previous.average && current.average !== null && current.average < previous.average) positives.push(`Phone use down ${humanValue(previous.average - current.average, metric,mapping)} per day`);
-    if (metric === "screen-time" && previous.days > 0 && previous.average !== null && current.average !== null && current.average > previous.average) attention.push(`Phone use up ${humanValue(current.average - previous.average, metric,mapping)} per day`);
-    if (metric !== "screen-time" && previous.total > 0) {
-      const delta = metric === "sleep" ? (previous.average || 0) - (current.average || 0) : previous.total - current.total;
-      if (delta > 0) (red ? positives : attention).push(`${label} down ${humanValue(delta, metric,mapping)}${metric === "sleep" ? " per day" : metric === "praying" ? " prayers" : ""}`);
+    const average=habit?.kind==='sleep'||habit?.kind==='phone';
+    const value=average?current.average||0:current.total;
+    const old=average?previous.average||0:previous.total;
+    const red=habit?.color==='red'||!!habit?.goal?.maximum;
+    const lower=red||habit?.kind==='phone';
+    const recorded=Object.entries(mapping.entries).some(([day,entries])=>day>=from&&day<=window.range.to&&!!entries[metric]);
+    const suffix=average?' daily average':metric==='praying'?' prayers':'';
+    const personalTarget=habit?personalGoalAt(habit,monday(window.range.to)):undefined;
+    const ownerTarget=goalPlan(data,monday(window.range.to))?.targets;
+    const target=personalTarget?.target??((!mapping.habits||data.goalPlans?.length)?(metric==='sleep'?ownerTarget?.sleep??510:metric==='screen-time'?ownerTarget?.['screen-time']??240:undefined):undefined);
+    if(recorded){
+      if(red&&value>0)attention.push(`${label}: ${humanValue(value,metric,mapping)}${suffix}`);
+      else if(lower){if(target!==undefined&&value<=target)positives.push(`${label}: ${humanValue(value,metric,mapping)}${suffix}`);}
+      else if(value>0&&(!average||target===undefined||value>=target))positives.push(`${label}: ${humanValue(value,metric,mapping)}${suffix}`);
+    }
+    // Compare daily averages across unequal periods; only compare totals when
+    // both periods contain the same number of elapsed tracking days.
+    if(previous.days>0&&(average||previous.days===current.days)){
+      const delta=value-old;
+      const units=average?' per day':metric==='praying'?' prayers':'';
+      if(delta<0)(lower?positives:attention).push(`${label} down ${humanValue(-delta,metric,mapping)}${units}`);
+      if(delta>0)(lower?attention:positives).push(`${label} up ${humanValue(delta,metric,mapping)}${units}`);
     }
   }
   if (completed) positives.unshift(`${completed} ${completed === 1 ? "task" : "tasks"} completed`);

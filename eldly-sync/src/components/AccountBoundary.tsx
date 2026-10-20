@@ -32,7 +32,7 @@ export default function AccountBoundary({children}:{children:ReactNode}) {
   localStorage.removeItem('eldinos-guest-mode');window.location.hash='';window.location.reload();
  }catch(e){setError(e instanceof Error?e.message:'Could not sign in.');}finally{setBusy(false);}}
  async function logout(){setBusy(true);setError('');try{
-  if(!isGuest()&&enrolled()&&navigator.onLine)await synchronize();
+  if(!isGuest()&&enrolled()&&navigator.onLine){try{await synchronize();}catch{/* Pending edits remain in this account's cache; logout must still be available. */}}
   const result=await authClient?.auth.signOut({scope:'local'});if(result?.error)throw result.error;
   localStorage.removeItem('eldinos-guest-mode');setIdentity(null);setAccountScope('locked');window.location.hash='';window.location.reload();
  }catch{setError('Could not finish signing out. Your edits are safe on this device. Retry, or export a backup first.');}finally{setBusy(false);}}
