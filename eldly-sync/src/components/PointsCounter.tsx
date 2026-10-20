@@ -32,7 +32,7 @@ export default function PointsCounter(){
    if(reduced)setShown(n=>n+delta);
    else motes.forEach((value,i)=>schedule(()=>{setShown(n=>n+value*Math.sign(delta));setPulse(n=>n+1);},(delta<0?0:XP_FLIGHT_MS)+i*XP_STAGGER_MS));
    playXPCollection(motes.length,load().sound,reduced||delta<0?0:XP_FLIGHT_MS,XP_STAGGER_MS,delta<0);
-   schedule(()=>setFlights(old=>old.filter(f=>f.id!==id)),delta<0?3000:reduced?950:XP_FLIGHT_MS+motes.length*XP_STAGGER_MS+200);
+   schedule(()=>setFlights(old=>old.filter(f=>f.id!==id)),reduced?950:delta<0?XP_FLIGHT_MS+Math.max(0,motes.length-1)*XP_STAGGER_MS:XP_FLIGHT_MS+motes.length*XP_STAGGER_MS+200);
   };
   window.addEventListener('pointerdown',pointer,true);window.addEventListener('keydown',keyboard,true);
   for(const name of [LOCAL_EVENT,REMOTE_EVENT,'storage','focus'])window.addEventListener(name,refresh);
