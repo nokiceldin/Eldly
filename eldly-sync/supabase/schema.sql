@@ -1,3 +1,4 @@
+-- LEGACY TEST FIXTURE ONLY. DO NOT RUN IN PRODUCTION: accounts.sql replaces this model.
 -- PUBLIC SHARED ELDLY, v2. Run the entire file in Supabase SQL Editor.
 -- Existing private eldly_records / Auth tables are left untouched.
 -- Anyone with the public key can read/change/delete this ONE shared dataset.
