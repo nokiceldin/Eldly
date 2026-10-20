@@ -68,7 +68,7 @@ export function playFeedback(sound: FeedbackSound, enabled: boolean) {
 }
 
 /** Soft rising energy pulses, timed to the arrival of each XP mote. */
-export function playXPCollection(count:number,enabled:boolean,firstArrivalMs=700,staggerMs=95){
+export function playXPCollection(count:number,enabled:boolean,firstArrivalMs=700,staggerMs=95,reverse=false){
  if(!enabled||count<=0)return;
  configurePlaybackAudio();
  try{
@@ -82,8 +82,8 @@ export function playXPCollection(count:number,enabled:boolean,firstArrivalMs=700
    const at=start+i*staggerMs/1000;
    const tone=ctx.createOscillator(),gain=ctx.createGain();
    tone.type='sine';
-   const frequency=560*Math.pow(2,(i%8)/18);
-   tone.frequency.setValueAtTime(frequency*.72,at);
+   const frequency=reverse?520*Math.pow(2,-(i%12)/18):560*Math.pow(2,(i%8)/18);
+   tone.frequency.setValueAtTime(frequency*(reverse?1.35:.72),at);
    tone.frequency.exponentialRampToValueAtTime(frequency,at+.055);
    gain.gain.setValueAtTime(.0001,at);
    gain.gain.exponentialRampToValueAtTime(.055,at+.012);

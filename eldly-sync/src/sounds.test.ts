@@ -75,3 +75,15 @@ it('times one soft XP tone per arrival and respects muted effects',async()=>{
   playXPCollection(4,true,700,95);expect(starts).toHaveLength(4);expect(starts[0]).toBeCloseTo(10.7);expect(starts[3]).toBeCloseTo(10.985);
  }finally{vi.unstubAllGlobals();vi.resetModules();}
 });
+
+it('plays descending XP loss pulses once per lost XP',async()=>{
+ vi.resetModules();
+ const pitches:{start:number;end:number}[]=[];const starts:number[]=[];
+ const audio={state:'running',currentTime:10,destination:{},createOscillator:()=>{const pitch={start:0,end:0};pitches.push(pitch);return {frequency:{setValueAtTime:(v:number)=>{pitch.start=v;},exponentialRampToValueAtTime:(v:number)=>{pitch.end=v;}},connect:vi.fn(),disconnect:vi.fn(),start:(t:number)=>starts.push(t),stop:vi.fn(),onended:null};},createGain:()=>({gain:{setValueAtTime:vi.fn(),exponentialRampToValueAtTime:vi.fn()},connect:vi.fn(),disconnect:vi.fn()})};
+ vi.stubGlobal('window',{AudioContext:vi.fn(function(){return audio;})});
+ try{
+  const {playXPCollection}=await import('./sounds');playXPCollection(8,true,0,95,true);
+  expect(starts).toHaveLength(8);expect(starts[7]-starts[0]).toBeCloseTo(.665);
+  expect(pitches.every(p=>p.end<p.start)).toBe(true);expect(pitches[7].end).toBeLessThan(pitches[0].end);
+ }finally{vi.unstubAllGlobals();vi.resetModules();}
+});
