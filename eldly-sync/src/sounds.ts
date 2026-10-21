@@ -72,7 +72,7 @@ let coinDecoded:Promise<AudioBuffer|null>|null=null;
 let reversedCoin:AudioBuffer|null=null;
 /** Fetch only: no sound or audio session is started by preloading. */
 export function preloadCoinSound(){
- if(!coinBytes)coinBytes=fetch('/audio/coin-collect.wav').then(r=>{if(!r.ok)throw Error('Coin sound unavailable');return r.arrayBuffer();}).catch(()=>{coinBytes=null;return null;});
+ if(!coinBytes)coinBytes=fetch('/audio/coin-jingle.wav').then(r=>{if(!r.ok)throw Error('Coin sound unavailable');return r.arrayBuffer();}).catch(()=>{coinBytes=null;return null;});
  return coinBytes;
 }
 /** Real recorded coins, one overlapping jingle per arrival; reverse playback for losses. */
@@ -93,11 +93,11 @@ export async function playXPCollection(count:number,enabled:boolean,firstArrival
    reversedCoin=ctx.createBuffer(sample.numberOfChannels,sample.length,sample.sampleRate);
    for(let channel=0;channel<sample.numberOfChannels;channel++)reversedCoin.getChannelData(channel).set(sample.getChannelData(channel).slice().reverse());
   }
-  const start=Math.max(desiredStart,ctx.currentTime+.005),volume=.3/Math.sqrt(Math.min(count,5));
+  const start=Math.max(desiredStart,ctx.currentTime+.005),volume=.36/Math.sqrt(Math.min(count,10));
   for(let i=0;i<Math.min(count,40);i++){
    const at=start+i*staggerMs/1000,source=ctx.createBufferSource(),gain=ctx.createGain();
    source.buffer=reverse?reversedCoin:sample;
-   source.playbackRate.value=reverse?.88-(i%6)*.015:.98+(i%3)*.02;
+   source.playbackRate.value=reverse?.88-(i%6)*.015:1.02+Math.min(i,8)*.015;
    gain.gain.setValueAtTime(volume,at);
    source.connect(gain);gain.connect(ctx.destination);source.start(at);
    source.onended=()=>{source.disconnect();gain.disconnect();};

@@ -79,7 +79,7 @@ it('plays one recorded coin jingle per arrival, preloads silently and respects m
   await preloadCoinSound();expect(mock.starts).toHaveLength(0);
   await playXPCollection(4,false);expect(mock.starts).toHaveLength(0);
   await playXPCollection(4,true,700,95);expect(mock.starts).toHaveLength(4);expect(mock.starts[0]).toBeCloseTo(10.7);expect(mock.starts[3]).toBeCloseTo(10.985);
-  expect(mock.fetch).toHaveBeenCalledTimes(1);expect(mock.fetch).toHaveBeenCalledWith('/audio/coin-collect.wav');
+  expect(mock.rates[3].value).toBeGreaterThan(mock.rates[0].value);expect(mock.fetch).toHaveBeenCalledTimes(1);expect(mock.fetch).toHaveBeenCalledWith('/audio/coin-jingle.wav');
   await playXPCollection(1,true);expect(mock.audio.decodeAudioData).toHaveBeenCalledTimes(1);
  }finally{vi.unstubAllGlobals();vi.resetModules();}
 });

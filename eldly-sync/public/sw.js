@@ -1,6 +1,6 @@
-const CACHE = "myspace-shell-v16-recorded-coins";
+const CACHE = "myspace-shell-v17-full-coin-jingle";
 const SHELL = [
-  "/audio/coin-collect.wav",
+  "/audio/coin-jingle.wav",
   "/",
   "/index.html",
   "/packly/icon.svg",

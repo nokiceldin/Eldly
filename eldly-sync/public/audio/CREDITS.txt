@@ -5,3 +5,7 @@ Original file: snd_purchase_0.wav
 License: CC0 1.0 Universal (public domain dedication)
 https://creativecommons.org/publicdomain/zero/1.0/
 Modified: excerpt from 0.45–0.97 seconds; short edge fades; mono 24 kHz PCM.
+
+coin-jingle.wav
+Same source and CC0 license as above.
+Modified: fuller excerpt from 0.125–0.990 seconds; short edge fades; stereo 24 kHz PCM.
