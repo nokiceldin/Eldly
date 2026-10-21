@@ -67,7 +67,7 @@ export function playFeedback(sound: FeedbackSound, enabled: boolean) {
   } catch { /* Audio is optional; never interrupt saving a task. */ }
 }
 
-/** Soft rising energy pulses, timed to the arrival of each XP mote. */
+/** Short metallic coin clinks: inharmonic overtones, a sharp attack and ringing decay. */
 export function playXPCollection(count:number,enabled:boolean,firstArrivalMs=700,staggerMs=95,reverse=false){
  if(!enabled||count<=0)return;
  configurePlaybackAudio();
@@ -80,16 +80,18 @@ export function playXPCollection(count:number,enabled:boolean,firstArrivalMs=700
   const start=ctx.currentTime+firstArrivalMs/1000;
   for(let i=0;i<Math.min(count,40);i++){
    const at=start+i*staggerMs/1000;
-   const tone=ctx.createOscillator(),gain=ctx.createGain();
-   tone.type='sine';
-   const frequency=reverse?520*Math.pow(2,-(i%12)/18):560*Math.pow(2,(i%8)/18);
-   tone.frequency.setValueAtTime(frequency*(reverse?1.35:.72),at);
-   tone.frequency.exponentialRampToValueAtTime(frequency,at+.055);
-   gain.gain.setValueAtTime(.0001,at);
-   gain.gain.exponentialRampToValueAtTime(.055,at+.012);
-   gain.gain.exponentialRampToValueAtTime(.0001,at+.17);
-   tone.connect(gain);gain.connect(ctx.destination);tone.start(at);tone.stop(at+.19);
-   tone.onended=()=>{tone.disconnect();gain.disconnect();};
+   const frequency=reverse?1050*Math.pow(2,-(i%12)/18):1900*Math.pow(2,(i%6)/36);
+   for(const [ratio,volume,decay] of [[1,.045,.15],[1.47,.019,.09],[2.09,.009,.055]]){
+    const tone=ctx.createOscillator(),gain=ctx.createGain();
+    tone.type='sine';
+    tone.frequency.setValueAtTime(frequency*ratio*(reverse?1.28:1.025),at);
+    tone.frequency.exponentialRampToValueAtTime(frequency*ratio*(reverse?.78:1),at+.045);
+    gain.gain.setValueAtTime(.0001,at);
+    gain.gain.exponentialRampToValueAtTime(volume,at+.0015);
+    gain.gain.exponentialRampToValueAtTime(.0001,at+decay);
+    tone.connect(gain);gain.connect(ctx.destination);tone.start(at);tone.stop(at+decay+.02);
+    tone.onended=()=>{tone.disconnect();gain.disconnect();};
+   }
   }
  }catch{/* Optional feedback must never interrupt a save. */}
 }

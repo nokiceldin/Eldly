@@ -1,3 +1,4 @@
+import TrackerSettings from './TrackerSettings';
 import RewardsCard from './RewardsCard';
 import TrackerEditor from "./TrackerEditor";
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
@@ -9,6 +10,7 @@ const COLORS = { yellow: "#f3cf6d", green: "#9cdaa8", blue: "#93c9f0", pink: "#e
 export default function MappingPage({ onHome }: { onHome: () => void }) {
   const today = localDay();
   const [manage,setManage]=useState(false);
+  const [settings,setSettings]=useState<string|null>(null);
   const [month, setMonth] = useState(today.slice(0, 7) + "-01");
   const { data, error, save: write, sound, setSound } = useMappingData();
   const [editor, setEditor] = useState<{ habit: Habit; day: string } | null>(null);
@@ -38,7 +40,7 @@ export default function MappingPage({ onHome }: { onHome: () => void }) {
           <caption className="sr-only">{format(month, { month: "long", year: "numeric" })} activity map. Select a square to record or edit an activity.</caption>
           <thead><tr><th scope="col" className="mapping-corner">{format(month, { month: "short" })}</th>{days.map((day, i) => <th scope="col" key={day} className={day === today ? "mapping-today" : ""} aria-current={day === today ? "date" : undefined}><span>{i + 1}</span><small>{format(day, { weekday: "narrow" })}</small></th>)}</tr></thead>
           <tbody>{getHabits(data).map((habit) => <tr key={habit.id} style={{ "--habit-color": COLORS[habit.color] } as CSSProperties}>
-            <th scope="row"><span className="mapping-marker">{habit.label}</span></th>
+            <th scope="row"><button className="mapping-marker tracker-name-button" aria-label={`Edit ${habit.label} tracker`} onClick={()=>setSettings(habit.id)}>{habit.label}</button></th>
             {days.map((day) => {
               const entry = data.entries[day]?.[habit.id];
               return <td key={day} className={day === today ? "mapping-today" : ""}>
@@ -55,7 +57,8 @@ export default function MappingPage({ onHome }: { onHome: () => void }) {
         </table>
       </div>
       <RewardsCard/>
-      {manage&&<TrackerEditor close={()=>setManage(false)}/>}
+      {settings&&<TrackerSettings key={settings} id={settings} close={()=>setSettings(null)}/>}
+      {manage&&<TrackerEditor close={()=>setManage(false)} onEdit={id=>{setManage(false);setSettings(id);}}/>}
       {editor && <EntryEditor key={`${editor.habit.id}:${editor.day}`} habit={editor.habit} day={editor.day} entry={data.entries[editor.day]?.[editor.habit.id]}
         close={() => setEditor(null)} save={(entry) => write(editor.day, editor.habit.id, entry)} />}
     </main>

@@ -3,12 +3,20 @@ import { emptyMapping, mappingStart, type MappingData, type XPRule, type Mapping
 
 export const POINT_LABELS:Record<string,string>={tennis:'Tennis',fitness:'Fitness',recovery:'Recovery',praying:'Prayer',sleep:'Sleep',reading:'Reading',journaling:'Journaling','no-phone':'No phone · first 15 min',homework:'Homework',coaching:'Coaching',porn:'Porn',goyslop:'Goyslop','screen-time':'Phone use'};
 const caps:Record<string,number>={tennis:30,fitness:20,recovery:8};
+export function originalCoinRule(id:string):XPRule{
+ if(id==='praying')return {amount:1.5,basis:'count',dailyCountCap:5};
+ if(id==='sleep')return {amount:5,basis:'entry',threshold:{comparison:'over',minutes:480}};
+ if(id==='screen-time')return {amount:1,basis:'entry',threshold:{comparison:'under',minutes:180},secondary:{belowMinutes:120,amount:2}};
+ return {amount:({tennis:5,fitness:5,recovery:2,reading:3,journaling:3,'no-phone':2,homework:4,coaching:1,porn:-8,goyslop:-4} as Record<string,number>)[id]||0,basis:'entry',...(caps[id]===undefined?{}:{weeklyCap:caps[id]})};
+}
 export function entryPoints(id:string,e:MappingEntry|undefined,rule?:XPRule):number {
  if(!e)return 0;
  if(rule){
   const minutes=e.kind==='duration'||e.kind==='phone'?e.minutes:e.kind==='sleep'?e.nightMinutes+e.dayMinutes:undefined;
-  const units=rule.basis==='hour'?(minutes??0)/60:rule.basis==='count'?(e.kind==='prayer'?e.count:e.kind==='check'?1:0):e.kind==='phone'?(e.minutes===undefined?0:1):e.kind==='duration'||e.kind==='sleep'?(minutes&&minutes>0?1:0):1;
-  return Math.round(rule.amount*units*10)/10;
+  if(rule.threshold&&(minutes===undefined||(rule.threshold.comparison==='over'?minutes<=rule.threshold.minutes:minutes>=rule.threshold.minutes)))return 0;
+  const amount=rule.secondary&&minutes!==undefined&&minutes<rule.secondary.belowMinutes?rule.secondary.amount:rule.amount;
+  const units=rule.basis==='hour'?(minutes??0)/60:rule.basis==='count'?(e.kind==='prayer'?Math.min(e.count,rule.dailyCountCap??Infinity):e.kind==='check'?1:0):e.kind==='phone'?(e.minutes===undefined?0:1):e.kind==='duration'||e.kind==='sleep'?(minutes&&minutes>0?1:0):1;
+  return Math.round(amount*units*10)/10;
  }
  if(id==='praying')return e.kind==='prayer'?Math.min(5,e.count)*1.5:0;
  if(id==='sleep')return e.kind==='sleep'&&e.nightMinutes+e.dayMinutes>480?5:0;

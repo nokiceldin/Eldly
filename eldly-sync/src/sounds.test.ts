@@ -63,7 +63,7 @@ it('uses each account’s current custom tracker color, including recoloring',()
  expect(tracklySound('porn',{...mapping,habits:[{...mapping.habits[0],id:'porn',color:'blue'}]})).toBe('track');
 });
 
-it('times one soft XP tone per arrival and respects muted effects',async()=>{
+it('times a metallic clink per coin arrival and respects muted effects',async()=>{
  vi.resetModules();
  const starts:number[]=[];
  const param=()=>({setValueAtTime:vi.fn(),exponentialRampToValueAtTime:vi.fn()});
@@ -72,7 +72,7 @@ it('times one soft XP tone per arrival and respects muted effects',async()=>{
  try{
   const {playXPCollection}=await import('./sounds');
   playXPCollection(4,false);expect(starts).toHaveLength(0);
-  playXPCollection(4,true,700,95);expect(starts).toHaveLength(4);expect(starts[0]).toBeCloseTo(10.7);expect(starts[3]).toBeCloseTo(10.985);
+  playXPCollection(4,true,700,95);expect(starts).toHaveLength(12);expect(new Set(starts).size).toBe(4);expect(starts[0]).toBeCloseTo(10.7);expect(starts[9]).toBeCloseTo(10.985);
  }finally{vi.unstubAllGlobals();vi.resetModules();}
 });
 
@@ -83,7 +83,7 @@ it('plays descending XP loss pulses once per lost XP',async()=>{
  vi.stubGlobal('window',{AudioContext:vi.fn(function(){return audio;})});
  try{
   const {playXPCollection}=await import('./sounds');playXPCollection(8,true,0,95,true);
-  expect(starts).toHaveLength(8);expect(starts[7]-starts[0]).toBeCloseTo(.665);
-  expect(pitches.every(p=>p.end<p.start)).toBe(true);expect(pitches[7].end).toBeLessThan(pitches[0].end);
+  expect(starts).toHaveLength(24);expect(new Set(starts).size).toBe(8);expect(starts[21]-starts[0]).toBeCloseTo(.665);
+  expect(pitches.every(p=>p.end<p.start)).toBe(true);expect(pitches[21].end).toBeLessThan(pitches[0].end);
  }finally{vi.unstubAllGlobals();vi.resetModules();}
 });
