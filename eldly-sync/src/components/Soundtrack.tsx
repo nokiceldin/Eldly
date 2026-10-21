@@ -6,7 +6,7 @@ import { configurePlaybackAudio } from '../sounds';
 const START = 16;
 /** One player lives above all app pages; the preference belongs to this account/device. */
 export default function Soundtrack() {
- const [enabled,setEnabled]=useState(()=>{try{return localStorage.getItem(scopedKey('soundtrack-enabled'))!=='false';}catch{return true;}});
+ const [enabled,setEnabled]=useState(()=>{try{return localStorage.getItem(scopedKey('soundtrack-enabled'))==='true';}catch{return false;}});
  const player=useRef<HTMLAudioElement|null>(null);
  useEffect(()=>{
   if(!enabled)return;
