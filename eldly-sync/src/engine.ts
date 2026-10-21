@@ -45,6 +45,8 @@ export interface Routine {
   sample?: boolean;
 }
 export interface Data {
+  rewards?: import('./rewards').Reward[];
+  rewardPurchases?: import('./rewards').RewardPurchase[];
   recapSeen?: Record<string, true>;
   goalPlans?: WeeklyGoalPlan[];
   personalRoutinesVersion?: 1;

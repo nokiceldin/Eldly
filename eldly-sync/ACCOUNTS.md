@@ -32,3 +32,9 @@ Saves synchronize immediately when service is healthy. Background polling runs o
 ## Tracker XP
 
 All accounts have their own derived XP counter and weekly history. Custom trackers store an optional `xp` rule (signed amount, per logged day / count / hour, optional absolute weekly cap) alongside the tracker in account-scoped cloud data. Blank logs award nothing; deleting or editing a log recalculates XP. Updating rules recalculates saved logs too. Archived trackers retain their historical XP. Existing owner rules remain the fallback for original tracker IDs until explicitly overridden.
+
+## Coins, rewards and weekly bonuses
+
+The XP UI is now Coins; existing `xp` tracker rule keys and historical earned values are preserved. `rewards` and immutable-price `rewardPurchases` live inside each account’s existing synced Check data. Buying reduces the available wallet, not earned weekly history. Undo marks a receipt refunded. Archived rewards do not refund purchases. Purchases check the latest local wallet and block duplicate/insufficient purchases; this is a personal motivation feature, not a payment service. Offline edits merge through the existing sync engine.
+
+Only completed full weeks with tracking activity earn bonuses: +3 per goal met using the plan effective that week, and +20 for a strictly higher positive base-coin week than a previous completed full week. The first full week establishes a baseline; ties, incomplete weeks and empty weeks do not earn record bonuses. Bonuses are derived, not minted on recap views, so reopening cannot duplicate them. Retroactive tracking/rule edits recalculate earnings and bonuses; purchases keep their receipt prices, and a negative available balance blocks further purchases. Monday’s existing weekly recap shows the goal chips, coin totals and record celebration for all accounts.

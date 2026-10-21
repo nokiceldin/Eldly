@@ -1,3 +1,4 @@
+import RewardsCard from './RewardsCard';
 import TrackerEditor from "./TrackerEditor";
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { ChevronLeft, ChevronRight, Volume2, VolumeX, X } from "lucide-react";
@@ -53,6 +54,7 @@ export default function MappingPage({ onHome }: { onHome: () => void }) {
           </tr>)}</tbody>
         </table>
       </div>
+      <RewardsCard/>
       {manage&&<TrackerEditor close={()=>setManage(false)}/>}
       {editor && <EntryEditor key={`${editor.habit.id}:${editor.day}`} habit={editor.habit} day={editor.day} entry={data.entries[editor.day]?.[editor.habit.id]}
         close={() => setEditor(null)} save={(entry) => write(editor.day, editor.habit.id, entry)} />}

@@ -1,4 +1,4 @@
-const CACHE = "myspace-shell-v14-private-api";
+const CACHE = "myspace-shell-v15-coins-rewards";
 const SHELL = [
   "/",
   "/index.html",
