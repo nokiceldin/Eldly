@@ -1,7 +1,7 @@
 import { describe,it,expect } from 'vitest';
 import { entryPoints,pointsHistory,pointsStats } from './points';
 import { add } from './engine';
-import type { MappingData } from './mapping';
+import { validateMapping, type MappingData } from './mapping';
 const check={kind:'check'} as const;
 const mapping=():MappingData=>({version:1,startedOn:'2026-10-15',entries:{}});
 describe('personal Track points',()=>{
@@ -34,5 +34,28 @@ describe('personal Track points',()=>{
  it('allows negative totals and reflects removals immediately',()=>{
   const m=mapping();m.entries['2026-10-19']={porn:check,goyslop:check};expect(pointsStats(m,'2026-10-20').total).toBe(-12);
   delete m.entries['2026-10-19'];expect(pointsStats(m,'2026-10-20').total).toBe(0);
+ });
+});
+
+describe('custom account XP',()=>{
+ it('supports rewards, losses, counted repetitions and fractional hours without duplicate awards',()=>{
+  expect(entryPoints('custom',check,{amount:4,basis:'entry'})).toBe(4);
+  expect(entryPoints('custom',{kind:'prayer',count:3},{amount:1.5,basis:'count'})).toBe(4.5);
+  expect(entryPoints('custom',{kind:'duration',minutes:90},{amount:3,basis:'hour'})).toBe(4.5);
+  expect(entryPoints('custom',check,{amount:-8,basis:'entry'})).toBe(-8);
+  expect(entryPoints('custom',undefined,{amount:5,basis:'entry'})).toBe(0);
+  expect(entryPoints('custom',{kind:'phone',pickups:5},{amount:5,basis:'entry'})).toBe(0);
+ });
+ it('caps each account tracker weekly and restores XP on undo while preserving archived history',()=>{
+  const m:MappingData={version:1,startedOn:'2026-10-19',habits:[{id:'custom',label:'Run',color:'blue',kind:'check',xp:{amount:5,basis:'entry',weeklyCap:8}},{id:'loss',label:'Bad habit',color:'red',kind:'check',archived:true,xp:{amount:-4,basis:'entry',weeklyCap:6}}],entries:{'2026-10-19':{custom:check,loss:check},'2026-10-20':{custom:check,loss:check}}};
+  expect(validateMapping(m)).toBe(true);
+  expect(pointsStats(m,'2026-10-20').total).toBe(2);
+  delete m.entries['2026-10-20'].loss;
+  expect(pointsStats(m,'2026-10-20').total).toBe(4);
+  expect(pointsStats({...m,entries:{}},'2026-10-20').total).toBe(0);
+  m.habits![0].xp!.amount=Infinity;expect(validateMapping(m)).toBe(false);
+ });
+ it('custom rules override original ID scores and caps only when explicitly set',()=>{
+  const m=mapping();m.habits=[{id:'tennis',label:'Tennis',kind:'check',color:'blue',xp:{amount:50,basis:'entry'}}];m.entries['2026-10-19']={tennis:check};expect(pointsStats(m,'2026-10-20').total).toBe(50);
  });
 });

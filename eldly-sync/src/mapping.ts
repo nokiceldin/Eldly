@@ -18,7 +18,9 @@ export const DAILY_CHECK_METRICS = ["recovery", "reading", "journaling"] as cons
 export const isDailyCheckMetric = (id: string) => DAILY_CHECK_METRICS.some(metric => metric === id);
 export const isCountMetric = (id: string, data?:MappingData) => getHabits(data).some(h => h.id === id && h.kind === "check");
 export type HabitColor = typeof HABITS[number]["color"];
-export type Habit = {id:string;label:string;color:HabitColor;kind:"check"|"duration"|"prayer"|"sleep"|"phone";previousGoals?:{target:number;maximum:boolean;from:string;until?:string}[];archived?:boolean;goal?:{target:number;maximum:boolean;from:string}};
+export type XPRule = {amount:number;basis:"entry"|"count"|"hour";weeklyCap?:number};
+export function validXPRule(x:unknown):x is XPRule {if(!x||typeof x!=="object")return false;const r=x as XPRule;return Number.isFinite(r.amount)&&Math.abs(r.amount)<=1000&&Math.round(r.amount*10)===r.amount*10&&["entry","count","hour"].includes(r.basis)&&(r.weeklyCap===undefined||Number.isFinite(r.weeklyCap)&&r.weeklyCap>=0&&r.weeklyCap<=100000);}
+export type Habit = {xp?:XPRule;id:string;label:string;color:HabitColor;kind:"check"|"duration"|"prayer"|"sleep"|"phone";previousGoals?:{target:number;maximum:boolean;from:string;until?:string}[];archived?:boolean;goal?:{target:number;maximum:boolean;from:string}};
 export type HabitId = string;
 export const getHabits=(data?:MappingData):readonly Habit[]=>((data?.habits??HABITS) as readonly Habit[]).filter(h=>!h.archived);
 export const mappingStart=(data:MappingData)=>data.startedOn??"2026-10-15";
@@ -60,7 +62,7 @@ export function validateMapping(value: unknown): value is MappingData {
   if (!value || typeof value !== "object") return false;
   const data = value as MappingData;
   const habits=data.habits??HABITS;
-  if(data.habits!==undefined&&(!Array.isArray(data.habits)||data.habits.length>100||!data.habits.every(h=>h&&/^[-a-zA-Z0-9_]{1,100}$/.test(h.id)&&typeof h.label==='string'&&h.label.trim().length>0&&h.label.length<=80&&["yellow","green","blue","pink","red","purple"].includes(h.color)&&["check","duration","prayer","sleep","phone"].includes(h.kind)&&(!h.previousGoals||(Array.isArray(h.previousGoals)&&h.previousGoals.every(g=>validGoalTarget(g.target,g.maximum,h.kind)&&typeof g.maximum==='boolean'&&validDate(g.from)&&(!g.until||(validDate(g.until)&&g.until>=g.from)))))&&(!h.goal||(validGoalTarget(h.goal.target,h.goal.maximum,h.kind)&&typeof h.goal.maximum==='boolean'&&validDate(h.goal.from))))||new Set(data.habits.map(h=>h.id)).size!==data.habits.length))return false;
+  if(data.habits!==undefined&&(!Array.isArray(data.habits)||data.habits.length>100||!data.habits.every(h=>h&&(h.xp===undefined||validXPRule(h.xp))&&/^[-a-zA-Z0-9_]{1,100}$/.test(h.id)&&typeof h.label==='string'&&h.label.trim().length>0&&h.label.length<=80&&["yellow","green","blue","pink","red","purple"].includes(h.color)&&["check","duration","prayer","sleep","phone"].includes(h.kind)&&(!h.previousGoals||(Array.isArray(h.previousGoals)&&h.previousGoals.every(g=>validGoalTarget(g.target,g.maximum,h.kind)&&typeof g.maximum==='boolean'&&validDate(g.from)&&(!g.until||(validDate(g.until)&&g.until>=g.from)))))&&(!h.goal||(validGoalTarget(h.goal.target,h.goal.maximum,h.kind)&&typeof h.goal.maximum==='boolean'&&validDate(h.goal.from))))||new Set(data.habits.map(h=>h.id)).size!==data.habits.length))return false;
   if(data.startedOn!==undefined&&!validDate(data.startedOn))return false;
   return data.version === 1 && !!data.entries && typeof data.entries === "object" && !Array.isArray(data.entries) &&
     Object.entries(data.entries).every(([day, entries]) => validDate(day) && entries && typeof entries === "object" && !Array.isArray(entries) && Object.entries(entries).every(([id, entry]) => validEntry(id, entry,habits)));

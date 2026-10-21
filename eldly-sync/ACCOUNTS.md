@@ -23,8 +23,12 @@ The original `VITE_SUPABASE_URL` is retained as the local sync namespace, preser
 
 ## Creating another account
 
-On a trusted administrator machine, supply server-only `DATABASE_URL` and pipe JSON containing the explicitly requested `username` and `password` into `node scripts/create-account.mjs`. Passwords must have at least ten characters. The transaction creates a fresh non-owner account; no tasks, tracking, packing history or other user's records are copied. Duplicate usernames fail without partially creating an account.
+On a trusted administrator machine, supply server-only `DATABASE_URL` and pipe JSON containing the explicitly requested `username` and `password`, plus optional `homeName` for the title inside the app into `node scripts/create-account.mjs`. Passwords must have at least eight characters. The transaction creates a fresh non-owner account; no tasks, tracking, packing history or other user's records are copied. Duplicate usernames fail without partially creating an account.
 
 ## Free usage
 
 Saves synchronize immediately when service is healthy. Background polling runs only while visible and recently active. Failed requests back off. Idle tabs do not continuously keep the database awake. Both Vercel and Neon remain on free plans; reaching a provider limit can still interrupt service and must not trigger an automatic paid upgrade.
+
+## Tracker XP
+
+All accounts have their own derived XP counter and weekly history. Custom trackers store an optional `xp` rule (signed amount, per logged day / count / hour, optional absolute weekly cap) alongside the tracker in account-scoped cloud data. Blank logs award nothing; deleting or editing a log recalculates XP. Updating rules recalculates saved logs too. Archived trackers retain their historical XP. Existing owner rules remain the fallback for original tracker IDs until explicitly overridden.

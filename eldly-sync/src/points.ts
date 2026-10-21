@@ -1,10 +1,15 @@
 import { add, localDay, monday } from './engine';
-import { emptyMapping, mappingStart, type MappingData, type MappingEntry } from './mapping';
+import { emptyMapping, mappingStart, type MappingData, type XPRule, type MappingEntry } from './mapping';
 
 export const POINT_LABELS:Record<string,string>={tennis:'Tennis',fitness:'Fitness',recovery:'Recovery',praying:'Prayer',sleep:'Sleep',reading:'Reading',journaling:'Journaling','no-phone':'No phone · first 15 min',homework:'Homework',coaching:'Coaching',porn:'Porn',goyslop:'Goyslop','screen-time':'Phone use'};
 const caps:Record<string,number>={tennis:30,fitness:20,recovery:8};
-export function entryPoints(id:string,e:MappingEntry|undefined):number {
+export function entryPoints(id:string,e:MappingEntry|undefined,rule?:XPRule):number {
  if(!e)return 0;
+ if(rule){
+  const minutes=e.kind==='duration'||e.kind==='phone'?e.minutes:e.kind==='sleep'?e.nightMinutes+e.dayMinutes:undefined;
+  const units=rule.basis==='hour'?(minutes??0)/60:rule.basis==='count'?(e.kind==='prayer'?e.count:e.kind==='check'?1:0):e.kind==='phone'?(e.minutes===undefined?0:1):e.kind==='duration'||e.kind==='sleep'?(minutes&&minutes>0?1:0):1;
+  return Math.round(rule.amount*units*10)/10;
+ }
  if(id==='praying')return e.kind==='prayer'?Math.min(5,e.count)*1.5:0;
  if(id==='sleep')return e.kind==='sleep'&&e.nightMinutes+e.dayMinutes>480?5:0;
  if(id==='screen-time'){
@@ -25,9 +30,13 @@ export function pointsHistory(mapping:MappingData=emptyMapping(),today=localDay(
   const to=add(from,6),breakdown:Record<string,number>={};
   for(let day=from;day<=to&&day<=today;day=add(day,1)){
    if(day<start)continue;
-   for(const [id,entry] of Object.entries(mapping.entries[day]||{}))breakdown[id]=(breakdown[id]||0)+entryPoints(id,entry);
+   for(const [id,entry] of Object.entries(mapping.entries[day]||{}))breakdown[id]=(breakdown[id]||0)+entryPoints(id,entry,mapping.habits?.find(h=>h.id===id)?.xp);
   }
-  for(const [id,max] of Object.entries(caps))if(breakdown[id]!==undefined)breakdown[id]=Math.min(max,breakdown[id]);
+  for(const id of Object.keys(breakdown)){
+   const rule=mapping.habits?.find(h=>h.id===id)?.xp;
+   const cap=rule?rule.weeklyCap:caps[id];
+   if(cap!==undefined)breakdown[id]=Math.sign(breakdown[id])*Math.min(cap,Math.abs(breakdown[id]));
+  }
   weeks.push({from,to,total:Object.values(breakdown).reduce((a,b)=>a+b,0),breakdown,current:from===monday(today),partial:from<start});
  }
  return weeks;
