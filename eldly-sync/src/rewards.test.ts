@@ -28,6 +28,10 @@ describe('coins, weekly bonuses and rewards',()=>{
   expect(coinHistory(d,today)[0].goalBonus).toBe(6);
   expect(coinHistory(d,today)[1].goalBonus).toBe(0);
  });
+ it('counts blank elapsed days as zero for maximum goals, including a blank full week',()=>{
+  const d=data();d.mapping.entries={} as any;d.mapping.habits[0].goal={target:0,maximum:true,from:'2026-10-19'};
+  expect(coinHistory(d,today)[0]).toMatchObject({baseTotal:0,goalBonus:3,recordBonus:0});
+ });
  it('uses the owner’s original weekly goals for bonuses',()=>{
   vi.useFakeTimers();vi.setSystemTime(new Date(today+'T12:00:00'));
   const d={...empty(),mapping:{version:1 as const,startedOn:'2026-10-19',entries:{'2026-10-19':{praying:{kind:'prayer' as const,count:7}}}}};

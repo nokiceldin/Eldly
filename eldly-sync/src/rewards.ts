@@ -15,7 +15,7 @@ export function coinHistory(data:Pick<Data,'mapping'|'goalPlans'>,today=localDay
  const mapping=data.mapping;
  let best:number|null=null;
  return pointsHistory(mapping,today).map(week=>{
-  const eligible=!week.current&&!week.partial&&!!mapping&&Object.entries(mapping.entries).some(([day,row])=>day>=week.from&&day<=week.to&&Object.keys(row).length>0);
+  const eligible=!week.current&&!week.partial&&!!mapping;
   const goalsMet:{id:string;label:string}[]=[];
   if(eligible&&mapping){
    if(data.goalPlans?.length||!mapping.habits){
