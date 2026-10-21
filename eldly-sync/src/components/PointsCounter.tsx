@@ -6,7 +6,7 @@ import { createPortal } from 'react-dom';
 import { load } from '../storage';
 import { format, schoolWeek } from '../engine';
 import { formatPoints, POINT_LABELS } from '../points';
-import { playXPCollection } from '../sounds';
+import { preloadCoinSound, playXPCollection } from '../sounds';
 import { xpMotes, XP_FLIGHT_MS, XP_STAGGER_MS } from '../xpEffects';
 import { LOCAL_EVENT, REMOTE_EVENT } from '../sync/local';
 
@@ -18,6 +18,7 @@ export default function PointsCounter(){
  const earned=useRef(stats.earned);
  const flightId=useRef(0),timers=useRef<ReturnType<typeof setTimeout>[]>([]);
  useEffect(()=>{
+  void preloadCoinSound();
   const pointer=(e:PointerEvent)=>{origin.current={x:e.clientX,y:e.clientY};};
   const keyboard=()=>{const r=document.activeElement?.getBoundingClientRect();origin.current=r?{x:r.x+r.width/2,y:r.y+r.height/2}:null;};
   const refresh=(e:Event)=>{

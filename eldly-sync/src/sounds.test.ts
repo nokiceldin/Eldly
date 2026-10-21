@@ -63,27 +63,36 @@ it('uses each account’s current custom tracker color, including recoloring',()
  expect(tracklySound('porn',{...mapping,habits:[{...mapping.habits[0],id:'porn',color:'blue'}]})).toBe('track');
 });
 
-it('times a metallic clink per coin arrival and respects muted effects',async()=>{
- vi.resetModules();
- const starts:number[]=[];
- const param=()=>({setValueAtTime:vi.fn(),exponentialRampToValueAtTime:vi.fn()});
- const audio={state:'running',currentTime:10,destination:{},createOscillator:()=>({frequency:param(),connect:vi.fn(),disconnect:vi.fn(),start:(t:number)=>starts.push(t),stop:vi.fn(),onended:null}),createGain:()=>({gain:param(),connect:vi.fn(),disconnect:vi.fn()})};
- const constructor=vi.fn(function(){return audio;});vi.stubGlobal('window',{AudioContext:constructor});
+function recordedCoinAudio(){
+ const starts:number[]=[],rates:{value:number}[]=[],buffers:any[]=[];
+ const sample={duration:.52,length:4,sampleRate:24000,numberOfChannels:1,getChannelData:()=>new Float32Array([.1,.4,.2,0])};
+ const reversed=new Float32Array(4);
+ const audio={state:'running',currentTime:10,destination:{},decodeAudioData:vi.fn().mockResolvedValue(sample),createBuffer:vi.fn(()=>({getChannelData:()=>reversed})),createBufferSource:()=>{const rate={value:1};rates.push(rate);const source:any={buffer:null,playbackRate:rate,connect:vi.fn(),disconnect:vi.fn(),start:(t:number)=>{starts.push(t);buffers.push(source.buffer);},onended:null};return source;},createGain:()=>({gain:{setValueAtTime:vi.fn()},connect:vi.fn(),disconnect:vi.fn()})};
+ const fetch=vi.fn().mockResolvedValue({ok:true,arrayBuffer:async()=>new ArrayBuffer(8)});
+ vi.stubGlobal('fetch',fetch);vi.stubGlobal('window',{AudioContext:vi.fn(function(){return audio;})});
+ return {starts,rates,buffers,audio,fetch,reversed};
+}
+it('plays one recorded coin jingle per arrival, preloads silently and respects mute',async()=>{
+ vi.resetModules();const mock=recordedCoinAudio();
  try{
-  const {playXPCollection}=await import('./sounds');
-  playXPCollection(4,false);expect(starts).toHaveLength(0);
-  playXPCollection(4,true,700,95);expect(starts).toHaveLength(12);expect(new Set(starts).size).toBe(4);expect(starts[0]).toBeCloseTo(10.7);expect(starts[9]).toBeCloseTo(10.985);
+  const {playXPCollection,preloadCoinSound}=await import('./sounds');
+  await preloadCoinSound();expect(mock.starts).toHaveLength(0);
+  await playXPCollection(4,false);expect(mock.starts).toHaveLength(0);
+  await playXPCollection(4,true,700,95);expect(mock.starts).toHaveLength(4);expect(mock.starts[0]).toBeCloseTo(10.7);expect(mock.starts[3]).toBeCloseTo(10.985);
+  expect(mock.fetch).toHaveBeenCalledTimes(1);expect(mock.fetch).toHaveBeenCalledWith('/audio/coin-collect.wav');
+  await playXPCollection(1,true);expect(mock.audio.decodeAudioData).toHaveBeenCalledTimes(1);
  }finally{vi.unstubAllGlobals();vi.resetModules();}
 });
-
-it('plays descending XP loss pulses once per lost XP',async()=>{
- vi.resetModules();
- const pitches:{start:number;end:number}[]=[];const starts:number[]=[];
- const audio={state:'running',currentTime:10,destination:{},createOscillator:()=>{const pitch={start:0,end:0};pitches.push(pitch);return {frequency:{setValueAtTime:(v:number)=>{pitch.start=v;},exponentialRampToValueAtTime:(v:number)=>{pitch.end=v;}},connect:vi.fn(),disconnect:vi.fn(),start:(t:number)=>starts.push(t),stop:vi.fn(),onended:null};},createGain:()=>({gain:{setValueAtTime:vi.fn(),exponentialRampToValueAtTime:vi.fn()},connect:vi.fn(),disconnect:vi.fn()})};
- vi.stubGlobal('window',{AudioContext:vi.fn(function(){return audio;})});
+it('reverses the recorded coins and lowers their pitch for losses',async()=>{
+ vi.resetModules();const mock=recordedCoinAudio();
  try{
-  const {playXPCollection}=await import('./sounds');playXPCollection(8,true,0,95,true);
-  expect(starts).toHaveLength(24);expect(new Set(starts).size).toBe(8);expect(starts[21]-starts[0]).toBeCloseTo(.665);
-  expect(pitches.every(p=>p.end<p.start)).toBe(true);expect(pitches[21].end).toBeLessThan(pitches[0].end);
+  const {playXPCollection}=await import('./sounds');await playXPCollection(8,true,0,95,true);
+  expect(mock.starts).toHaveLength(8);expect(mock.starts[7]-mock.starts[0]).toBeCloseTo(.665);
+  expect([...mock.reversed]).toEqual([...new Float32Array([0,.2,.4,.1])]);
+  expect(mock.rates.every(r=>r.value<1)).toBe(true);expect(mock.rates[5].value).toBeLessThan(mock.rates[0].value);
  }finally{vi.unstubAllGlobals();vi.resetModules();}
+});
+it('treats a failed sound download as optional feedback',async()=>{
+ vi.resetModules();const mock=recordedCoinAudio();mock.fetch.mockRejectedValue(Error('Offline'));
+ try{const {playXPCollection}=await import('./sounds');await expect(playXPCollection(3,true)).resolves.toBeUndefined();expect(mock.starts).toHaveLength(0);}finally{vi.unstubAllGlobals();vi.resetModules();}
 });

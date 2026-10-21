@@ -67,8 +67,16 @@ export function playFeedback(sound: FeedbackSound, enabled: boolean) {
   } catch { /* Audio is optional; never interrupt saving a task. */ }
 }
 
-/** Short metallic coin clinks: inharmonic overtones, a sharp attack and ringing decay. */
-export function playXPCollection(count:number,enabled:boolean,firstArrivalMs=700,staggerMs=95,reverse=false){
+let coinBytes:Promise<ArrayBuffer|null>|null=null;
+let coinDecoded:Promise<AudioBuffer|null>|null=null;
+let reversedCoin:AudioBuffer|null=null;
+/** Fetch only: no sound or audio session is started by preloading. */
+export function preloadCoinSound(){
+ if(!coinBytes)coinBytes=fetch('/audio/coin-collect.wav').then(r=>{if(!r.ok)throw Error('Coin sound unavailable');return r.arrayBuffer();}).catch(()=>{coinBytes=null;return null;});
+ return coinBytes;
+}
+/** Real recorded coins, one overlapping jingle per arrival; reverse playback for losses. */
+export async function playXPCollection(count:number,enabled:boolean,firstArrivalMs=700,staggerMs=95,reverse=false){
  if(!enabled||count<=0)return;
  configurePlaybackAudio();
  try{
@@ -77,21 +85,22 @@ export function playXPCollection(count:number,enabled:boolean,firstArrivalMs=700
   if(!context||context.state==='closed')context=new AudioContextClass({latencyHint:'interactive'});
   const ctx=context;
   if(ctx.state==='suspended')void ctx.resume().catch(()=>{});
-  const start=ctx.currentTime+firstArrivalMs/1000;
-  for(let i=0;i<Math.min(count,40);i++){
-   const at=start+i*staggerMs/1000;
-   const frequency=reverse?1050*Math.pow(2,-(i%12)/18):1900*Math.pow(2,(i%6)/36);
-   for(const [ratio,volume,decay] of [[1,.045,.15],[1.47,.019,.09],[2.09,.009,.055]]){
-    const tone=ctx.createOscillator(),gain=ctx.createGain();
-    tone.type='sine';
-    tone.frequency.setValueAtTime(frequency*ratio*(reverse?1.28:1.025),at);
-    tone.frequency.exponentialRampToValueAtTime(frequency*ratio*(reverse?.78:1),at+.045);
-    gain.gain.setValueAtTime(.0001,at);
-    gain.gain.exponentialRampToValueAtTime(volume,at+.0015);
-    gain.gain.exponentialRampToValueAtTime(.0001,at+decay);
-    tone.connect(gain);gain.connect(ctx.destination);tone.start(at);tone.stop(at+decay+.02);
-    tone.onended=()=>{tone.disconnect();gain.disconnect();};
-   }
+  const desiredStart=ctx.currentTime+firstArrivalMs/1000;
+  if(!coinDecoded)coinDecoded=preloadCoinSound().then(bytes=>bytes?ctx.decodeAudioData(bytes.slice(0)):null).catch(()=>{coinDecoded=null;return null;});
+  const sample=await coinDecoded;
+  if(!sample){coinDecoded=null;return;}
+  if(reverse&&!reversedCoin){
+   reversedCoin=ctx.createBuffer(sample.numberOfChannels,sample.length,sample.sampleRate);
+   for(let channel=0;channel<sample.numberOfChannels;channel++)reversedCoin.getChannelData(channel).set(sample.getChannelData(channel).slice().reverse());
   }
- }catch{/* Optional feedback must never interrupt a save. */}
+  const start=Math.max(desiredStart,ctx.currentTime+.005),volume=.3/Math.sqrt(Math.min(count,5));
+  for(let i=0;i<Math.min(count,40);i++){
+   const at=start+i*staggerMs/1000,source=ctx.createBufferSource(),gain=ctx.createGain();
+   source.buffer=reverse?reversedCoin:sample;
+   source.playbackRate.value=reverse?.88-(i%6)*.015:.98+(i%3)*.02;
+   gain.gain.setValueAtTime(volume,at);
+   source.connect(gain);gain.connect(ctx.destination);source.start(at);
+   source.onended=()=>{source.disconnect();gain.disconnect();};
+  }
+ }catch{/* Optional audio must never interrupt a save. */}
 }
