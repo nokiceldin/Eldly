@@ -28,6 +28,11 @@ describe("period recaps", () => {
     expect(pendingRecaps(seen,"2026-11-03")).toEqual([]);
     expect(pendingRecaps(empty(),"2026-11-02")).toEqual([]);
   });
+  it("opens Monday’s recap for an established account even when the week has no logs",()=>{
+    const data={...empty(),mapping:{version:1 as const,startedOn:"2026-10-19",habits:[],entries:{}}};
+    expect(pendingRecaps(data,"2026-10-19")).toEqual([]);
+    expect(pendingRecaps(data,"2026-10-26")[0].id).toBe("week:2026-10-19");
+  });
   it("compares the complete period with the previous one, counts blanks as zero, and reports factual highlights", () => {
     let mapping=setMappingEntry(emptyMapping(),"2026-10-20","tennis",{kind:"duration",minutes:120});
     mapping=setMappingEntry(mapping,"2026-10-28","tennis",{kind:"duration",minutes:60});

@@ -19,7 +19,7 @@ export function recapWindows(today = localDay()): RecapWindow[] {
 }
 export function pendingRecaps(data: Data, today = localDay()) {
   const dates = [...Object.keys(data.mapping?.entries || {}), ...data.tasks.map(t => t.scheduled), ...data.routines.map(r => r.start)].sort();
-  const first = dates[0];
+  const first = dates[0] || data.mapping?.startedOn;
   return recapWindows(today).filter(w => !data.recapSeen?.[w.id] && first && w.range.to >= mappingStart(data.mapping||emptyMapping()));
 }
 export function buildRecap(data: Data, window: RecapWindow, today = localDay()) {
