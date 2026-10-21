@@ -1,47 +1,30 @@
-# Private Eldinos accounts
+# Private MySpace accounts
 
-Supabase Auth handles passwords and persistent per-device sessions. Accounts are
-provisioned manually; the app has no public signup form. The username is mapped
-to an internal, non-deliverable `@accounts.eldinos.invalid` Auth email identifier.
-No password, service key, or account allowlist is shipped in the browser bundle.
+Production uses the Neon **Free** database `myspace-private`, connected to the existing Vercel project. `VITE_ACCOUNT_BACKEND=private` selects the private server API. `DATABASE_URL` is server-only and must never have a `VITE_` prefix.
 
-## Storage boundaries
+## Sign-in and ownership
 
-- `eldinos_accounts` is the administrator-managed membership list.
-- Each record, revision cursor, and initialization flag belongs to an Auth UUID.
-- RLS grants read access only to the calling user's rows. Writes use narrowly
-  scoped RPCs that derive their UUID from `auth.uid()`, never a client argument.
-- Unapproved Auth users cannot initialize or access an account.
-- Device caches, pending edits, sync mirrors and backups use account-specific keys.
-- Guest mode uses a separate device-only namespace. It never uploads to accounts.
-- Logout removes this device's session; it does not delete cloud data or pending
-  offline edits. Login resumes only the selected user's cache.
-- In-flight work is stopped when the account changes, including another tab.
+- Usernames and bcrypt password hashes live in `myspace_users`. There is no public registration endpoint.
+- Sign-in issues a random 256-bit session cookie, stored for one year per device. Cookies are Secure, HttpOnly, SameSite=Lax and host-only. Only a SHA-256 token hash is stored in the database.
+- Mutating API calls require a same-origin request. Sign-in attempts are rate limited in the database.
+- Every sync call derives the account UUID from its verified server session; client-supplied account IDs cannot select another account.
+- Database credentials, password hashes and session tokens are never returned to browser JavaScript.
+- API responses are not cached by the browser or service worker.
+- Local caches, pending edits and sync cursors remain scoped to the original account UUID. Guest storage stays separate and never uploads.
+- Logout revokes only that device session and does not delete saved records or pending local edits.
 
-## Existing owner's migration
+## October 2026 migration
 
-`accounts.sql` creates private tables and authenticated RPCs. The one-time
-`activate-accounts.sql` locks the former shared data, copies every record to the
-administrator-designated owner, checks the count, then revokes all old anonymous
-access. The legacy tables remain intact as an administrator-only recovery copy.
-A local JSON cloud backup was also saved before migration. Only the legacy owner
-may recover unsent edits from an older device cache. Friends and guests cannot
-import that cache implicitly.
+Supabase restricted the shared organization for egress used by another project. The original project remains unchanged as a recovery copy. A fresh private backup of all account records, states, UUIDs and original bcrypt hashes was taken before migrating. The Neon import was verified record for record, including deleted records and revisions. Existing credentials and UUIDs are retained.
+
+The original `VITE_SUPABASE_URL` is retained as the local sync namespace, preserving existing caches and unsent edits. It does not receive traffic in private-backend mode. The old SQL in `supabase/` and Supabase Auth integration are legacy recovery paths, not current provisioning instructions.
+
+`server/schema.sql` defines private server tables and atomic account operations. `server/migrate.mjs` imports a complete administrator backup only into an empty target and refuses to overwrite existing accounts. It is a one-time tool, not part of deployment startup.
 
 ## Creating another account
 
-Use `scripts/create-account.mjs` on a trusted administrator machine. Supply the
-existing Supabase project URL and secret/service-role key through server-only
-environment variables, and pass the explicitly requested username/password as
-JSON on stdin. The script creates the Supabase Auth user and private membership
-row. A duplicate username fails rather than taking over an existing Auth user.
-Never add the service key to `VITE_*`, a browser settings page or Git.
+On a trusted administrator machine, supply server-only `DATABASE_URL` and pipe JSON containing the explicitly requested `username` and `password` into `node scripts/create-account.mjs`. Passwords must have at least ten characters. The transaction creates a fresh non-owner account; no tasks, tracking, packing history or other user's records are copied. Duplicate usernames fail without partially creating an account.
 
-New accounts start with no tasks, routines, categories, trackers, goals, entries,
-or visible packing trips. They choose their own tracker labels, colors and
-recording types. Check supports weekly routines and conversion of an unfinished
-one-time task to a weekly routine. Hiding a tracker keeps its history for restore.
-Guest data is deliberately not merged when someone signs in.
+## Free usage
 
-The original `schema.sql` is legacy history only: do not rerun it in production,
-as it would reopen the former public dataset.
+Saves synchronize immediately when service is healthy. Background polling runs only while visible and recently active. Failed requests back off. Idle tabs do not continuously keep the database awake. Both Vercel and Neon remain on free plans; reaching a provider limit can still interrupt service and must not trigger an automatic paid upgrade.

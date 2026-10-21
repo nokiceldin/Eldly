@@ -2,7 +2,7 @@ import { authErrorMessage } from '../authErrors';
 import PointsCounter from './PointsCounter';
 import Soundtrack from './Soundtrack';
 import { useEffect, useState, type ReactNode } from 'react';
-import type { User } from '@supabase/supabase-js';
+import type {AccountUser as User} from '../privateAuth';
 import { LogOut, UserRound } from 'lucide-react';
 import { authClient, usernameEmail } from '../auth';
 import { setAccountScope, isGuest, isPersonalOwner } from '../accountScope';

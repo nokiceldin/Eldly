@@ -1,3 +1,5 @@
+> **Current account backend:** Neon Free via the private Vercel API. See [ACCOUNTS.md](ACCOUNTS.md) and [CLOUD-SETUP.md](CLOUD-SETUP.md); Supabase setup instructions below are historical.
+
 # Eldinos
 
 Personal Check, Track, Pack and Data, with private accounts and an optional

@@ -1,4 +1,4 @@
-const CACHE = "myspace-shell-v13-personal-homes";
+const CACHE = "myspace-shell-v14-private-api";
 const SHELL = [
   "/",
   "/index.html",
@@ -49,6 +49,7 @@ self.addEventListener("fetch", (event) => {
   const request = event.request;
   if (
     request.method !== "GET" ||
+    new URL(request.url).pathname.startsWith("/api/") ||
     new URL(request.url).pathname === "/myspace-soundtrack.mp3" ||
     new URL(request.url).origin !== self.location.origin
   )
