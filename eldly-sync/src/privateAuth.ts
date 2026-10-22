@@ -21,6 +21,7 @@ export function createPrivateAuth(){
    return pending;
   },
   signInWithPassword:async(credentials:{email:string;password:string})=>{try{const result=await request('login',credentials);session={user:result.user,access_token:'cookie-session'};known=true;broadcast?.postMessage('changed');notify('SIGNED_IN');return {error:null};}catch(e){return {error:e as AuthError};}},
+  signUp:async(credentials:{email:string;password:string})=>{try{const result=await request('register',{username:credentials.email.split('@')[0],password:credentials.password});session={user:result.user,access_token:'cookie-session'};known=true;broadcast?.postMessage('changed');notify('SIGNED_IN');return {error:null};}catch(e){return {error:e as AuthError};}},
   signOut:async(_options?:{scope:string})=>{try{await request('logout',{});session=null;known=true;broadcast?.postMessage('changed');notify('SIGNED_OUT');return {error:null};}catch(e){return {error:e as AuthError};}},
   onAuthStateChange:(fn:(event:string,session:Session|null)=>void)=>{listeners.add(fn);return {data:{subscription:{unsubscribe:()=>listeners.delete(fn)}}};},
  }};

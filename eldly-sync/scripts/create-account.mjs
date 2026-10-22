@@ -1,6 +1,6 @@
 // Server-side operator tool. Never put the database URL or credentials in Vite envs.
 // Supply DATABASE_URL and a JSON file via stdin:
-// {"username":"...","password":"..."}. No public signup or owner reassignment.
+// {"username":"...","password":"..."}. Optional administrator provisioning; never reassigns the owner.
 import {neon} from '@neondatabase/serverless';
 import {hash} from 'bcryptjs';
 import {randomUUID} from 'node:crypto';

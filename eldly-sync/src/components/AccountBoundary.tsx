@@ -4,12 +4,12 @@ import Soundtrack from './Soundtrack';
 import { useEffect, useState, type ReactNode } from 'react';
 import type {AccountUser as User} from '../privateAuth';
 import { LogOut, UserRound } from 'lucide-react';
-import { authClient, usernameEmail } from '../auth';
+import { authClient, privateAccounts, usernameEmail } from '../auth';
 import { setAccountScope, isGuest } from '../accountScope';
 import { enrolled, synchronize } from '../sync/engine';
 export default function AccountBoundary({children}:{children:ReactNode}) {
  const [identity,setIdentity]=useState<User|'guest'|null>(null),[ready,setReady]=useState(false),[login,setLogin]=useState(false),[menu,setMenu]=useState(false);
- const [username,setUsername]=useState(''),[password,setPassword]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false);
+ const [username,setUsername]=useState(''),[password,setPassword]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false),[creating,setCreating]=useState(false);
  useEffect(()=>{
   let alive=true;let current:string|null=null;
   const init=async()=>{try{
@@ -29,9 +29,10 @@ export default function AccountBoundary({children}:{children:ReactNode}) {
   });
   return()=>{alive=false;subscription?.data.subscription.unsubscribe();};
  },[]);
- async function signIn(e:React.FormEvent){e.preventDefault();setBusy(true);setError('');try{
+ async function signIn(e:React.FormEvent){e.preventDefault();if(busy)return;setBusy(true);setError('');try{
   if(!authClient)throw Error('Account service is not configured.');
-  const result=await authClient.auth.signInWithPassword({email:usernameEmail(username),password});
+  const credentials={email:usernameEmail(username),password};
+  const result=creating?await authClient.auth.signUp(credentials):await authClient.auth.signInWithPassword(credentials);
   if(result.error)throw Error(authErrorMessage(result.error));
   localStorage.removeItem('eldinos-guest-mode');window.location.hash='';window.location.reload();
  }catch(e){setError(e instanceof Error?e.message:'Could not sign in.');}finally{setBusy(false);}}
@@ -41,7 +42,20 @@ export default function AccountBoundary({children}:{children:ReactNode}) {
   localStorage.removeItem('eldinos-guest-mode');setIdentity(null);setAccountScope('locked');window.location.hash='';window.location.reload();
  }catch{setError('Could not finish signing out. Your edits are safe on this device. Please retry.');}finally{setBusy(false);}}
  if(!ready)return <main className="cloud-loading"><img src="/eldly-logo.png" width="100" alt="MySpace"/><div className="cloud-loading-bar"><span/></div></main>;
- if(!identity||login)return <main className="account-login"><form onSubmit={signIn}><img src="/eldly-logo.png" width="76" height="76" alt=""/><h1>MySpace<span>.</span></h1><h2>Sign in</h2><label>Username<input autoComplete="username" autoCapitalize="none" spellCheck={false} required value={username} onChange={e=>setUsername(e.target.value)}/></label><label>Password<input type="password" autoComplete="current-password" required value={password} onChange={e=>setPassword(e.target.value)}/></label>{error&&<p role="alert">{error}</p>}<button className="account-primary" disabled={busy}>{busy?'Signing in…':'Sign in'}</button><button type="button" className="account-guest" onClick={()=>{localStorage.setItem('eldinos-guest-mode','1');window.location.hash='';window.location.reload();}}>Continue as guest</button><small>Guest data stays on this device.</small>{identity&&<button type="button" onClick={()=>setLogin(false)}>Back</button>}</form></main>;
+ if(!identity||login)return <main className="account-login"><form onSubmit={signIn}>
+  <img src="/eldly-logo.png" width="76" height="76" alt=""/><h1>MySpace<span>.</span></h1>
+  <h2>{creating?'Create account':'Sign in'}</h2>
+  <label>Username<input autoComplete="username" autoCapitalize="none" spellCheck={false} required disabled={busy} minLength={creating?3:undefined} maxLength={creating?32:undefined} pattern={creating?'[a-zA-Z0-9_]{3,32}':undefined} aria-describedby={creating?'username-help':undefined} value={username} onChange={e=>setUsername(e.target.value)}/></label>
+  {creating&&<small id="username-help">3–32 letters, numbers or underscores.</small>}
+  <label>Password<input type="password" autoComplete={creating?'new-password':'current-password'} required disabled={busy} minLength={creating?8:undefined} maxLength={creating?72:undefined} aria-describedby={creating?'password-help':undefined} value={password} onChange={e=>setPassword(e.target.value)}/></label>
+  {creating&&<small id="password-help">At least 8 characters.</small>}
+  {error&&<p role="alert">{error}</p>}
+  <button className="account-primary" disabled={busy}>{busy?(creating?'Creating account…':'Signing in…'):(creating?'Create account':'Sign in')}</button>
+  {privateAccounts&&<button type="button" className="account-guest" disabled={busy} onClick={()=>{setCreating(!creating);setError('');setPassword('');}}>{creating?'Already have an account? Sign in':'New here? Create account'}</button>}
+  <button type="button" className="account-guest" disabled={busy} onClick={()=>{localStorage.setItem('eldinos-guest-mode','1');window.location.hash='';window.location.reload();}}>Continue as guest</button>
+  <small>Guest data stays on this device.</small>
+  {identity&&<button type="button" disabled={busy} onClick={()=>setLogin(false)}>Back</button>}
+ </form></main>;
  const name=identity==='guest'?'Guest':identity.app_metadata.username||identity.email?.split('@')[0]||'Account';
  return <>{children}<div className="account-control"><button onClick={()=>setMenu(!menu)} aria-expanded={menu}><UserRound size={15}/>{name}</button><PointsCounter/><section hidden={!menu} className="account-menu" aria-label="Account"><Soundtrack/>{identity==='guest'?<button onClick={()=>{setMenu(false);setLogin(true);}}>Sign in</button>:<button disabled={busy} onClick={()=>void logout()}><LogOut size={15}/>Sign Out</button>}{error&&<p role="alert">{error}</p>}</section></div></>;
 }

@@ -1,4 +1,4 @@
--- Private server-only database. No browser database credentials or public registration.
+-- Private server-only database. No browser database credentials; registration runs through the server API.
 begin;
 create table if not exists public.myspace_users(id uuid primary key,username text unique not null,password_hash text not null,app_metadata jsonb not null,active boolean not null default true);
 create table if not exists public.myspace_sessions(token_hash text primary key,user_id uuid not null references public.myspace_users(id) on delete cascade,expires_at timestamptz not null);

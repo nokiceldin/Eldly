@@ -4,7 +4,7 @@ Production uses the Neon **Free** database `myspace-private`, connected to the e
 
 ## Sign-in and ownership
 
-- Usernames and bcrypt password hashes live in `myspace_users`. There is no public registration endpoint.
+- Usernames and bcrypt password hashes live in `myspace_users`. Public registration accepts only a username and password; new accounts are never owners.
 - Sign-in issues a random 256-bit session cookie, stored for one year per device. Cookies are Secure, HttpOnly, SameSite=Lax and host-only. Only a SHA-256 token hash is stored in the database.
 - Mutating API calls require a same-origin request. Sign-in attempts are rate limited in the database.
 - Every sync call derives the account UUID from its verified server session; client-supplied account IDs cannot select another account.
@@ -22,6 +22,8 @@ The original `VITE_SUPABASE_URL` is retained as the local sync namespace, preser
 `server/schema.sql` defines private server tables and atomic account operations. `server/migrate.mjs` imports a complete administrator backup only into an empty target and refuses to overwrite existing accounts. It is a one-time tool, not part of deployment startup.
 
 ## Creating another account
+
+Choose **New here? Create account** on the sign-in screen. Supply only a username (3–32 letters, numbers or underscores, saved in lowercase) and a password (at least eight characters, up to 72 UTF-8 bytes). No email, verification, approval or two-factor step is needed. Registration atomically saves the bcrypt password hash, non-owner account, empty workspace state and device session, then signs in immediately. Each account uses the existing private cloud sync and starts without anyone else's data. Taken usernames show an error without changing the existing account. Registration attempts are limited per IP without extra user steps.
 
 On a trusted administrator machine, supply server-only `DATABASE_URL` and pipe JSON containing the explicitly requested `username` and `password`, plus optional `homeName` for the title inside the app into `node scripts/create-account.mjs`. Passwords must have at least eight characters. The transaction creates a fresh non-owner account; no tasks, tracking, packing history or other user's records are copied. Duplicate usernames fail without partially creating an account.
 
