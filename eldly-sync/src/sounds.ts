@@ -69,15 +69,19 @@ export function playFeedback(sound: FeedbackSound, enabled: boolean) {
 
 let coinBytes:Promise<ArrayBuffer|null>|null=null;
 let coinDecoded:Promise<AudioBuffer|null>|null=null;
-let reversedCoin:AudioBuffer|null=null;
+let coinGeneration=0;
+const coinVoices=new Set<AudioScheduledSourceNode>();
+export function stopCoinFeedback(){coinGeneration++;for(const voice of coinVoices){try{voice.stop();}catch{/* Already stopped. */}voice.disconnect();}coinVoices.clear();}
 /** Fetch only: no sound or audio session is started by preloading. */
 export function preloadCoinSound(){
- if(!coinBytes)coinBytes=fetch('/audio/coin-jingle.wav').then(r=>{if(!r.ok)throw Error('Coin sound unavailable');return r.arrayBuffer();}).catch(()=>{coinBytes=null;return null;});
+ if(!coinBytes)coinBytes=fetch('/audio/coin-pickup.wav').then(r=>{if(!r.ok)throw Error('Coin sound unavailable');return r.arrayBuffer();}).catch(()=>{coinBytes=null;return null;});
  return coinBytes;
 }
-/** Real recorded coins, one overlapping jingle per arrival; reverse playback for losses. */
-export async function playXPCollection(count:number,enabled:boolean,firstArrivalMs=700,staggerMs=95,reverse=false){
+/** A bounded arcade burst; denominations never determine the number of sounds. */
+export async function playXPCollection(count:number,enabled:boolean,firstArrivalMs=520,staggerMs=26,loss=false,spending=false){
+ stopCoinFeedback();
  if(!enabled||count<=0)return;
+ const generation=coinGeneration;
  configurePlaybackAudio();
  try{
   const AudioContextClass=window.AudioContext||(window as Window & {webkitAudioContext?:typeof AudioContext}).webkitAudioContext;
@@ -86,21 +90,30 @@ export async function playXPCollection(count:number,enabled:boolean,firstArrival
   const ctx=context;
   if(ctx.state==='suspended')void ctx.resume().catch(()=>{});
   const desiredStart=ctx.currentTime+firstArrivalMs/1000;
+  if(loss){
+   const at=ctx.currentTime+.005;
+   for(const [i,frequency] of (spending?[620,930]:[220,146.83]).entries()){
+    const source=ctx.createOscillator(),gain=ctx.createGain(),start=at+i*.045;
+    source.type=spending?'sine':'triangle';source.frequency.setValueAtTime(frequency,start);source.frequency.exponentialRampToValueAtTime(frequency*(spending?1.02:.65),start+.14);
+    gain.gain.setValueAtTime(.0001,start);gain.gain.exponentialRampToValueAtTime(.045,start+.008);gain.gain.exponentialRampToValueAtTime(.0001,start+.17);
+    source.connect(gain);gain.connect(ctx.destination);coinVoices.add(source);source.start(start);source.stop(start+.19);
+    source.onended=()=>{coinVoices.delete(source);source.disconnect();gain.disconnect();};
+   }
+   return;
+  }
   if(!coinDecoded)coinDecoded=preloadCoinSound().then(bytes=>bytes?ctx.decodeAudioData(bytes.slice(0)):null).catch(()=>{coinDecoded=null;return null;});
   const sample=await coinDecoded;
+  if(generation!==coinGeneration)return;
   if(!sample){coinDecoded=null;return;}
-  if(reverse&&!reversedCoin){
-   reversedCoin=ctx.createBuffer(sample.numberOfChannels,sample.length,sample.sampleRate);
-   for(let channel=0;channel<sample.numberOfChannels;channel++)reversedCoin.getChannelData(channel).set(sample.getChannelData(channel).slice().reverse());
-  }
-  const start=Math.max(desiredStart,ctx.currentTime+.005),volume=.36/Math.sqrt(Math.min(count,10));
-  for(let i=0;i<Math.min(count,40);i++){
-   const at=start+i*staggerMs/1000,source=ctx.createBufferSource(),gain=ctx.createGain();
-   source.buffer=reverse?reversedCoin:sample;
-   source.playbackRate.value=reverse?.88-(i%6)*.015:1.02+Math.min(i,8)*.015;
+  const visuals=Math.min(12,count),hits=Math.min(6,Math.ceil(visuals/2));
+  const interval=hits<=1?0:Math.min(286,Math.max(0,visuals-1)*staggerMs)/(hits-1);
+  const start=Math.max(desiredStart,ctx.currentTime+.005),volume=.28/Math.sqrt(Math.min(hits,4));
+  for(let i=0;i<hits;i++){
+   const at=start+i*interval/1000,source=ctx.createBufferSource(),gain=ctx.createGain();
+   source.buffer=sample;source.playbackRate.value=1.12+i*.035;
    gain.gain.setValueAtTime(volume,at);
-   source.connect(gain);gain.connect(ctx.destination);source.start(at);
-   source.onended=()=>{source.disconnect();gain.disconnect();};
+   source.connect(gain);gain.connect(ctx.destination);coinVoices.add(source);source.start(at);
+   source.onended=()=>{coinVoices.delete(source);source.disconnect();gain.disconnect();};
   }
  }catch{/* Optional audio must never interrupt a save. */}
 }

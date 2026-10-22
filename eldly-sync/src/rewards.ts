@@ -1,3 +1,4 @@
+import { bonusPlanAt } from './coinBonuses';
 import type { Data } from './engine';
 import { localDay } from './engine';
 import { pointsHistory } from './points';
@@ -11,7 +12,7 @@ export function validRewards(d:Pick<Data,'rewards'|'rewardPurchases'>){
  const rewards=d.rewards??[],purchases=d.rewardPurchases??[];
  return Array.isArray(rewards)&&Array.isArray(purchases)&&new Set(rewards.map(r=>r?.id)).size===rewards.length&&new Set(purchases.map(p=>p?.id)).size===purchases.length&&rewards.every(r=>r&&typeof r.id==='string'&&title(r.title)&&validCost(r.cost)&&(r.archived===undefined||typeof r.archived==='boolean'))&&purchases.every(p=>p&&typeof p.id==='string'&&typeof p.rewardId==='string'&&title(p.title)&&validCost(p.cost)&&typeof p.at==='string'&&Number.isFinite(Date.parse(p.at))&&(p.refunded===undefined||typeof p.refunded==='boolean'));
 }
-export function coinHistory(data:Pick<Data,'mapping'|'goalPlans'>,today=localDay()){
+export function coinHistory(data:Pick<Data,'mapping'|'goalPlans'|'coinBonusPlans'>,today=localDay()){
  const mapping=data.mapping;
  let best:number|null=null;
  return pointsHistory(mapping,today).map(week=>{
@@ -29,17 +30,18 @@ export function coinHistory(data:Pick<Data,'mapping'|'goalPlans'>,today=localDay
     if(goal.maximum?actual<=goal.target:actual>=goal.target)goalsMet.push({id:habit.id,label:habit.label});
    }
   }
-  const recordBonus=eligible&&best!==null&&week.total>best&&week.total>0?20:0;
+  const bonusRates=bonusPlanAt(data,week.from);
+  const recordBonus=eligible&&best!==null&&week.total>best&&week.total>0?bonusRates.record:0;
   if(eligible)best=best===null?week.total:Math.max(best,week.total);
-  const goalBonus=goalsMet.length*3;
-  return {...week,baseTotal:week.total,goalBonus,recordBonus,goalsMet,total:Math.round((week.total+goalBonus+recordBonus)*10)/10};
+  const goalBonus=goalsMet.length*bonusRates.goal;
+  return {...week,baseTotal:week.total,bonusRates,goalBonus,recordBonus,goalsMet,total:Math.round((week.total+goalBonus+recordBonus)*10)/10};
  });
 }
-export function coinStats(data:Pick<Data,'mapping'|'goalPlans'>,today=localDay()){
+export function coinStats(data:Pick<Data,'mapping'|'goalPlans'|'coinBonusPlans'>,today=localDay()){
  const weeks=coinHistory(data,today),completed=weeks.filter(w=>!w.current&&!w.partial);
  return {weeks,total:Math.round(weeks.reduce((n,w)=>n+w.total,0)*10)/10,current:weeks.find(w=>w.current)?.total||0,average:completed.length?completed.reduce((n,w)=>n+w.total,0)/completed.length:null,best:completed.length?completed.reduce((a,b)=>b.total>a.total?b:a):null};
 }
-export function coinWallet(data:Pick<Data,'mapping'|'goalPlans'|'rewardPurchases'>,today=localDay()){
+export function coinWallet(data:Pick<Data,'mapping'|'goalPlans'|'coinBonusPlans'|'rewardPurchases'>,today=localDay()){
  const earned=coinStats(data,today).total;
  const spent=(data.rewardPurchases||[]).filter(p=>!p.refunded).reduce((n,p)=>n+p.cost,0);
  return {earned,spent,balance:Math.round((earned-spent)*10)/10};

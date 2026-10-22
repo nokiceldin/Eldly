@@ -42,3 +42,9 @@ Only completed full weeks earn bonuses: +3 per goal met using the plan effective
 ## Direct tracker settings
 
 Click a tracker name in Track to edit its coins, weekly cap, daily repetition cap, time conditions, goal targets, name and color. Original owner rules have editable equivalents, including prayer’s five rewarded counts per day, sleep >8 hours, and the two phone-time rewards. Weekly owner targets are updated as a plan from this Monday; completed weeks retain their original plans. Personal goal history is similarly preserved. Existing logs are retained, and changing coin rules recalculates their values. The Customize list’s edit buttons open the same focused editor. Coin collection now uses a CC0 recorded money/coin jingle (credits in public/audio/CREDITS.txt), cached for offline use and reversed for losses; the shared embossed SVG game coin respects red loss effects and muted sound preferences. Rewards feature a next-unlock illustration, milestone track and unlocked state.
+
+## Bounded coin feedback and adjustable weekly bonuses
+
+Coin effects now represent bundles: ceil(sqrt(abs(delta))) visual coins, capped at 12, with exact accounting preserved. Gains finish within 950 ms and losses within 578 ms. Collection sounds use at most six short arcade coin samples distributed across arrivals; losses use a brief non-coin debit tone, and spending uses a softer confirmation. New interactions cancel queued sounds and replace the old visual burst; the displayed balance always converges to the latest saved balance.
+
+Customize trackers includes Weekly bonuses with per-goal and record-week amounts (zero disables either). Rates are stored in account-scoped `coinBonusPlans`, effective from the current Monday. Completed weeks keep their original rates; old data defaults to 3 per goal / 20 per record. Recap chips and coin history display the actual rates rather than fixed labels. Independent edits merge; stale conflicting bonus changes are rejected.

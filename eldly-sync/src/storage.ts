@@ -1,3 +1,4 @@
+import { validBonusPlans } from './coinBonuses';
 import { validRewards } from './rewards';
 import { scopedKey, isPersonalOwner } from "./accountScope";
 import { addRequestedRoutines } from "./personalRoutines";
@@ -32,7 +33,7 @@ export function validate(x: unknown): x is Data {
     (!t.due || date(t.due)) &&
     (!t.completed || date(t.completed));
   return (
-    d.version === 1 && validRewards(d) &&
+    d.version === 1 && validBonusPlans(d.coinBonusPlans) && validRewards(d) &&
     (d.mapping === undefined || validateMapping(d.mapping)) &&
     Array.isArray(d.tasks) &&
     d.tasks.every(task) &&

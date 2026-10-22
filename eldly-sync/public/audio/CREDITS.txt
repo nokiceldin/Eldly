@@ -9,3 +9,7 @@ Modified: excerpt from 0.45–0.97 seconds; short edge fades; mono 24 kHz PCM.
 coin-jingle.wav
 Same source and CC0 license as above.
 Modified: fuller excerpt from 0.125–0.990 seconds; short edge fades; stereo 24 kHz PCM.
+
+coin-pickup.wav
+Same source and CC0 license as above.
+Modified: 0.585–0.845 second excerpt; edge fades; stereo 24 kHz PCM; quiet original bell overtones mixed in for arcade-style collection.
