@@ -740,21 +740,29 @@ input {
 }
 .undo-notice {
   position: fixed;
-  z-index: 210;
-  bottom: calc(24px + env(safe-area-inset-bottom));
+  z-index: 2147483647;
+  top: calc(16px + env(safe-area-inset-top));
   left: 50%;
   transform: translateX(-50%);
   display: flex;
   align-items: center;
-  gap: 35px;
+  gap: 20px;
+  width: max-content;
+  max-width: calc(100vw - 24px);
+  box-sizing: border-box;
   padding: 8px 12px 8px 18px;
   background: #30302b;
   border: 1px solid #46463f;
   box-shadow: 0 5px 24px #0005;
   border-radius: 10px;
   font-size: 14px;
-  white-space: nowrap;
 }
+.undo-notice>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.undo-notice button{flex-shrink:0}
+.deleted-task-row{display:flex;align-items:center;gap:16px;padding:10px 0;border-bottom:1px solid #ffffff12}
+.deleted-task-row>span{flex:1;min-width:0;overflow-wrap:anywhere}
+.deleted-task-row small{display:block;margin-top:5px;font-size:11px;color:#a9a69d}
+.deleted-task-row button{min-height:44px;padding:6px 12px}
 .undo-notice button {
   color: #e0c57c;
   min-height: 40px;

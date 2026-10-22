@@ -2,6 +2,8 @@ import { isPersonalOwner, accountHomeName } from "./accountScope";
 import AccountBoundary from "./components/AccountBoundary";
 import { TaskDragArea, TaskDropDay, DraggableTask } from "./components/TaskDrag";
 import { moveTaskOccurrence } from "./taskMoves";
+import { deletedTasks, restoreDeletedTask } from "./taskRecovery";
+import UndoNotice from "./components/UndoNotice";
 import { CloudBoundary } from "./sync/CloudBoundary";
 import { REMOTE_EVENT } from "./sync/local";
 import {
@@ -167,7 +169,8 @@ function Checklist({ onHome }: { onHome: () => void }) {
     day: string;
     id: string;
   } | null>(null);
-  const [undoTask, setUndoTask] = useState<Task | null>(null);
+  const [undoAction, setUndoAction] = useState<{id:string;label:string;restore:(data:Data)=>Data}|null>(null);
+  const clearUndo = useCallback(()=>setUndoAction(null),[]);
   const tools = useRef<HTMLDialogElement>(null);
   const file = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -208,14 +211,9 @@ function Checklist({ onHome }: { onHome: () => void }) {
     return () => clearTimeout(t);
   }, [notice]);
   const update = (task: Task) => setData((d) => saveTaskInput(d, task));
-  useEffect(() => {
-    if (!undoTask) return;
-    const timer = setTimeout(() => setUndoTask(null), 6000);
-    return () => clearTimeout(timer);
-  }, [undoTask]);
   const deleteTask = (task: Task) => {
-    update({ ...task, deleted: true });
-    setUndoTask(task);
+    setData(d=>saveTask(d,{...task,deleted:true}));
+    setUndoAction({id:uid(),label:`Removed “${task.title}”`,restore:d=>restoreDeletedTask(d,task.id)});
   };
   useEffect(() => {
     if (!celebration) return;
@@ -602,6 +600,19 @@ function Checklist({ onHome }: { onHome: () => void }) {
           </div>
         </details>
         <details className="option-group">
+          <summary>Deleted tasks</summary>
+          <div className="option-content deleted-task-list">
+            {deletedTasks(data).length===0?<p>No deleted tasks.</p>:deletedTasks(data).map(task=><div className="deleted-task-row" key={task.id}>
+              <span>{task.title}<small>{parse(task.scheduled).toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric',year:'numeric'})}</small></span>
+              <button type="button" className="quiet-action" aria-label={`Restore ${task.title} on ${task.scheduled}`} onClick={()=>{
+                setData(d=>restoreDeletedTask(d,task.id));
+                clearUndo();
+                setNotice(`Restored “${task.title}”`);
+              }}>Restore</button>
+            </div>)}
+          </div>
+        </details>
+        <details className="option-group">
           <summary>Backup & settings</summary>
           <div className="option-content">
             <button className="option-action" onClick={() => download(data)}>
@@ -846,15 +857,18 @@ function Checklist({ onHome }: { onHome: () => void }) {
           }
           onDelete={() => {
             if (editor.task) deleteTask(editor.task);
-            if (editor.routine)
+            if (editor.routine) {
+              const routine=editor.routine, end=add(today,-1);
               setData((d) => ({
                 ...d,
                 routines: d.routines.map((r) =>
-                  r.id === editor.routine!.id
-                    ? { ...r, end: add(today, -1) }
+                  r.id === routine.id
+                    ? { ...r, end }
                     : r,
                 ),
               }));
+              setUndoAction({id:uid(),label:`Removed “${routine.title}”`,restore:d=>({...d,routines:d.routines.map(r=>r.id===routine.id&&r.end===end?{...r,end:routine.end}:r)})});
+            }
             setEditor(null);
           }}
         />
@@ -862,19 +876,10 @@ function Checklist({ onHome }: { onHome: () => void }) {
       <AnimatePresence>
         {celebration && <DayCelebration key={celebration.id} />}
       </AnimatePresence>
-      {undoTask && (
-        <div className="undo-notice" role="status">
-          <span>Task deleted</span>
-          <button
-            onClick={() => {
-              update(undoTask);
-              setUndoTask(null);
-            }}
-          >
-            Undo
-          </button>
-        </div>
-      )}
+      {undoAction&&<UndoNotice key={undoAction.id} label={undoAction.label} onExpire={clearUndo} onUndo={()=>{
+        setData(d=>undoAction.restore(d));
+        clearUndo();
+      }}/>}
       {notice && (
         <div className="notice" role="status">
           {notice}

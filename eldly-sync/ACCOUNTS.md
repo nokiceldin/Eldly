@@ -27,6 +27,10 @@ Choose **New here? Create account** on the sign-in screen. Supply only a usernam
 
 On a trusted administrator machine, supply server-only `DATABASE_URL` and pipe JSON containing the explicitly requested `username` and `password`, plus optional `homeName` for the title inside the app into `node scripts/create-account.mjs`. Passwords must have at least eight characters. The transaction creates a fresh non-owner account; no tasks, tracking, packing history or other user's records are copied. Duplicate usernames fail without partially creating an account.
 
+## Task recovery
+
+Deleting a task by swiping or from its editor shows an Undo button at the top for three seconds. The prompt includes the task name; Undo restores that occurrence with its saved dates and details. Stopping a repeating task also offers the brief Undo action. Check → Options → Deleted tasks lists saved deleted tasks with their scheduled dates and a Restore button, including deletions made before this feature. Recovery uses the existing account-scoped storage and cloud sync; it does not import another account's or guest data.
+
 ## Free usage
 
 Saves synchronize immediately when service is healthy. Background polling runs only while visible and recently active. Failed requests back off. Idle tabs do not continuously keep the database awake. Both Vercel and Neon remain on free plans; reaching a provider limit can still interrupt service and must not trigger an automatic paid upgrade.
