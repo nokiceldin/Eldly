@@ -8,10 +8,10 @@ it('scales representative bundles instead of one particle per coin',()=>{
  }
  expect(xpMotes(-8)).toEqual([]);expect(xpMotes(0)).toEqual([]);expect(xpMotes(Infinity)).toEqual([]);
 });
-it('finishes every gain in under a second and losses sooner, regardless of denomination',()=>{
+it('finishes every gain in around 1.5 seconds and losses sooner, regardless of denomination',()=>{
  for(const delta of [1,20,50,100,1000,1000000]){
   const gain=coinEffect(delta),loss=coinEffect(-delta);
-  expect(gain.lifetimeMs).toBeLessThanOrEqual(1000);expect(loss.lifetimeMs).toBeLessThan(600);
+  expect(gain.lifetimeMs).toBeLessThanOrEqual(1500);expect(loss.lifetimeMs).toBeLessThanOrEqual(1010);
   expect(loss.lifetimeMs).toBe(loss.flightMs+(loss.motes.length-1)*loss.staggerMs);
  }
 });

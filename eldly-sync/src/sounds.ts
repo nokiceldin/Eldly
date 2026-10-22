@@ -78,7 +78,7 @@ export function preloadCoinSound(){
  return coinBytes;
 }
 /** A bounded arcade burst; denominations never determine the number of sounds. */
-export async function playXPCollection(count:number,enabled:boolean,firstArrivalMs=520,staggerMs=26,loss=false,spending=false){
+export async function playXPCollection(count:number,enabled:boolean,firstArrivalMs=900,staggerMs=35,loss=false,spending=false){
  stopCoinFeedback();
  if(!enabled||count<=0)return;
  const generation=coinGeneration;
@@ -92,11 +92,11 @@ export async function playXPCollection(count:number,enabled:boolean,firstArrival
   const desiredStart=ctx.currentTime+firstArrivalMs/1000;
   if(loss){
    const at=ctx.currentTime+.005;
-   for(const [i,frequency] of (spending?[620,930]:[220,146.83]).entries()){
-    const source=ctx.createOscillator(),gain=ctx.createGain(),start=at+i*.045;
-    source.type=spending?'sine':'triangle';source.frequency.setValueAtTime(frequency,start);source.frequency.exponentialRampToValueAtTime(frequency*(spending?1.02:.65),start+.14);
-    gain.gain.setValueAtTime(.0001,start);gain.gain.exponentialRampToValueAtTime(.045,start+.008);gain.gain.exponentialRampToValueAtTime(.0001,start+.17);
-    source.connect(gain);gain.connect(ctx.destination);coinVoices.add(source);source.start(start);source.stop(start+.19);
+   for(const [i,frequency] of (spending?[620,930]:[392,261.63,196]).entries()){
+    const source=ctx.createOscillator(),gain=ctx.createGain(),start=at+i*(spending?.045:.06);
+    source.type=spending?'sine':'triangle';source.frequency.setValueAtTime(frequency,start);source.frequency.exponentialRampToValueAtTime(frequency*(spending?1.02:.65),start+(spending?.14:.19));
+    gain.gain.setValueAtTime(.0001,start);gain.gain.exponentialRampToValueAtTime(spending?.045:.085,start+.008);gain.gain.exponentialRampToValueAtTime(.0001,start+(spending?.17:.23));
+    source.connect(gain);gain.connect(ctx.destination);coinVoices.add(source);source.start(start);source.stop(start+(spending?.19:.25));
     source.onended=()=>{coinVoices.delete(source);source.disconnect();gain.disconnect();};
    }
    return;
@@ -106,7 +106,7 @@ export async function playXPCollection(count:number,enabled:boolean,firstArrival
   if(generation!==coinGeneration)return;
   if(!sample){coinDecoded=null;return;}
   const visuals=Math.min(12,count),hits=Math.min(6,Math.ceil(visuals/2));
-  const interval=hits<=1?0:Math.min(286,Math.max(0,visuals-1)*staggerMs)/(hits-1);
+  const interval=hits<=1?0:Math.min(385,Math.max(0,visuals-1)*staggerMs)/(hits-1);
   const start=Math.max(desiredStart,ctx.currentTime+.005),volume=.28/Math.sqrt(Math.min(hits,4));
   for(let i=0;i<hits;i++){
    const at=start+i*interval/1000,source=ctx.createBufferSource(),gain=ctx.createGain();

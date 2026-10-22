@@ -85,7 +85,7 @@ it('plays a short bounded collection burst, preloads silently and respects mute'
 });
 it('uses a short non-coin debit sound for losses without downloading the coin sample',async()=>{
  vi.resetModules();const mock=recordedCoinAudio();
- try{const {playXPCollection}=await import('./sounds');await playXPCollection(12,true,0,26,true);expect(mock.starts).toHaveLength(2);expect(mock.starts[1]-mock.starts[0]).toBeLessThan(.1);expect(mock.fetch).not.toHaveBeenCalled();expect(mock.buffers).toHaveLength(0);}finally{vi.unstubAllGlobals();vi.resetModules();}
+ try{const {playXPCollection}=await import('./sounds');await playXPCollection(12,true,0,26,true);expect(mock.starts).toHaveLength(3);expect(mock.starts[2]-mock.starts[0]).toBeLessThan(.15);expect(mock.fetch).not.toHaveBeenCalled();expect(mock.buffers).toHaveLength(0);}finally{vi.unstubAllGlobals();vi.resetModules();}
 });
 it('caps large sound bursts and stops the previous sequence when another starts',async()=>{
  vi.resetModules();const mock=recordedCoinAudio();
