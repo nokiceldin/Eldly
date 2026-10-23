@@ -1,13 +1,14 @@
 import { randomBytes,randomUUID,createHash } from 'node:crypto';
 import { compare,hash as hashPassword } from 'bcryptjs';
 import {avatarPreset} from '../shared/avatar-options.js';
+import {createPushService} from './push-service.js';
 import {createSocialService} from './social-service.js';
 const COOKIE='__Host-myspace-session';
 const hash=value=>createHash('sha256').update(value).digest('hex');
 const cookie=(value,maxAge)=>`${COOKIE}=${value}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAge}`;
 const publicUser=row=>({id:row.id,email:`${row.username}@accounts.eldinos.invalid`,app_metadata:{...row.app_metadata,username:row.username}});
 export function createAccountHandler(sql){
- const social=createSocialService(sql);
+ const social=createSocialService(sql),push=createPushService(sql,{ensure:social.ensure});
  return async function handler(req,res){
   res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');
   const action=req.query?.action;
@@ -70,8 +71,18 @@ export function createAccountHandler(sql){
    const user=users[0];
    if(action==='session'&&req.method==='GET')return res.status(200).json({user:user?publicUser(user):null});
    if(!user)return res.status(401).json({error:'Please sign in again.'});
+   if(action==='push'&&req.method==='GET')return res.status(200).json(await push.status(user.id,tokenHash));
+   if(action==='push'&&req.method==='POST'){
+    if(body.action==='subscribe'){await social.mutate(user,{action:'visit',timezone:body.timezone||'UTC'},'push');return res.status(200).json(await push.subscribe(user.id,tokenHash,body.subscription));}
+    if(body.action==='unsubscribe')return res.status(200).json(await push.unsubscribe(user.id,tokenHash));
+    return res.status(400).json({error:'Unknown notification action.'});
+   }
    if(action==='social'&&req.method==='GET')return res.status(200).json(await social.dashboard(user));
-   if(action==='social'&&req.method==='POST')return res.status(200).json(await social.mutate(user,body,String(req.headers['x-forwarded-for']||'unknown').split(',')[0]));
+   if(action==='social'&&req.method==='POST'){
+    const state=await social.mutate(user,body,String(req.headers['x-forwarded-for']||'unknown').split(',')[0]);
+    try{await push.publishPending();if(body.action==='visit')await push.schedule(user.id);}catch{console.error('Notification scheduling will retry on the next visit.');}
+    return res.status(200).json(state);
+   }
    if(action!=='rpc'||req.method!=='POST')return res.status(404).json({error:'Not found'});
    const args=body.args||{};let result;
    // Account identity comes exclusively from the server-verified session.
@@ -92,6 +103,7 @@ export function createAccountHandler(sql){
    }
    return res.status(200).json({data:result[0].data});
   }catch(error){
+   if(error?.message?.startsWith('PUSH:'))return res.status(400).json({error:error.message.slice(6).trim(),code:'push_request'});
    if(error?.message?.startsWith('SOCIAL:'))return res.status(400).json({error:error.message.slice(8).trim(),code:'social_request'});
    if(action==='register'&&error?.code==='23505')return res.status(409).json({error:'That username is already taken. Please choose another.',code:'username_taken'});
    const invalid=error instanceof SyntaxError||['23514','22P02'].includes(error?.code);

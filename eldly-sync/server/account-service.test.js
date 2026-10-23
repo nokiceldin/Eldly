@@ -115,3 +115,12 @@ it('protects social endpoints with the existing session and origin checks and ig
  expect(forged.statusCode).toBe(200);expect(forged.body.profile.id).toBe(friend);expect((await db.query('select avatar from myspace_profiles where user_id=$1',[owner])).rows).toEqual([]);
  expect((await call('social',{cookie,body:{action:'goal_events',events:['fake']}})).statusCode).toBe(400);
 });
+
+it('requires authentication and same-origin requests for notification settings',async()=>{
+ expect((await call('push',{method:'GET'})).statusCode).toBe(401);
+ expect((await call('push',{origin:'https://evil.test',body:{action:'subscribe'}})).statusCode).toBe(403);
+ const login=await call('login',{body:{email:'friend',password:'testing-password'}}),cookie=login.headers['Set-Cookie'].split(';')[0];
+ const result=await call('push',{method:'GET',cookie});expect(result.statusCode).toBe(200);expect(result.body).toMatchObject({enabled:false,available:false,publicKey:null});
+ expect((await call('push',{cookie,body:{action:'unsubscribe',userId:owner}})).statusCode).toBe(200);
+ expect((await call('push',{cookie,body:{action:'invented'}})).statusCode).toBe(400);
+});

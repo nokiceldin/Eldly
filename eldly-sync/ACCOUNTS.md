@@ -71,10 +71,22 @@ The server's coin policy is returned separately from personal sync records and c
 
 The bell contains in-app notifications only. Accepted friends receive a generic weekly-goal milestone (no goal ID, name, target, value, notes or logs), and streak milestones at 7, 25, 50, 100, 200, 365, 500, 1000 and then every 100 days. Minimum goals can notify during the week; maximum goals wait until the completed week is observed. Only current and immediately previous weeks are checked. A unique recipient/event key prevents duplicates from retries, multiple tabs, repeated saves or repeated goal completion. Notification IDs are random so they do not encode the private goal.
 
-Each milestone offers one **Celebrate** action. The server verifies the recipient and current friendship, records the reaction once, and sends one notification back. Marking notifications read only affects the caller's inbox. Friend/best-friend invitations and pending reviews also contribute to the bell badge. No email, push permission, public feed, free-form messages or notification sound is added.
+Each milestone offers one **Celebrate** action. The server verifies the recipient and current friendship, records the reaction once, and sends one notification back. Marking notifications read only affects the caller's inbox. Friend/best-friend invitations and pending reviews also contribute to the bell badge. No email, public feed or free-form messages are added. Optional phone push is described below.
 
 A visible signed-in visit uses server time in the time zone stored on the account's first visit. Multiple visits/devices on the same calendar day do not increment again. A missed day makes the current streak zero; the next visit starts at one, preserving the longest streak. Clients cannot supply a day, streak count or recipient list. Merely leaving a hidden tab open does not count a day. Social polling runs only while visible and recently active.
 
 `server/social-schema.sql` and `server/social-actions.sql` are additive server-only migrations, applied transactionally and idempotently by the API on first social/sync use per process. No historical migration/import is rerun, and no paid service or separate notification provider is required.
 
 The bell opens a standalone Inbox; friends and coin reviews live behind Profile. The red flame is a non-interactive streak indicator. Portrait editing uses the pencil badge, with icon buttons retaining accessible names and hover labels.
+
+Background music plays `public/myspace-soundtrack-no-intro.mp3`, a copy with the first 16 seconds removed from the audio itself. Native looping restarts the trimmed audio, so mobile playback does not depend on metadata timing, media fragments or JavaScript seeking. The service worker leaves soundtrack range requests to the browser. The original source remains unchanged.
+
+## Optional phone notifications
+
+Existing users see a small Allow / Not now prompt on their next visible visit; new users see it after signup. The choice is remembered per account and device. Allow triggers the browser permission prompt directly from the tap. Not now leaves notifications off; the Inbox bell toggle can enable them later. iPhone users must open the app from their Home Screen on iOS 16.4+. Permission remains the user's choice.
+
+Authenticated `/api/account?action=push` requests bind validated Web Push subscriptions to the server-verified session. Signing out deletes that session's subscriptions through a foreign key. Endpoints are restricted to supported browser push services; arbitrary URLs, malformed keys and forged user IDs are not accepted. VAPID private keys live only in Vercel server environments.
+
+Friend-request and friend-acceptance notifications are recorded atomically with their social actions and placed in a durable outbox only for active opted-in devices. Vercel Queues retries transient failures, skips completed device deliveries, and removes expired subscriptions. Push contains usernames only; milestones and celebrations remain in the in-app inbox.
+
+Each opted-in account gets a delayed queue message for the next 21:00 in its stored account time zone, including daylight-saving changes. The server sends "Yo bro, stay on top of it, track your day" if the account has not visited that calendar day OR has no tracking entry for that day. If both exist, no reminder is sent. A unique account/day key prevents duplicate reminders. Stale jobs never send yesterday's reminder. The next local 21:00 is scheduled even if today's reminder was unnecessary. A private queue worker and authenticated daily repair cron recover missed scheduling; no paid plan is provisioned. Delivery still depends on the phone, permission, connectivity and push service.

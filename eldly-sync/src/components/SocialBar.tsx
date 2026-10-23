@@ -1,9 +1,10 @@
 import {useEffect,useRef,useState} from 'react';
 import {Bell,Flame} from 'lucide-react';
 import {socialRequest,SOCIAL_EVENT,type SocialState} from '../social';
+import {NotificationPrompt} from './NotificationSettings';
 import FriendsPanel from './FriendsPanel';
 export default function SocialBar(){
- const [state,setState]=useState<SocialState|null>(null),[open,setOpen]=useState<'friends'|'notifications'|'coins'|null>(null),[error,setError]=useState('');
+ const [state,setState]=useState<SocialState|null>(null),[open,setOpen]=useState<'friends'|'notifications'|'coins'|null>(()=>new URLSearchParams(window.location.search).has('inbox')?'notifications':null),[error,setError]=useState('');
  const pending=useRef(false);
  useEffect(()=>{
   let alive=true,lastActive=Date.now(),lastVisit=0;
@@ -16,13 +17,15 @@ export default function SocialBar(){
   const receive=(event:Event)=>{if(alive)setState((event as CustomEvent<SocialState>).detail);};
   const activity=()=>{lastActive=Date.now();};
   const visible=()=>{if(document.visibilityState==='visible'){activity();void refresh(true);}};
+  const openInbox=(event:MessageEvent)=>{if(event.data?.type==='myspace-open-inbox')setOpen('notifications');};
+  navigator.serviceWorker?.addEventListener('message',openInbox);
   const show=(event:Event)=>{setOpen((event as CustomEvent).detail==='coins'?'coins':'friends');void refresh();};
   window.addEventListener(SOCIAL_EVENT,receive);window.addEventListener('myspace-open-profile',show);
   window.addEventListener('pointerdown',activity,{passive:true});window.addEventListener('keydown',activity);window.addEventListener('online',visible);document.addEventListener('visibilitychange',visible);
   const timer=setInterval(()=>{if(document.visibilityState==='visible'&&Date.now()-lastActive<120000)void refresh(Date.now()-lastVisit>300000);},60000);
   void refresh(document.visibilityState==='visible');
-  return()=>{alive=false;clearInterval(timer);window.removeEventListener(SOCIAL_EVENT,receive);window.removeEventListener('myspace-open-profile',show);window.removeEventListener('pointerdown',activity);window.removeEventListener('keydown',activity);window.removeEventListener('online',visible);document.removeEventListener('visibilitychange',visible);};
+  return()=>{alive=false;navigator.serviceWorker?.removeEventListener('message',openInbox);clearInterval(timer);window.removeEventListener(SOCIAL_EVENT,receive);window.removeEventListener('myspace-open-profile',show);window.removeEventListener('pointerdown',activity);window.removeEventListener('keydown',activity);window.removeEventListener('online',visible);document.removeEventListener('visibilitychange',visible);};
  },[]);
- const unread=(state?.notifications.filter(n=>!n.read).length||0)+(state?.friends.filter(f=>f.status==='pending'&&f.incoming).length||0)+(state?.bestRequests.filter(r=>r.incoming).length||0)+(state?.proposals.filter(p=>p.incoming&&p.status==='pending').length||0);
- return <><button className="social-bell" aria-label={`Inbox${unread?`, ${unread} unread`:''}`} title={error||'Inbox'} onClick={()=>setOpen('notifications')}><Bell size={16}/>{unread>0&&<span className="social-unread">{unread>9?'9+':unread}</span>}</button><span className="social-streak" role="img" aria-label={`${state?.profile.streak||0} day streak`} title={`${state?.profile.streak||0} day streak`}><Flame size={15} aria-hidden="true"/>{state?.profile.streak||0}</span>{open&&<FriendsPanel key={open} initial={state} initialTab={open} initialError={error} close={()=>setOpen(null)}/>}</>;
+ const unread=(state?.notifications.filter(n=>!n.read).length||0)+(state?.friends.filter(f=>f.status==='pending'&&f.incoming&&!state.notifications.some(n=>n.kind==='friend_request'&&n.username===f.username&&!n.read)).length||0)+(state?.bestRequests.filter(r=>r.incoming).length||0)+(state?.proposals.filter(p=>p.incoming&&p.status==='pending').length||0);
+ return <><NotificationPrompt/><button className="social-bell" aria-label={`Inbox${unread?`, ${unread} unread`:''}`} title={error||'Inbox'} onClick={()=>setOpen('notifications')}><Bell size={16}/>{unread>0&&<span className="social-unread">{unread>9?'9+':unread}</span>}</button><span className="social-streak" role="img" aria-label={`${state?.profile.streak||0} day streak`} title={`${state?.profile.streak||0} day streak`}><Flame size={15} aria-hidden="true"/>{state?.profile.streak||0}</span>{open&&<FriendsPanel key={open} initial={state} initialTab={open} initialError={error} close={()=>setOpen(null)}/>}</>;
 }

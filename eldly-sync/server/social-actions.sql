@@ -13,6 +13,7 @@ begin
   if other=actor then raise exception 'SOCIAL: You cannot add yourself.';end if;
   if exists(select 1 from myspace_friends where a=least(actor,other) and b=greatest(actor,other) and status in('accepted','pending')) then raise exception 'SOCIAL: You are already friends or have a pending request.';end if;
   insert into myspace_friends(id,a,b,requested_by,status) values((p->>'id')::uuid,least(actor,other),greatest(actor,other),actor,'pending') on conflict(a,b) do update set id=excluded.id,requested_by=actor,status='pending',created_at=now();
+  insert into myspace_notifications(id,recipient,actor,kind,source_key) values(gen_random_uuid(),other,actor,'friend_request','friend-request:'||(p->>'id')) on conflict do nothing;
  elsif action in('friend_accept','friend_decline','friend_cancel','friend_remove') then
   select * into req from myspace_friends where id=(p->>'id')::uuid and actor in(a,b);
   if req.id is null then raise exception 'SOCIAL: Friend request no longer available.';end if;
@@ -29,6 +30,7 @@ begin
   else
    if req.status<>'pending' or (action='friend_cancel' and req.requested_by<>actor) or (action<>'friend_cancel' and req.requested_by=actor) then raise exception 'SOCIAL: This request is not yours to answer.';end if;
    update myspace_friends set status=case when action='friend_accept' then 'accepted' else 'declined' end where id=req.id;
+   if action='friend_accept' then insert into myspace_notifications(id,recipient,actor,kind,source_key) values(gen_random_uuid(),req.requested_by,actor,'friend_accept','friend-accept:'||req.id) on conflict do nothing;end if;
   end if;
  elsif action='best_request' then
   other:=(p->>'userId')::uuid;

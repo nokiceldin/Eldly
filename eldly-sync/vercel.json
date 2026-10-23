@@ -1,0 +1,19 @@
+{
+  "functions": {
+    "api/push-worker.js": {
+      "maxDuration": 60,
+      "experimentalTriggers": [
+        {
+          "type": "queue/v2beta",
+          "topic": "myspace-notifications"
+        }
+      ]
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/push-repair",
+      "schedule": "17 12 * * *"
+    }
+  ]
+}

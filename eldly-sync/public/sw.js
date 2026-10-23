@@ -1,4 +1,4 @@
-const CACHE = "myspace-shell-v18-batched-coins";
+const CACHE = "myspace-shell-v20-phone-notifications";
 const SHELL = [
   "/audio/coin-pickup.wav",
   "/",
@@ -51,7 +51,7 @@ self.addEventListener("fetch", (event) => {
   if (
     request.method !== "GET" ||
     new URL(request.url).pathname.startsWith("/api/") ||
-    new URL(request.url).pathname === "/myspace-soundtrack.mp3" ||
+    new URL(request.url).pathname.startsWith("/myspace-soundtrack") ||
     new URL(request.url).origin !== self.location.origin
   )
     return;
@@ -74,4 +74,17 @@ self.addEventListener("fetch", (event) => {
       }
     })(),
   );
+});
+
+self.addEventListener('push',event=>{
+ let payload;try{payload=event.data.json();}catch{return;}
+ event.waitUntil(self.registration.showNotification(payload.title||'MySpace',{body:payload.body||'',icon:'/icon-192.png',badge:'/icon-192.png',tag:payload.tag,renotify:false,data:{url:'/?inbox=1'}}));
+});
+self.addEventListener('notificationclick',event=>{
+ event.notification.close();
+ event.waitUntil((async()=>{
+  const tabs=await self.clients.matchAll({type:'window',includeUncontrolled:true});
+  const tab=tabs.find(client=>new URL(client.url).origin===self.location.origin);
+  if(tab){await tab.focus();tab.postMessage({type:'myspace-open-inbox'});}else await self.clients.openWindow('/?inbox=1');
+ })());
 });
