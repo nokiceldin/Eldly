@@ -70,7 +70,7 @@ export function createPushService(sql,{ensure,now=()=>new Date(),publicKey=proce
  }
  async function processMessage(message){
   await ensure();if(!available())throw Error('Push configuration unavailable.');
-  if(message.kind==='probe'){console.info('Notification queue probe processed.');return;}
+  if(message.kind==='probe'){await sql.query('insert into myspace_push_health(id) values(true) on conflict(id) do update set processed_at=now()');return;}
   if(message.kind==='notification'){await sendNotification(message.id);return;}
   if(message.kind!=='reminder')return;
   const rows=await sql.query('select * from myspace_push_reminders where user_id=$1',[message.userId]);const row=rows[0];if(!row)return;
@@ -87,5 +87,6 @@ export function createPushService(sql,{ensure,now=()=>new Date(),publicKey=proce
   await publishPending();await schedule(message.userId,row.generation);
  }
  async function repair(){await ensure();await publishPending();const users=await sql.query('select distinct p.user_id from myspace_push_subscriptions p join myspace_sessions s on s.token_hash=p.session_hash where s.expires_at>now()');for(const user of users)await schedule(user.user_id);}
- return {repair,status,subscribe,unsubscribe,schedule,publishPending,processMessage};
+ async function queueHealth(){await ensure();return (await sql.query('select processed_at from myspace_push_health where id=true'))[0]?.processed_at||null;}
+ return {queueHealth,repair,status,subscribe,unsubscribe,schedule,publishPending,processMessage};
 }

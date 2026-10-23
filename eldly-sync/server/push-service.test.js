@@ -63,3 +63,5 @@ it('retries failures without duplicating successful deliveries and removes expir
 it('repairs an unqueued schedule after a temporary queue failure',async()=>{
  enqueue.mockRejectedValueOnce(Error('offline'));await expect(push.subscribe(a,'alice',sub())).rejects.toThrow('offline');expect((await q('select queued from myspace_push_reminders'))[0].queued).toBe(false);await push.repair();expect((await q('select queued from myspace_push_reminders'))[0].queued).toBe(true);
 });
+
+it('confirms queue consumption without creating a user notification',async()=>{await push.processMessage({kind:'probe'});expect(await push.queueHealth()).not.toBeNull();expect(await q('select * from myspace_notifications')).toHaveLength(0);});

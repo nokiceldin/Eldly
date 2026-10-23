@@ -14,3 +14,6 @@ drop trigger if exists myspace_push_notify on myspace_notifications;
 create trigger myspace_push_notify after insert on myspace_notifications for each row execute function myspace_push_enqueue();
 revoke all on myspace_push_subscriptions,myspace_push_outbox,myspace_push_deliveries,myspace_push_reminders from public;
 revoke all on function myspace_push_enqueue() from public;
+
+create table if not exists myspace_push_health(id boolean primary key default true check(id),processed_at timestamptz not null default now());
+revoke all on myspace_push_health from public;
