@@ -1224,7 +1224,7 @@ input {
 .mapping-clear { margin-right: auto; color: #eea5a5; }
 @media (max-width: 600px) {
   .mapping-page { padding-left: 16px; padding-right: 16px; }
-  .mapping-scroll { --label-width: 138px; }
+  .mapping-scroll { --label-width: 138px; max-height: none; height: auto; overflow-x: auto; overflow-y: hidden; }
   .mapping-grid tbody th { font-size: 11px; padding-left: 7px; padding-right: 7px; }
   .mapping-title { margin-top: 14px; margin-bottom: 20px; }
   .mapping-dialog { margin-top: max(20px, env(safe-area-inset-top)); }
