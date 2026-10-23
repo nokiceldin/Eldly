@@ -57,7 +57,7 @@ Customize trackers includes Weekly bonuses with per-goal and record-week amounts
 
 ## Profiles, friends and best-friend coin reviews
 
-Use the account menu → **Profile & friends**, or the streak icon. Every account has its username and a headphone-boy portrait. Signup presents exactly 30 curated looks; the same gallery is available from Profile & friends. The chosen portrait appears on Home, the account button, friend lists and notifications. Portraits reuse `/eldly-logo.png` with transparent SVG color layers. Only a validated preset ID is saved; individual color choices, arbitrary images and uploads are unavailable. Presets live in `shared/avatar-options.js`.
+Use the account menu → **Profile**. Every account has its username and a headphone-boy portrait. Signup presents exactly 30 curated looks; the same gallery is available from Profile. The chosen portrait appears on Home, the account button, friend lists and notifications. Portraits reuse `/eldly-logo.png` with transparent SVG color layers. Only a validated preset ID is saved; individual color choices, arbitrary images and uploads are unavailable. Presets live in `shared/avatar-options.js`.
 
 Friend requests use exact usernames (case-insensitive), require recipient acceptance, and can be declined, canceled or removed. Normal friends see usernames, portraits and current streaks. A separate invitation and explicit acceptance creates one best-friend pair per person. Pair changes and reviews run in one PostgreSQL transaction under a lock, and database membership uniqueness prevents two simultaneous best friends.
 
@@ -76,3 +76,5 @@ Each milestone offers one **Celebrate** action. The server verifies the recipien
 A visible signed-in visit uses server time in the time zone stored on the account's first visit. Multiple visits/devices on the same calendar day do not increment again. A missed day makes the current streak zero; the next visit starts at one, preserving the longest streak. Clients cannot supply a day, streak count or recipient list. Merely leaving a hidden tab open does not count a day. Social polling runs only while visible and recently active.
 
 `server/social-schema.sql` and `server/social-actions.sql` are additive server-only migrations, applied transactionally and idempotently by the API on first social/sync use per process. No historical migration/import is rerun, and no paid service or separate notification provider is required.
+
+The bell opens a standalone Inbox; friends and coin reviews live behind Profile. The red flame is a non-interactive streak indicator. Portrait editing uses the pencil badge, with icon buttons retaining accessible names and hover labels.
