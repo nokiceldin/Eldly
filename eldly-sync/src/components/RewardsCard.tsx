@@ -1,3 +1,4 @@
+import { COIN_CONTROL_EVENT } from '../coinControl';
 import RewardArt from './RewardArt';
 import CoinIcon from './CoinIcon';
 import { useEffect, useState } from 'react';
@@ -9,7 +10,7 @@ import { formatPoints } from '../points';
 import type { Data } from '../engine';
 export default function RewardsCard(){
  const [data,setData]=useState(load),[form,setForm]=useState(false),[editing,setEditing]=useState<Reward|null>(null),[name,setName]=useState(''),[cost,setCost]=useState(''),[confirm,setConfirm]=useState<string|null>(null),[error,setError]=useState(''),[celebrate,setCelebrate]=useState<string|null>(null);
- useEffect(()=>{const refresh=()=>setData(load());for(const e of [LOCAL_EVENT,REMOTE_EVENT,'storage','focus'])window.addEventListener(e,refresh);const timer=setInterval(refresh,60000);return()=>{clearInterval(timer);for(const e of [LOCAL_EVENT,REMOTE_EVENT,'storage','focus'])window.removeEventListener(e,refresh);};},[]);
+ useEffect(()=>{const refresh=()=>setData(load());for(const e of [LOCAL_EVENT,REMOTE_EVENT,COIN_CONTROL_EVENT,'storage','focus'])window.addEventListener(e,refresh);const timer=setInterval(refresh,60000);return()=>{clearInterval(timer);for(const e of [LOCAL_EVENT,REMOTE_EVENT,COIN_CONTROL_EVENT,'storage','focus'])window.removeEventListener(e,refresh);};},[]);
  useEffect(()=>{if(!celebrate)return;const timer=setTimeout(()=>setCelebrate(null),2600);return()=>clearTimeout(timer);},[celebrate]);
  const wallet=coinWallet(data),purchases=(data.rewardPurchases||[]).filter(p=>!p.refunded),rewards=(data.rewards||[]).filter(r=>!r.archived&&!purchases.some(p=>p.rewardId===r.id));
  function commit(change:(latest:Data)=>Data){try{persist(change(load()));setData(load());setError('');return true;}catch(e){setError(e instanceof Error?e.message:'Could not save your reward.');return false;}}

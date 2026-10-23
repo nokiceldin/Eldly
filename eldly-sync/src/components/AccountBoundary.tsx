@@ -1,6 +1,12 @@
+import {ProfileContext} from '../profileContext';
+import {PortraitChoices} from './AvatarEditor';
+import ProfileAvatar from './ProfileAvatar';
+import {SOCIAL_EVENT,type SocialState} from '../social';
+import {avatarPreset,defaultAvatar,type AvatarStyle} from '../../shared/avatar-options';
 import { authErrorMessage } from '../authErrors';
 import PointsCounter from './PointsCounter';
 import Soundtrack from './Soundtrack';
+import SocialBar from './SocialBar';
 import { useEffect, useState, type ReactNode } from 'react';
 import type {AccountUser as User} from '../privateAuth';
 import { LogOut, UserRound } from 'lucide-react';
@@ -9,6 +15,9 @@ import { setAccountScope, isGuest } from '../accountScope';
 import { enrolled, synchronize } from '../sync/engine';
 export default function AccountBoundary({children}:{children:ReactNode}) {
  const [identity,setIdentity]=useState<User|'guest'|null>(null),[ready,setReady]=useState(false),[login,setLogin]=useState(false),[menu,setMenu]=useState(false);
+ const [avatar,setAvatar]=useState<AvatarStyle>(defaultAvatar);
+ useEffect(()=>{const changed=(e:Event)=>setAvatar((e as CustomEvent<SocialState>).detail.profile.avatar);window.addEventListener(SOCIAL_EVENT,changed);return()=>window.removeEventListener(SOCIAL_EVENT,changed);},[]);
+ const [avatarId,setAvatarId]=useState('original');
  const [username,setUsername]=useState(''),[password,setPassword]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false),[creating,setCreating]=useState(false);
  useEffect(()=>{
   let alive=true;let current:string|null=null;
@@ -31,7 +40,7 @@ export default function AccountBoundary({children}:{children:ReactNode}) {
  },[]);
  async function signIn(e:React.FormEvent){e.preventDefault();if(busy)return;setBusy(true);setError('');try{
   if(!authClient)throw Error('Account service is not configured.');
-  const credentials={email:usernameEmail(username),password};
+  const credentials={email:usernameEmail(username),password,avatarId};
   const result=creating?await authClient.auth.signUp(credentials):await authClient.auth.signInWithPassword(credentials);
   if(result.error)throw Error(authErrorMessage(result.error));
   localStorage.removeItem('eldinos-guest-mode');window.location.hash='';window.location.reload();
@@ -43,12 +52,13 @@ export default function AccountBoundary({children}:{children:ReactNode}) {
  }catch{setError('Could not finish signing out. Your edits are safe on this device. Please retry.');}finally{setBusy(false);}}
  if(!ready)return <main className="cloud-loading"><img src="/eldly-logo.png" width="100" alt="MySpace"/><div className="cloud-loading-bar"><span/></div></main>;
  if(!identity||login)return <main className="account-login"><form onSubmit={signIn}>
-  <img src="/eldly-logo.png" width="76" height="76" alt=""/><h1>MySpace<span>.</span></h1>
+  <ProfileAvatar style={creating?avatarPreset(avatarId).style:defaultAvatar} size={76}/><h1>MySpace<span>.</span></h1>
   <h2>{creating?'Create account':'Sign in'}</h2>
   <label>Username<input autoComplete="username" autoCapitalize="none" spellCheck={false} required disabled={busy} minLength={creating?3:undefined} maxLength={creating?32:undefined} pattern={creating?'[a-zA-Z0-9_]{3,32}':undefined} aria-describedby={creating?'username-help':undefined} value={username} onChange={e=>setUsername(e.target.value)}/></label>
   {creating&&<small id="username-help">3–32 letters, numbers or underscores.</small>}
   <label>Password<input type="password" autoComplete={creating?'new-password':'current-password'} required disabled={busy} minLength={creating?8:undefined} maxLength={creating?72:undefined} aria-describedby={creating?'password-help':undefined} value={password} onChange={e=>setPassword(e.target.value)}/></label>
   {creating&&<small id="password-help">At least 8 characters.</small>}
+  {creating&&<section className="signup-portraits"><h3>Choose your portrait</h3><p>A familiar face for your space.</p><PortraitChoices value={avatarId} onChange={setAvatarId} disabled={busy}/></section>}
   {error&&<p role="alert">{error}</p>}
   <button className="account-primary" disabled={busy}>{busy?(creating?'Creating account…':'Signing in…'):(creating?'Create account':'Sign in')}</button>
   {privateAccounts&&<button type="button" className="account-guest" disabled={busy} onClick={()=>{setCreating(!creating);setError('');setPassword('');}}>{creating?'Already have an account? Sign in':'New here? Create account'}</button>}
@@ -57,5 +67,5 @@ export default function AccountBoundary({children}:{children:ReactNode}) {
   {identity&&<button type="button" disabled={busy} onClick={()=>setLogin(false)}>Back</button>}
  </form></main>;
  const name=identity==='guest'?'Guest':identity.app_metadata.username||identity.email?.split('@')[0]||'Account';
- return <>{children}<div className="account-control"><button onClick={()=>setMenu(!menu)} aria-expanded={menu}><UserRound size={15}/>{name}</button><PointsCounter/><section hidden={!menu} className="account-menu" aria-label="Account"><Soundtrack/>{identity==='guest'?<button onClick={()=>{setMenu(false);setLogin(true);}}>Sign in</button>:<button disabled={busy} onClick={()=>void logout()}><LogOut size={15}/>Sign Out</button>}{error&&<p role="alert">{error}</p>}</section></div></>;
+ return <ProfileContext.Provider value={avatar}>{children}<div className="account-control"><button onClick={()=>setMenu(!menu)} aria-expanded={menu}>{identity!=='guest'&&privateAccounts?<ProfileAvatar style={avatar} size={30}/>:<UserRound size={15}/>} {name}</button><PointsCounter/>{identity!=='guest'&&privateAccounts&&<SocialBar/>}<section hidden={!menu} className="account-menu" aria-label="Account"><Soundtrack/>{identity==='guest'?<button onClick={()=>{setMenu(false);setLogin(true);}}>Sign in</button>:<>{privateAccounts&&<button onClick={()=>{setMenu(false);window.dispatchEvent(new Event('myspace-open-profile'));}}>Profile & friends</button>}<button disabled={busy} onClick={()=>void logout()}><LogOut size={15}/>Sign Out</button></>}{error&&<p role="alert">{error}</p>}</section></div></ProfileContext.Provider>;
 }

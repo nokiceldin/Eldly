@@ -49,18 +49,20 @@ it('adds and removes data atomically within only the signed-in account',async()=
  expect((await db.query('select * from eldinos_account_records where user_id=$1 and record_key=$2',[friend,key])).rows).toHaveLength(0);
 });
 it('registers a normalized non-owner account, persists only a password hash and resumes saved data after a fresh login',async()=>{
- const body={username:'  New_Friend  ',password:'my-friend-password',legacy_owner:true,app_metadata:{legacy_owner:true},user_id:owner};
+ const body={username:'  New_Friend  ',password:'my-friend-password',avatarId:'cedar',legacy_owner:true,app_metadata:{legacy_owner:true},user_id:owner};
+ expect((await call('register',{body:{...body,avatarId:'custom'}})).statusCode).toBe(400);
  const registered=await call('register',{body});
  expect(registered.statusCode).toBe(201);
  expect(registered.body.user.app_metadata).toEqual({username:'new_friend',legacy_owner:false});
  expect(registered.body.user).not.toHaveProperty('password_hash');
+ expect((await db.query('select avatar_preset from myspace_profiles where user_id=$1',[registered.body.user.id])).rows[0].avatar_preset).toBe(body.avatarId||'original');
  const id=registered.body.user.id,cookie=registered.headers['Set-Cookie'].split(';')[0];
  const stored=(await db.query('select * from myspace_users where id=$1',[id])).rows[0];
  expect(stored.password_hash).not.toBe(body.password);expect(await compare(body.password,stored.password_hash)).toBe(true);
  expect(registered.headers['Set-Cookie']).toContain('HttpOnly; Secure; SameSite=Lax');
  expect((await call('session',{method:'GET',cookie})).body.user.id).toBe(id);
  const rpc=(cookie,name,args)=>call('rpc',{cookie,body:{name,args}});
- expect((await rpc(cookie,'eldinos_account_pull',{after_revision:0})).body.data).toEqual({initialized:false,revision:0,records:[]});
+ expect((await rpc(cookie,'eldinos_account_pull',{after_revision:0})).body.data).toEqual({initialized:false,revision:0,records:[],coinPolicy:null});
  const records=[{record_key:'[]',value:{node:'object'}},{record_key:'["checkly-data-v1"]',value:{node:'object'}}];
  expect((await rpc(cookie,'eldinos_account_initialize',{records})).statusCode).toBe(200);
  const record={record_key:'["checkly-data-v1","my-task"]',value:{node:'value',value:'Friend task'}};
@@ -102,4 +104,14 @@ it('limits registration attempts across usernames without adding a user verifica
  const result=await call('register',{ip,body:{username:'limited_friend',password:'long-password'}});
  expect(result.statusCode).toBe(429);expect(result.body.code).toBe('registration_rate_limit');
  expect((await db.query("select * from myspace_users where username='limited_friend'")).rows).toHaveLength(0);
+});
+it('protects social endpoints with the existing session and origin checks and ignores forged identities',async()=>{
+ expect((await call('social',{method:'GET'})).statusCode).toBe(401);
+ expect((await call('social',{origin:'https://evil.test',body:{action:'visit'}})).statusCode).toBe(403);
+ const login=await call('login',{body:{email:'friend',password:'testing-password'}}),cookie=login.headers['Set-Cookie'].split(';')[0];
+ const visit=await call('social',{cookie,body:{action:'visit',timezone:'UTC',user_id:owner,streak:1000,day:'2099-01-01'}});
+ expect(visit.statusCode).toBe(200);expect(visit.body.profile).toMatchObject({id:friend,username:'friend',streak:1});
+ const forged=await call('social',{cookie,body:{action:'save_avatar',userId:owner,avatarId:'cedar'}});
+ expect(forged.statusCode).toBe(200);expect(forged.body.profile.id).toBe(friend);expect((await db.query('select avatar from myspace_profiles where user_id=$1',[owner])).rows).toEqual([]);
+ expect((await call('social',{cookie,body:{action:'goal_events',events:['fake']}})).statusCode).toBe(400);
 });

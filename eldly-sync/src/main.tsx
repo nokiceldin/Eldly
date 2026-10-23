@@ -1,3 +1,6 @@
+import {useContext} from "react";
+import {ProfileContext} from "./profileContext";
+import ProfileAvatar from "./components/ProfileAvatar";
 import { isPersonalOwner, accountHomeName } from "./accountScope";
 import AccountBoundary from "./components/AccountBoundary";
 import { TaskDragArea, TaskDropDay, DraggableTask } from "./components/TaskDrag";
@@ -934,6 +937,7 @@ function currentDestination(): Destination {
   return destinations.some((d) => d.id === hash) ? hash as Destination : "home";
 }
 function App() {
+  const profileAvatar=useContext(ProfileContext);
   const [destination, setDestination] = useState<Destination>(currentDestination);
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
@@ -958,7 +962,7 @@ function App() {
           <header className="eldly-heading">
             <button className="eldly-recap-settings" aria-label="View recaps" onClick={() => window.dispatchEvent(new Event("eldly-open-recaps"))}><History size={20} /></button>
             <button className="eldly-cloud-settings" aria-label="Cloud sync settings" onClick={() => window.dispatchEvent(new Event("eldly-open-cloud-settings"))}><Cloud size={20} /></button>
-            <div className="eldly-brand"><img src="/eldly-logo.png" className="eldly-logo" alt="" width="86" height="86" /><h1 ref={heading} tabIndex={-1}>{accountHomeName()}<span aria-hidden="true">.</span></h1></div>
+            <div className="eldly-brand"><ProfileAvatar style={profileAvatar} className="eldly-logo" size={86} label="Your portrait"/><h1 ref={heading} tabIndex={-1}>{accountHomeName()}<span aria-hidden="true">.</span></h1></div>
 
           </header>
           <nav className="eldly-grid" aria-label="Your apps">

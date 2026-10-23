@@ -1,10 +1,13 @@
 import { randomBytes,randomUUID,createHash } from 'node:crypto';
 import { compare,hash as hashPassword } from 'bcryptjs';
+import {avatarPreset} from '../shared/avatar-options.js';
+import {createSocialService} from './social-service.js';
 const COOKIE='__Host-myspace-session';
 const hash=value=>createHash('sha256').update(value).digest('hex');
 const cookie=(value,maxAge)=>`${COOKIE}=${value}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAge}`;
 const publicUser=row=>({id:row.id,email:`${row.username}@accounts.eldinos.invalid`,app_metadata:{...row.app_metadata,username:row.username}});
 export function createAccountHandler(sql){
+ const social=createSocialService(sql);
  return async function handler(req,res){
   res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');
   const action=req.query?.action;
@@ -23,6 +26,8 @@ export function createAccountHandler(sql){
     const username=typeof body.username==='string'?body.username.trim().toLowerCase():'';
     if(!/^[a-z0-9_]{3,32}$/.test(username))return res.status(400).json({error:'Use 3–32 letters, numbers or underscores for your username.',code:'invalid_username'});
     if(typeof body.password!=='string'||body.password.length<8||Buffer.byteLength(body.password)>72)return res.status(400).json({error:'Use a password with at least 8 characters and at most 72 bytes.',code:'invalid_password'});
+    let portrait;try{portrait=avatarPreset(body.avatarId).id;}catch{return res.status(400).json({error:'Choose one of the available portraits.',code:'invalid_avatar'});}
+    await social.ensure();
     const ip=String(req.headers['x-forwarded-for']||'unknown').split(',')[0];
     const attempts=await sql.query(`insert into myspace_login_attempts(attempt_key) values($1) on conflict(attempt_key) do update set attempts=case when myspace_login_attempts.window_start<now()-interval '15 minutes' then 1 else myspace_login_attempts.attempts+1 end,window_start=case when myspace_login_attempts.window_start<now()-interval '15 minutes' then now() else myspace_login_attempts.window_start end returning attempts`,[hash('register|'+ip)]);
     if(attempts[0].attempts>15)return res.status(429).json({error:'Too many account creation attempts. Please wait 15 minutes.',code:'registration_rate_limit'});
@@ -35,9 +40,11 @@ export function createAccountHandler(sql){
      insert into eldinos_accounts(user_id,username,legacy_owner) select id,username,false from new_user returning user_id
     ), new_state as (
      insert into eldinos_account_state(user_id) select user_id from new_account
+    ), new_profile as (
+     insert into myspace_profiles(user_id,timezone,avatar_preset) select id,'UTC',$6 from new_user
     ), new_session as (
      insert into myspace_sessions(token_hash,user_id,expires_at) select $5,id,now()+interval '1 year' from new_user
-    ) select * from new_user`,[id,username,passwordHash,JSON.stringify({username,legacy_owner:false}),hash(next)]);
+    ) select * from new_user`,[id,username,passwordHash,JSON.stringify({username,legacy_owner:false}),hash(next),portrait]);
     res.setHeader('Set-Cookie',cookie(next,31536000));return res.status(201).json({user:publicUser(users[0])});
    }
    if(action==='login'&&req.method==='POST'){
@@ -63,17 +70,21 @@ export function createAccountHandler(sql){
    const user=users[0];
    if(action==='session'&&req.method==='GET')return res.status(200).json({user:user?publicUser(user):null});
    if(!user)return res.status(401).json({error:'Please sign in again.'});
+   if(action==='social'&&req.method==='GET')return res.status(200).json(await social.dashboard(user));
+   if(action==='social'&&req.method==='POST')return res.status(200).json(await social.mutate(user,body,String(req.headers['x-forwarded-for']||'unknown').split(',')[0]));
    if(action!=='rpc'||req.method!=='POST')return res.status(404).json({error:'Not found'});
    const args=body.args||{};let result;
    // Account identity comes exclusively from the server-verified session.
    switch(body.name){
     case 'eldinos_account_pull':case 'eldly_shared_pull':{
      const revision=args.after_revision??0;if(!Number.isSafeInteger(revision)||revision<0)return res.status(400).json({error:'Invalid revision'});
-     result=await sql.query('select myspace_account_pull($1::uuid,$2::bigint) as data',[user.id,revision]);break;
+     result=await sql.query('select myspace_account_pull($1::uuid,$2::bigint) as data',[user.id,revision]);
+     result[0].data.coinPolicy=await social.policy(user.id);break;
     }
     case 'eldinos_account_apply':case 'eldly_shared_apply':
      if(!Array.isArray(args.changes))return res.status(400).json({error:'Invalid changes'});
-     result=await sql.query('select myspace_account_apply($1::uuid,$2::jsonb) as data',[user.id,JSON.stringify(args.changes)]);break;
+     result=await sql.query('select myspace_account_apply($1::uuid,$2::jsonb) as data',[user.id,JSON.stringify(args.changes)]);
+     try{await social.milestones(user.id);}catch{console.error('Milestone notification could not be updated. It will retry on the next visit.');}break;
     case 'eldinos_account_initialize':case 'eldly_shared_initialize':
      if(!Array.isArray(args.records))return res.status(400).json({error:'Invalid records'});
      result=await sql.query('select myspace_account_initialize($1::uuid,$2::jsonb) as data',[user.id,JSON.stringify(args.records)]);break;
@@ -81,6 +92,7 @@ export function createAccountHandler(sql){
    }
    return res.status(200).json({data:result[0].data});
   }catch(error){
+   if(error?.message?.startsWith('SOCIAL:'))return res.status(400).json({error:error.message.slice(8).trim(),code:'social_request'});
    if(action==='register'&&error?.code==='23505')return res.status(409).json({error:'That username is already taken. Please choose another.',code:'username_taken'});
    const invalid=error instanceof SyntaxError||['23514','22P02'].includes(error?.code);
    return res.status(invalid?400:503).json({error:invalid?'Invalid account data.':'Account service temporarily unavailable. Your saved data has been kept.'});

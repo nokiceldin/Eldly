@@ -20,8 +20,8 @@ it('registers with only username and password and immediately exposes the saved 
  const user={id:'new-friend',app_metadata:{username:'new_friend',legacy_owner:false}};
  const fetch=vi.fn().mockResolvedValue({ok:true,json:async()=>({user})});vi.stubGlobal('fetch',fetch);
  const client=createPrivateAuth(),event=vi.fn();client.auth.onAuthStateChange(event);
- expect((await client.auth.signUp({email:'new_friend@accounts.eldinos.invalid',password:'my-password'})).error).toBeNull();
- expect(fetch).toHaveBeenCalledWith('/api/account?action=register',expect.objectContaining({method:'POST',credentials:'same-origin',body:JSON.stringify({username:'new_friend',password:'my-password'})}));
+ expect((await client.auth.signUp({email:'new_friend@accounts.eldinos.invalid',password:'my-password',avatarId:'cedar'})).error).toBeNull();
+ expect(fetch).toHaveBeenCalledWith('/api/account?action=register',expect.objectContaining({method:'POST',credentials:'same-origin',body:JSON.stringify({username:'new_friend',password:'my-password',avatarId:'cedar'})}));
  expect((await client.auth.getSession()).data.session?.user).toEqual(user);
  expect(event).toHaveBeenCalledWith('SIGNED_IN',expect.objectContaining({user}));expect(fetch).toHaveBeenCalledTimes(1);
 });

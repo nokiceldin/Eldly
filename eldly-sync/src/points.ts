@@ -1,5 +1,6 @@
 import { add, localDay, monday } from './engine';
 import { emptyMapping, mappingStart, type MappingData, type XPRule, type MappingEntry } from './mapping';
+import {configForWeek,readCoinPolicy,type CoinPolicy} from './coinControl';
 
 export const POINT_LABELS:Record<string,string>={tennis:'Tennis',fitness:'Fitness',recovery:'Recovery',praying:'Prayer',sleep:'Sleep',reading:'Reading',journaling:'Journaling','no-phone':'No phone · first 15 min',homework:'Homework',coaching:'Coaching',porn:'Porn',goyslop:'Goyslop','screen-time':'Phone use'};
 const caps:Record<string,number>={tennis:30,fitness:20,recovery:8};
@@ -30,19 +31,25 @@ export function entryPoints(id:string,e:MappingEntry|undefined,rule?:XPRule):num
 }
 export interface PointsWeek {from:string;to:string;total:number;breakdown:Record<string,number>;current:boolean;partial:boolean}
 /** Derived from tracking, so changing or removing a log never awards duplicate points. */
-export function pointsHistory(mapping:MappingData=emptyMapping(),today=localDay()):PointsWeek[]{
+export function pointsHistory(mapping:MappingData=emptyMapping(),today=localDay(),policy:CoinPolicy|null=readCoinPolicy()):PointsWeek[]{
  const start=mappingStart(mapping);
  if(start>today)return [];
  const weeks:PointsWeek[]=[];
  for(let from=monday(start);from<=today;from=add(from,7)){
   const to=add(from,6),breakdown:Record<string,number>={};
+   const config=configForWeek(policy,from),habits=config?config.habits:mapping.habits;
   for(let day=from;day<=to&&day<=today;day=add(day,1)){
    if(day<start)continue;
-   for(const [id,entry] of Object.entries(mapping.entries[day]||{}))breakdown[id]=(breakdown[id]||0)+entryPoints(id,entry,mapping.habits?.find(h=>h.id===id)?.xp);
+   for(const [id,entry] of Object.entries(mapping.entries[day]||{})){
+    const habit=habits?.find(h=>h.id===id);
+    if(config&&!habit)continue;
+    if(config&&entry&&habit&&entry.kind!==habit.kind&&!(['recovery','reading','journaling','screen-time'].includes(id)&&entry.kind==='duration'))continue;
+    breakdown[id]=(breakdown[id]||0)+entryPoints(id,entry,habit?.xp);
+   }
   }
   for(const id of Object.keys(breakdown)){
-   const rule=mapping.habits?.find(h=>h.id===id)?.xp;
-   const cap=rule?rule.weeklyCap:caps[id];
+   const rule=habits?.find(h=>h.id===id)?.xp;
+   const cap=rule?rule.weeklyCap:config?undefined:caps[id];
    if(cap!==undefined)breakdown[id]=Math.sign(breakdown[id])*Math.min(cap,Math.abs(breakdown[id]));
   }
   weeks.push({from,to,total:Object.values(breakdown).reduce((a,b)=>a+b,0),breakdown,current:from===monday(today),partial:from<start});

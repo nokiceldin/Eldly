@@ -4,6 +4,7 @@ import { localDay } from './engine';
 import { pointsHistory } from './points';
 import { weeklyGoals } from './goals';
 import { personalGoalAt } from './personalGoals';
+import {coinDataForWeek,readCoinPolicy,type CoinPolicy} from './coinControl';
 export type Reward={id:string;title:string;cost:number;archived?:boolean};
 export type RewardPurchase={id:string;rewardId:string;title:string;cost:number;at:string;refunded?:boolean};
 export const validCost=(n:unknown):n is number=>typeof n==='number'&&Number.isSafeInteger(n)&&n>0&&n<=1000000000;
@@ -12,15 +13,15 @@ export function validRewards(d:Pick<Data,'rewards'|'rewardPurchases'>){
  const rewards=d.rewards??[],purchases=d.rewardPurchases??[];
  return Array.isArray(rewards)&&Array.isArray(purchases)&&new Set(rewards.map(r=>r?.id)).size===rewards.length&&new Set(purchases.map(p=>p?.id)).size===purchases.length&&rewards.every(r=>r&&typeof r.id==='string'&&title(r.title)&&validCost(r.cost)&&(r.archived===undefined||typeof r.archived==='boolean'))&&purchases.every(p=>p&&typeof p.id==='string'&&typeof p.rewardId==='string'&&title(p.title)&&validCost(p.cost)&&typeof p.at==='string'&&Number.isFinite(Date.parse(p.at))&&(p.refunded===undefined||typeof p.refunded==='boolean'));
 }
-export function coinHistory(data:Pick<Data,'mapping'|'goalPlans'|'coinBonusPlans'>,today=localDay()){
- const mapping=data.mapping;
+export function coinHistory(data:Pick<Data,'mapping'|'goalPlans'|'coinBonusPlans'>,today=localDay(),policy:CoinPolicy|null=readCoinPolicy()){
  let best:number|null=null;
- return pointsHistory(mapping,today).map(week=>{
+ return pointsHistory(data.mapping,today,policy).map(week=>{
+  const effective=coinDataForWeek(data,week.from,policy),mapping=effective.mapping;
   const eligible=!week.current&&!week.partial&&!!mapping;
   const goalsMet:{id:string;label:string}[]=[];
   if(eligible&&mapping){
-   if(data.goalPlans?.length||!mapping.habits){
-    goalsMet.push(...weeklyGoals(data as Data,week.from,today).filter(g=>g.eligible&&g.met).map(g=>({id:g.id,label:g.label})));
+   if(effective.goalPlans?.length||!mapping.habits){
+    goalsMet.push(...weeklyGoals(effective as Data,week.from,today).filter(g=>g.eligible&&g.met).map(g=>({id:g.id,label:g.label})));
    }
    for(const habit of mapping.habits||[]){
     const goal=personalGoalAt(habit,week.from);if(!goal)continue;
@@ -30,7 +31,7 @@ export function coinHistory(data:Pick<Data,'mapping'|'goalPlans'|'coinBonusPlans
     if(goal.maximum?actual<=goal.target:actual>=goal.target)goalsMet.push({id:habit.id,label:habit.label});
    }
   }
-  const bonusRates=bonusPlanAt(data,week.from);
+  const bonusRates=bonusPlanAt(effective,week.from);
   const recordBonus=eligible&&best!==null&&week.total>best&&week.total>0?bonusRates.record:0;
   if(eligible)best=best===null?week.total:Math.max(best,week.total);
   const goalBonus=goalsMet.length*bonusRates.goal;
