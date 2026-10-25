@@ -5,7 +5,7 @@ import {dayAt} from './social-service.js';
 import {inflateRecords} from './coin-config.js';
 export const pushQueue=new QueueClient({region:'iad1'});
 export const PUSH_TOPIC='myspace-notifications';
-export const REMINDER='Yo bro, stay on top of it, track your day';
+export const REMINDER='Reminder - track your progress today';
 const activeSubscriptions=`select p.* from myspace_push_subscriptions p join myspace_sessions s on s.token_hash=p.session_hash join myspace_users u on u.id=p.user_id where p.user_id=$1 and s.expires_at>now() and u.active`;
 function wallTime(date,timezone){const parts=new Intl.DateTimeFormat('en-CA',{timeZone:timezone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).formatToParts(date);const p=Object.fromEntries(parts.map(v=>[v.type,v.value]));return Date.UTC(+p.year,+p.month-1,+p.day,+p.hour,+p.minute,+p.second);}
 export function nextReminderAt(timezone,now=new Date()){
