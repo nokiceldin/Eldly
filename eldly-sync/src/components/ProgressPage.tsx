@@ -1,3 +1,4 @@
+import {metricGoals} from '../metricGoals';
 import PersonalGoalsPanel from "./PersonalGoalsPanel";
 import { isPersonalOwner } from "../accountScope";
 import { TRACKING_START } from "../tracking";
@@ -44,6 +45,7 @@ export default function ProgressPage({ onHome }: { onHome: () => void }) {
   const loggedDays = Object.entries(data.entries).filter(([date, row]) => date >= range.from && date <= range.to && metrics.some(id => row[id])).length;
   const rangeLabel = `${format(range.from, { month: "short", day: "numeric", year: "numeric" })} – ${format(range.to, { month: "short", day: "numeric", year: "numeric" })}`;
   const details = data.entries[day];
+  const targets=metric?metricGoals({...load(),mapping:data},metric,range,isPersonalOwner(),today):[];
   return <main className="progress-page">
     <button className="eldly-back" onClick={() => metric || goalsOpen ? back() : onHome()}><ChevronLeft size={20} /> {metric || goalsOpen ? "Data" : "Home"}</button>
     <header className="progress-heading progress-heading-minimal">
@@ -72,7 +74,7 @@ export default function ProgressPage({ onHome }: { onHome: () => void }) {
       {!metrics.length&&<p className="personal-empty">Add a tracker in Track to see your personal graphs here.</p>}
       <div className="progress-charts">{(metric ? [metric] : metrics).map(id => <MetricCard key={`${id}:${range.from}:${range.to}`} metric={id} data={data} range={range} onOpen={metric ? undefined : () => openMetric(id)} onSelectDay={date => {setDay(date); if(isCountMetric(id,data))save(date,id,data.entries[date]?.[id]?undefined:{kind:"check"});else setEditor(getHabits(data).find(h=>h.id===id)!);}} />)}</div>
       {metric && <>
-        <div className="progress-highlights metric-detail-stats"><div><span>Total</span><strong>{humanValue(stats[metric].total,metric,data)}</strong></div><div><span>{isCountMetric(metric,data)?"Days tracked":"Daily average"}</span><strong>{isCountMetric(metric,data)?stats[metric].total:stats[metric].average===null?"—":humanValue(stats[metric].average!,metric,data)}</strong></div></div>
+        <div className="progress-highlights metric-detail-stats"><div><span>Total</span><strong>{humanValue(stats[metric].total,metric,data)}</strong></div><div><span>{isCountMetric(metric,data)?"Days tracked":"Daily average"}</span><strong>{isCountMetric(metric,data)?stats[metric].total:stats[metric].average===null?"—":humanValue(stats[metric].average!,metric,data)}</strong></div>{targets.length?<div className="metric-goal-stat"><span>{targets[0].label}</span>{targets.map(g=><strong key={g.id}>{g.value}</strong>)}</div>:<div className="metric-goal-stat"><span>Goal</span><strong className="metric-no-goal">Not set</strong></div>}</div>
         <section className="metric-history"><h2>Daily history</h2>{metricValues(data,metric,range).slice().reverse().slice(0,historyLimit).map(row => <button key={row.date} onClick={() => {setDay(row.date); const habit=getHabits(data).find(h=>h.id===metric)!; if(isCountMetric(metric,data))save(row.date,metric,data.entries[row.date]?.[metric]?undefined:{kind:"check"});else setEditor(habit);}}><span>{format(row.date,{weekday:"short",month:"short",day:"numeric"})}</span><strong>{data.entries[row.date]?.[metric] ? entryDescription(data.entries[row.date][metric]!,getHabits(data).find(h=>h.id===metric)) : humanValue(0,metric,data)}</strong><Plus size={14}/></button>)}{metricValues(data,metric,range).length>historyLimit&&<button className="metric-load-more" onClick={()=>setHistoryLimit(n=>n+62)}>More dates</button>}</section>
       </>}
     </> : !validRange && <p role="alert" className="mapping-error">The start date must be on or before the end date.</p>}
