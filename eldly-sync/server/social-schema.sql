@@ -21,9 +21,15 @@ create table if not exists myspace_celebration_coins(
  notification_id uuid primary key references myspace_notifications(id),
  sender uuid not null references myspace_users(id),recipient uuid not null references myspace_users(id),
  week date not null,amount numeric(12,2) not null check(amount>0 and amount<=10000000),
- created_at timestamptz not null default now(),unique(sender,week),check(sender<>recipient)
+ created_at timestamptz not null default now(),check(sender<>recipient)
 );
 revoke all on myspace_celebration_coins from public;
 create index if not exists myspace_gift_recipient on myspace_celebration_coins(recipient);
 alter table myspace_profiles add column if not exists timezone_locked boolean not null default false;
 update myspace_profiles set timezone_locked=true where last_visit is not null and not timezone_locked;
+
+-- Preserve existing gifts while changing the weekly limit to each friendship.
+create unique index if not exists myspace_one_gift_per_friend_week on myspace_celebration_coins(sender,recipient,week);
+alter table myspace_celebration_coins drop constraint if exists myspace_celebration_coins_sender_week_key;
+alter table myspace_coin_controls add column if not exists revision bigint not null default 0;
+alter table myspace_notifications add column if not exists rule_changes jsonb not null default '[]';

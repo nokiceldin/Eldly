@@ -60,7 +60,7 @@ export function createPushService(sql,{ensure,now=()=>new Date(),publicKey=proce
   const rows=await sql.query(`select n.*,u.username,o.sent_at from myspace_push_outbox o join myspace_notifications n on n.id=o.notification_id join myspace_users u on u.id=n.actor where n.id=$1`,[id]);const n=rows[0];if(!n||n.sent_at)return;
   // Old notifications should never wake a phone after a long outage.
   if(new Date(n.created_at)<new Date(now().getTime()-3600000)){await sql.query('update myspace_push_outbox set sent_at=now() where notification_id=$1',[id]);return;}
-  const body=n.kind==='friend_request'?`@${n.username} sent you a friend request.`:n.kind==='friend_accept'?`@${n.username} accepted your friend request.`:REMINDER;
+  const body=n.kind==='rules_changed'?`@${n.username} updated your coin rules. ${n.rule_changes?.[0]||''}`:n.kind==='friend_request'?`@${n.username} sent you a friend request.`:n.kind==='friend_accept'?`@${n.username} accepted your friend request.`:REMINDER;
   const subscriptions=await sql.query(activeSubscriptions,[n.recipient]);
   for(const sub of subscriptions){
    if((await sql.query('select 1 from myspace_push_deliveries where notification_id=$1 and subscription_id=$2',[id,sub.id])).length)continue;

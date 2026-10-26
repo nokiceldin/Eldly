@@ -1,5 +1,5 @@
 import { accountScope,scopedKey,isGuest } from './accountScope';
-import type { Habit } from './mapping';
+import {HABITS,type Habit } from './mapping';
 import type { Data } from './engine';
 import type { WeeklyGoalPlan } from './goals';
 import type { CoinBonusPlan } from './coinBonuses';
@@ -30,3 +30,10 @@ export function coinDataForWeek<T extends Pick<Data,'mapping'|'goalPlans'|'coinB
 
 export function giftBalance(){if(!accountScope()||isGuest()||typeof localStorage==='undefined')return 0;try{const value=Number(localStorage.getItem(scopedKey('celebration-coins-v1'))||0);return Number.isFinite(value)&&value>=0?value:0;}catch{return 0;}}
 export function cacheGiftBalance(value:number){if(!accountScope()||isGuest()||!Number.isFinite(value)||value<0)return;const key=scopedKey('celebration-coins-v1'),next=String(value);if(localStorage.getItem(key)===next)return;localStorage.setItem(key,next);if(typeof window!=='undefined')window.dispatchEvent(new Event(COIN_CONTROL_EVENT));}
+
+export function displayCoinData<T extends Pick<Data,'mapping'|'goalPlans'|'coinBonusPlans'>>(data:T):T{
+ const d=new Date();d.setDate(d.getDate()-((d.getDay()+6)%7));const week=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+ const control=readCoinPolicy();if(!control)return data;const config=configForWeek(control,week);
+ if(!data.mapping)return data;const raw=data.mapping.habits??HABITS;
+ return {...data,coinBonusPlans:config?.coinBonusPlans||[],mapping:{...data.mapping!,habits:raw.map(h=>({...h,xp:config?.habits.find(a=>a.id===h.id)?.xp||{amount:0,basis:'entry'}}))}};
+}

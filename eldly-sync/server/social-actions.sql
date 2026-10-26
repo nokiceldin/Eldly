@@ -69,9 +69,18 @@ begin
   if p->>'decision'='approve' then
    select greatest(starts_on,starts) into starts from myspace_best_pairs where id=proposal.pair_id;
    update myspace_coin_proposals set status='approved',reviewed_config=p->'config',reviewed_at=now(),effective_from=starts where id=proposal.id;
-   update myspace_coin_controls set periods=(select coalesce(jsonb_agg(e),'[]') from jsonb_array_elements(periods) e where e->>'from'<>starts::text)||jsonb_build_array(jsonb_build_object('from',starts,'config',p->'config','reviewer',actor)) where user_id=proposal.owner_id;
+   update myspace_coin_controls set revision=revision+1,periods=(select coalesce(jsonb_agg(e),'[]') from jsonb_array_elements(periods) e where e->>'from'<>starts::text)||jsonb_build_array(jsonb_build_object('from',starts,'config',p->'config','reviewer',actor)) where user_id=proposal.owner_id;
   elsif p->>'decision'='decline' then update myspace_coin_proposals set status='declined',reviewed_at=now() where id=proposal.id;
   else raise exception 'SOCIAL: Choose approve or decline.';end if;
+ elsif action='set_friend_rules' then
+  other:=(p->>'userId')::uuid;
+  select q.* into pair from myspace_best_pairs q join myspace_best_members m on m.pair_id=q.id and m.user_id=actor join myspace_best_members theirs on theirs.pair_id=q.id and theirs.user_id=other where q.id=(p->>'pairId')::uuid and q.ended_at is null and actor<>other;
+  if pair.id is null then raise exception 'SOCIAL: You can only edit your current best friend’s coin rules.';end if;
+  if not exists(select 1 from eldinos_account_state where user_id=other and revision=(p->>'dataRevision')::bigint) then raise exception 'SOCIAL: Their trackers changed. Reopen their profile.';end if;
+  update myspace_coin_controls set starts_on=least(starts_on,(p->>'from')::date),periods=(select coalesce(jsonb_agg(e),'[]') from jsonb_array_elements(periods) e where e->>'from'<p->>'from')||jsonb_build_array(jsonb_build_object('from',p->>'from','config',p->'config','reviewer',actor)),revision=revision+1 where user_id=other and revision=(p->>'expectedRevision')::bigint;
+  if not found then raise exception 'SOCIAL: These rules changed. Reopen your friend’s profile.';end if;
+  update myspace_coin_proposals set status='superseded' where owner_id=other and status='pending';
+  insert into myspace_notifications(id,recipient,actor,kind,source_key,rule_changes) values((p->>'id')::uuid,other,actor,'rules_changed','rules:'||(p->>'id'),p->'changes');
  elsif action='save_avatar' then
   update myspace_profiles set avatar_preset=p->>'avatarId' where user_id=actor;
   if not found then raise exception 'SOCIAL: Open your profile and try again.';end if;
@@ -95,7 +104,7 @@ begin
   if not exists(select 1 from myspace_friends where a=least(actor,other) and b=greatest(actor,other) and status='accepted') then raise exception 'SOCIAL: Only current friends can celebrate.';end if;
   if p ? 'giftAmount' then
    if notification.kind<>'goal' then raise exception 'SOCIAL: Coin gifts are for goal achievements.';end if;
-   if exists(select 1 from myspace_celebration_coins where sender=actor and week=(p->>'week')::date) then raise exception 'SOCIAL: You already sent your coin gift this week. Send congratulations instead.';end if;
+   if exists(select 1 from myspace_celebration_coins where sender=actor and recipient=other and week=(p->>'week')::date) then raise exception 'SOCIAL: You already sent this friend a coin gift this week. Send congratulations instead.';end if;
    insert into myspace_celebration_coins(notification_id,sender,recipient,week,amount) values(notification.id,actor,other,(p->>'week')::date,(p->>'giftAmount')::numeric);
   end if;
   update myspace_notifications set celebrated=true,read_at=coalesce(read_at,now()) where id=notification.id;

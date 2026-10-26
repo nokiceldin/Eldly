@@ -65,3 +65,8 @@ it('repairs an unqueued schedule after a temporary queue failure',async()=>{
 });
 
 it('confirms queue consumption without creating a user notification',async()=>{await push.processMessage({kind:'probe'});expect(await push.queueHealth()).not.toBeNull();expect(await q('select * from myspace_notifications')).toHaveLength(0);});
+it('queues an opt-in phone notification with the actual best-friend coin changes',async()=>{
+ const records=Object.entries(flatten({'checkly-data-v1':{mapping:{version:1,habits:[{id:'practice',label:'Practice',kind:'check',color:'blue',xp:{amount:5,basis:'entry'}}],entries:{}}}})).map(([record_key,value])=>({record_key,value}));for(const id of [a,b])await q('select myspace_account_initialize($1,$2::jsonb)',[id,JSON.stringify(records)]);
+ await act(a,'friend_request',{username:'bob'});await act(b,'friend_accept',{id:(await social.dashboard(users[b])).friends[0].id});await act(a,'best_request',{userId:b});await act(b,'best_accept',{id:(await social.dashboard(users[b])).bestRequests[0].id});await push.subscribe(a,'alice',sub());const rules=(await social.dashboard(users[b])).bestFriendRules;await act(b,'set_friend_rules',{userId:a,version:rules.version,adjustments:{practice:{amount:9}}});
+ const n=(await q("select * from myspace_notifications where kind='rules_changed' and recipient=$1",[a]))[0];expect(n.rule_changes[0]).toContain('5 coins');expect((await q('select * from myspace_push_outbox where notification_id=$1',[n.id]))).toHaveLength(1);await q('update myspace_notifications set created_at=$2 where id=$1',[n.id,now.toISOString()]);await push.processMessage({kind:'notification',id:n.id});expect(deliver.mock.calls.at(-1)[1].body).toContain('@bob updated your coin rules. Practice: 5 coins');
+});

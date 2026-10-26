@@ -18,7 +18,7 @@ async function friends(x=a,y=b){await act(x,'friend_request',{username:users[y].
 async function pair(){await friends();await act(a,'best_request',{userId:b});await act(b,'best_accept',{id:(await dash(b)).bestRequests[0].id});}
 beforeAll(async()=>{db=new PGlite();await db.exec(readFileSync(new URL('./schema.sql',import.meta.url),'utf8'));service=createSocialService({query:async(q,p)=>(await db.query(q,p)).rows},{now:()=>now});await service.ensure();},20000);
 beforeEach(async()=>{
- now=new Date('2026-10-23T16:00:00Z');await db.exec('truncate myspace_notifications,myspace_coin_proposals,myspace_coin_controls,myspace_best_members,myspace_best_pairs,myspace_best_requests,myspace_friends,myspace_profiles,myspace_users cascade');
+ now=new Date('2026-10-23T16:00:00Z');await db.exec('truncate myspace_login_attempts');await db.exec('truncate myspace_notifications,myspace_coin_proposals,myspace_coin_controls,myspace_best_members,myspace_best_pairs,myspace_best_requests,myspace_friends,myspace_profiles,myspace_users cascade');
  for(const [id,username] of [[a,'alice'],[b,'bob'],[c,'carol']]){users[id]={id,username,app_metadata:{}};await db.query('insert into myspace_users(id,username,password_hash,app_metadata) values($1,$2,$3,$4)',[id,username,'hash','{}']);await db.query('insert into eldinos_accounts(user_id,username) values($1,$2)',[id,username]);await save(id,{...empty(),mapping:{version:1,startedOn:'2026-10-19',habits:[{id:'tennis-test',label:'Tennis',kind:'check',color:'blue',xp:{amount:10,basis:'entry',weeklyCap:50},goal:{target:5,maximum:false,from:'2026-10-19'}}],entries:{}},tasks:[{id:'private',title:'Private task title',notes:'PRIVATE-NOTE',scheduled:'2026-10-23',original:'2026-10-23',category:'',carry:true,important:false,order:0}]});}
 });
 afterAll(async()=>{await db?.close();});
@@ -85,19 +85,50 @@ it('keeps maximum-goal notifications until the week is complete',async()=>{
  expect(achievedGoals(data,'2026-10-19','2026-10-23')).toEqual([]);expect(achievedGoals(data,'2026-10-19','2026-10-25',true)).toEqual(['limit']);
 });
 
-it('gives exactly 1% of the current main reward for a goal, once per sender each week, without debiting the sender',async()=>{
+it('gives exactly 1% of the current main reward for a goal, once per friend each week, without debiting the sender',async()=>{
  await friends();await act(a,'visit',{timezone:'America/Indiana/Indianapolis'});await act(b,'visit',{timezone:'America/Indiana/Indianapolis'});
  const data={...empty(),rewards:[{id:'bought',title:'Old reward',cost:999},{id:'main',title:'Private reward name',cost:2501},{id:'next',title:'Next',cost:9000}],rewardPurchases:[{id:'purchase',rewardId:'bought',title:'Old reward',cost:999,at:now.toISOString()}]};await save(a,data);
  await db.query('select myspace_social_action($1,$2,$3::jsonb)',[a,'goal_events',JSON.stringify({events:['2026-10-19:one','2026-10-19:two','2026-10-19:three']})]);
  let state=await dash(b);const goals=state.notifications.filter(n=>n.kind==='goal');expect(goals[0].giftOffer).toBe(25.01);expect(JSON.stringify(state)).not.toContain('Private reward name');
  await act(b,'celebrate',{id:goals[0].id,withCoins:true,giftAmount:999999,userId:c,week:'1900-01-01'});
  expect(await service.gifts(a)).toBe(25.01);expect(await service.gifts(b)).toBe(0);expect(await service.gifts(c)).toBe(0);
- expect((await dash(a)).notifications.find(n=>n.kind==='celebration').giftAmount).toBe(25.01);expect((await dash(b)).giftUsed).toBe(true);
+ expect((await dash(a)).notifications.find(n=>n.kind==='celebration').giftAmount).toBe(25.01);expect((await dash(b)).giftedFriends).toEqual([a]);
  await expect(act(b,'celebrate',{id:goals[1].id,withCoins:true})).rejects.toThrow('already sent');await act(b,'celebrate',{id:goals[1].id});expect(await service.gifts(a)).toBe(25.01);
  now=new Date('2026-10-26T16:00:00Z');data.rewards[1].cost=100;await save(a,data);await act(b,'celebrate',{id:goals[2].id,withCoins:true});expect(await service.gifts(a)).toBe(26.01);
  await expect(act(b,'celebrate',{id:goals[2].id,withCoins:true})).rejects.toThrow('uncelebrated');
 });
 it('offers congratulations without coins when there is no reward and blocks third parties and streak coin gifts',async()=>{
  await friends();await db.query('select myspace_social_action($1,$2,$3::jsonb)',[a,'goal_events',JSON.stringify({events:['one']})]);const n=(await dash(b)).notifications.find(n=>n.kind==='goal');expect(n.giftOffer).toBeNull();
- await expect(act(b,'celebrate',{id:n.id,withCoins:true})).rejects.toThrow('no active reward');await expect(act(c,'celebrate',{id:n.id,withCoins:true})).rejects.toThrow('uncelebrated');await act(b,'celebrate',{id:n.id,giftAmount:500});expect(await service.gifts(a)).toBe(0);expect((await dash(b)).giftUsed).toBe(false);
+ await expect(act(b,'celebrate',{id:n.id,withCoins:true})).rejects.toThrow('no active reward');await expect(act(c,'celebrate',{id:n.id,withCoins:true})).rejects.toThrow('uncelebrated');await act(b,'celebrate',{id:n.id,giftAmount:500});expect(await service.gifts(a)).toBe(0);expect((await dash(b)).giftedFriends).toEqual([]);
+});
+
+it('allows gifts to two friends in one week while blocking repeats for each and preserving gifts through migration',async()=>{
+ await friends(a,b);await friends(c,b);
+ for(const id of [a,c]){await save(id,{...empty(),rewards:[{id:'main',title:'Reward',cost:id===a?1000:2500}]});await db.query('select myspace_social_action($1,$2,$3::jsonb)',[id,'goal_events',JSON.stringify({events:['first','second']})]);}
+ const goals=(await dash(b)).notifications.filter(n=>n.kind==='goal');const alice=goals.filter(n=>n.username==='alice'),carol=goals.filter(n=>n.username==='carol');
+ await act(b,'celebrate',{id:alice[0].id,withCoins:true});await db.exec('alter table myspace_celebration_coins add constraint myspace_celebration_coins_sender_week_key unique(sender,week)');await db.exec((await import('./social-service.js')).socialMigration);const after=await dash(b);expect(after.notifications.find(n=>n.id===alice[1].id).giftOffer).toBeNull();expect(after.notifications.find(n=>n.id===carol[0].id).giftOffer).toBe(25);
+ await act(b,'celebrate',{id:carol[0].id,withCoins:true});expect(await service.gifts(a)).toBe(10);expect(await service.gifts(c)).toBe(25);expect(await service.gifts(b)).toBe(0);
+ await expect(act(b,'celebrate',{id:alice[1].id,withCoins:true})).rejects.toThrow('this friend');await expect(act(b,'celebrate',{id:carol[1].id,withCoins:true})).rejects.toThrow('this friend');
+ const {socialMigration}=await import('./social-service.js');await db.exec(socialMigration);expect(await service.gifts(a)).toBe(10);expect(await service.gifts(c)).toBe(25);
+ now=new Date('2026-10-26T16:00:00Z');await act(b,'celebrate',{id:alice[1].id,withCoins:true});expect(await service.gifts(a)).toBe(20);
+});
+
+it('lets only the current best friend submit immediate coin changes, syncs them and records what changed',async()=>{
+ await pair();const view=await dash(b),rules=view.bestFriendRules;expect(rules.userId).toBe(a);expect(rules.config.habits[0].xp.amount).toBe(10);
+ const body={userId:a,version:rules.version,adjustments:{'tennis-test':{amount:6,weeklyCap:30}},bonuses:{goal:9,record:40}};
+ await expect(act(a,'set_friend_rules',body)).rejects.toThrow('current best friend');await expect(act(c,'set_friend_rules',body)).rejects.toThrow('current best friend');await expect(act(b,'set_friend_rules',{...body,userId:c})).rejects.toThrow('current best friend');
+ await act(b,'set_friend_rules',body);const own=await dash(a),policy=await service.policy(a);expect(policy.starts_on).toBe('2026-10-19');expect(policy.periods.at(-1).from).toBe('2026-10-19');expect(policy.periods.at(-1).config.habits[0].xp).toEqual({amount:6,basis:'entry',weeklyCap:30});expect(policy.legacy.habits[0].xp.amount).toBe(10);
+ const notice=own.notifications.find(n=>n.kind==='rules_changed');expect(notice.username).toBe('bob');expect(notice.createdAt).toBeTruthy();expect(notice.ruleChanges.join(' ')).toContain('10 coins');expect(notice.ruleChanges.join(' ')).toContain('6 coins');expect(notice.ruleChanges.join(' ')).toContain('Coins per weekly goal: 3 → 9');expect(JSON.stringify(notice)).not.toMatch(/PRIVATE-NOTE|Private task title/);
+ expect((await dash(b)).bestFriendRules.config.habits[0].xp.amount).toBe(6);await expect(act(b,'set_friend_rules',body)).rejects.toThrow('changed');
+ const current=(await dash(b)).bestFriendRules;await act(a,'best_leave');await expect(act(b,'set_friend_rules',{...body,version:current.version})).rejects.toThrow('current best friend');
+});
+it('keeps friend-rule editors valid across logging but rejects changed trackers and can remove limits',async()=>{
+ await pair();const rules=(await dash(b)).bestFriendRules;const rows=(await db.query('select record_key,value,deleted from eldinos_account_records where user_id=$1',[a])).rows;const {inflateRecords}=await import('./coin-config.js');const data=inflateRecords(rows)['checkly-data-v1'];data.mapping.entries['2026-10-23']={'tennis-test':{kind:'check'}};await save(a,data);
+ await act(b,'set_friend_rules',{userId:a,version:rules.version,adjustments:{'tennis-test':{amount:12,weeklyCap:null}}});expect((await service.policy(a)).periods.at(-1).config.habits[0].xp).toEqual({amount:12,basis:'entry'});
+ const next=(await dash(b)).bestFriendRules;data.mapping.habits[0].label='New tracker name';await save(a,data);await expect(act(b,'set_friend_rules',{userId:a,version:next.version,adjustments:{'tennis-test':{amount:7}}})).rejects.toThrow('changed');
+});
+it('applies already approved scheduled rules immediately, preserves past weeks, and notifies only once',async()=>{
+ await pair();const proposal=(await dash(b)).proposals.find(p=>p.incoming);await act(b,'review_rules',{id:proposal.id,decision:'approve',adjustments:{'tennis-test':{amount:8}}});
+ const policy=await service.policy(a);expect(policy.starts_on).toBe('2026-10-19');expect(policy.periods.at(-1).from).toBe('2026-10-19');expect(policy.periods.at(-1).config.habits[0].xp.amount).toBe(8);expect(policy.legacy.habits[0].xp.amount).toBe(10);
+ expect((await dash(a)).notifications.filter(n=>n.kind==='rules_changed')).toHaveLength(1);await dash(a);await dash(b);expect((await dash(a)).notifications.filter(n=>n.kind==='rules_changed')).toHaveLength(1);
 });

@@ -36,7 +36,7 @@ export function coinConfig(data={},owner=false){
 }
 export function reviewConfig(config,body){
  const adjustments=body.adjustments||{};
- const habits=config.habits.map(h=>({...h,xp:cleanRule({...h.xp,...(adjustments[h.id]||{}),...(adjustments[h.id]?.weeklyCap===null?{weeklyCap:undefined}:{})})}));
+ const habits=config.habits.map(h=>{const rule={...h.xp,...(adjustments[h.id]||{})};for(const field of ['weeklyCap','dailyCountCap','threshold','secondary'])if(rule[field]===null)delete rule[field];return {...h,xp:cleanRule(rule)};});
  const bonus=body.bonuses;
  if(bonus&&(!number(bonus.goal,0,1000000)||!number(bonus.record,0,1000000)))throw Error('Invalid bonuses.');
  return {...config,habits,...(bonus?{coinBonusPlans:[{id:'reviewed',from:'1900-01-01',goal:bonus.goal,record:bonus.record}]}:{})};
