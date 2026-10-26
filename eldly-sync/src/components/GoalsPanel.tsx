@@ -1,3 +1,4 @@
+import {COIN_CONTROL_EVENT} from '../coinControl';
 import { useEffect, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { empty, format, localDay, monday, type Data } from "../engine";
@@ -10,8 +11,8 @@ export default function GoalsPanel({ range, mapping, expanded = false }: { range
   const [stored,setStored] = useState<Data>(() => { try { return load(); } catch { return empty(); } });
   useEffect(() => {
     const refresh=()=>{try {setStored(load());} catch { /* Save errors are handled by Data. */ }};
-    window.addEventListener(LOCAL_EVENT,refresh); window.addEventListener(REMOTE_EVENT,refresh); window.addEventListener("storage",refresh);
-    return ()=>{window.removeEventListener(LOCAL_EVENT,refresh);window.removeEventListener(REMOTE_EVENT,refresh);window.removeEventListener("storage",refresh);};
+    window.addEventListener(COIN_CONTROL_EVENT,refresh);window.addEventListener(LOCAL_EVENT,refresh); window.addEventListener(REMOTE_EVENT,refresh); window.addEventListener("storage",refresh);
+    return ()=>{window.removeEventListener(COIN_CONTROL_EVENT,refresh);window.removeEventListener(LOCAL_EVENT,refresh);window.removeEventListener(REMOTE_EVENT,refresh);window.removeEventListener("storage",refresh);};
   },[]);
   const data={...stored,mapping}, today=localDay();
   const from=monday(range.to < today ? range.to : today);
@@ -19,7 +20,7 @@ export default function GoalsPanel({ range, mapping, expanded = false }: { range
   const dateLabel=(date:string)=>format(date,{month:"short",day:"numeric",year:"numeric"});
   return <details className="goals-panel progress-disclosure" open={expanded}>
     <summary>Goals <ChevronDown size={18}/></summary>
-    <h2>{dateLabel(from)} – {dateLabel(results[0].to)}</h2>
+    <h2>{dateLabel(from)} – {dateLabel(results[0]?.to||from)}</h2>
     <div className="goal-rows">{results.map(goal=><div key={goal.id} className={`goal-row ${goal.met?'goal-met':''}`}>
       <div><strong>{goal.label}</strong><span>{goal.maximum?'At most':'At least'} {goalValueLabel(goal,goal.target)}</span></div>
       <div><strong>{goalValueLabel(goal,goal.actual)}</strong><span>{!goal.eligible ? "Partial week" : goal.complete ? goal.met?'Met':'Not met' : goal.met ? goal.maximum?'Within limit':'Reached so far':'In progress'}</span></div>

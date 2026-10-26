@@ -124,3 +124,12 @@ it('requires authentication and same-origin requests for notification settings',
  expect((await call('push',{cookie,body:{action:'unsubscribe',userId:owner}})).statusCode).toBe(200);
  expect((await call('push',{cookie,body:{action:'invented'}})).statusCode).toBe(400);
 });
+it('buys rewards only for the cookie account, ignores forged prices, and makes repeat requests idempotent',async()=>{
+ const {flatten}=await import('../src/sync/records');const {empty,localDay}=await import('../src/engine');const day=localDay();
+ const signup=await call('register',{body:{username:'reward_buyer',password:'test-password-2026',avatarId:'original'}});const cookie=signup.headers['Set-Cookie'].split(';')[0];
+ const data={...empty(),mapping:{version:1,startedOn:day,habits:[{id:'h',label:'Reading',kind:'check',color:'blue',xp:{amount:10,basis:'entry'}}],entries:{[day]:{h:{kind:'check'}}}},rewards:[{id:'r',title:'Shoes',cost:10}]};
+ const records=Object.entries(flatten({'checkly-data-v1':data})).map(([record_key,value])=>({record_key,value}));expect((await call('rpc',{cookie,body:{name:'eldinos_account_initialize',args:{records}}})).statusCode).toBe(200);
+ expect((await call('rewards',{body:{action:'buy',rewardId:'r'}})).statusCode).toBe(401);expect((await call('rewards',{cookie,origin:'https://evil.test',body:{action:'buy',rewardId:'r'}})).statusCode).toBe(403);
+ const body={action:'buy',rewardId:'r',userId:owner,cost:1,balance:999999};const first=await call('rewards',{cookie,body}),second=await call('rewards',{cookie,body});expect(first.statusCode).toBe(200);expect(first.body.receipt.cost).toBe(10);expect(second.body.receipt.id).toBe(first.body.receipt.id);
+ const ownerReceipts=(await db.query('select * from eldinos_account_records where user_id=$1 and record_key like $2',[owner,'%rewardPurchases%'])).rows;expect(ownerReceipts).toHaveLength(0);
+});

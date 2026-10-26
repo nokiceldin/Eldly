@@ -159,3 +159,32 @@ it('notifies the owner of a named goal privately once per week without sending p
  now=new Date('2026-10-26T16:00:00Z');d.mapping.entries['2026-10-26']={reading:{kind:'check'}};await save(a,d);
  expect((await dash(a)).notifications.filter(n=>n.kind==='goal_self')).toHaveLength(2);
 });
+it('allows confirming unchanged initial rules once, carries the starting rates into next week, and prevents no-op spam afterward',async()=>{
+ await pair();const rules=(await dash(b)).bestFriendRules;expect(rules.needsApproval).toBe(true);
+ await act(b,'set_friend_rules',{userId:a,version:rules.version,adjustments:Object.fromEntries(rules.config.habits.map(h=>[h.id,h.xp]))});
+ const next=(await dash(b)).bestFriendRules;expect(next.needsApproval).toBe(false);expect((await service.policy(a)).periods.at(-1).config.habits[0].xp.amount).toBe(10);
+ await expect(act(b,'set_friend_rules',{userId:a,version:next.version})).rejects.toThrow('No coin rules changed');
+ now=new Date('2026-11-02T16:00:00Z');expect((await dash(b)).bestFriendRules.config.habits[0].xp.amount).toBe(10);
+});
+it('offers original starting rates rather than zero when a new agreement has not yet been confirmed',async()=>{
+ await pair();now=new Date('2026-11-02T16:00:00Z');const rules=(await dash(b)).bestFriendRules;expect(rules.needsApproval).toBe(true);expect(rules.config.habits[0].xp.amount).toBe(10);
+ await act(b,'set_friend_rules',{userId:a,version:rules.version});expect((await service.policy(a)).periods.at(-1).config.habits[0].xp.amount).toBe(10);
+});
+it('uses approved goals for notifications until the friend confirms a draft, preserving earlier weeks',async()=>{
+ await act(a,'visit',{timezone:'America/Chicago'});await pair();let rules=(await dash(b)).bestFriendRules;await act(b,'set_friend_rules',{userId:a,version:rules.version,adjustments:{'tennis-test':{amount:9}}});
+ const {inflateRecords}=await import('./coin-config.js');const rows=(await db.query('select record_key,value,deleted from eldinos_account_records where user_id=$1',[a])).rows;const d=inflateRecords(rows)['checkly-data-v1'];d.mapping.habits[0].goal.target=1;d.mapping.entries['2026-10-23']={'tennis-test':{kind:'check'}};await save(a,d);
+ expect((await dash(a)).notifications.filter(n=>n.kind==='goal_self')).toHaveLength(0);
+ rules=(await dash(b)).bestFriendRules;await act(b,'set_friend_rules',{userId:a,version:rules.version});
+ expect((await dash(a)).notifications.filter(n=>n.kind==='goal_self')).toHaveLength(1);expect((await service.policy(a)).legacy.habits[0].goal.target).toBe(5);
+});
+it('adds archive dates to old records once without changing earlier history or existing policy',async()=>{
+ const {socialMigration}=await import('./social-service.js');const {inflateRecords}=await import('./coin-config.js');
+ const rows=(await db.query('select record_key,value,deleted from eldinos_account_records where user_id=$1',[a])).rows;const d=inflateRecords(rows)['checkly-data-v1'];d.mapping.habits[0].archived=true;await save(a,d);
+ await db.query("delete from myspace_app_migrations where name='dated-tracker-archives-v1'");await db.exec(socialMigration);
+ const first=inflateRecords((await db.query('select record_key,value,deleted from eldinos_account_records where user_id=$1',[a])).rows)['checkly-data-v1'];expect(first.mapping.habits[0].archivedFrom).toMatch(/^\d{4}-\d{2}-\d{2}$/);expect(first.tasks).toEqual(d.tasks);
+ const revision=(await db.query('select revision from eldinos_account_state where user_id=$1',[a])).rows[0].revision;await db.exec(socialMigration);expect((await db.query('select revision from eldinos_account_state where user_id=$1',[a])).rows[0].revision).toBe(revision);
+});
+it('uses elapsed days for a current daily-average goal while withholding maximum goals until completion',async()=>{
+ const {achievedGoals}=await import('./coin-config.js');const d={mapping:{version:1,startedOn:'2026-10-19',habits:[{id:'sleep',kind:'sleep',label:'Sleep',goal:{target:480,maximum:false,from:'2026-10-19'}},{id:'phone',kind:'phone',label:'Phone',goal:{target:240,maximum:true,from:'2026-10-19'}}],entries:Object.fromEntries([19,20,21,22,23].map(day=>[`2026-10-${day}`,{sleep:{kind:'sleep',nightMinutes:480,dayMinutes:0}}]))}};
+ expect(achievedGoals(d,'2026-10-19','2026-10-23')).toEqual(['sleep']);expect(achievedGoals(d,'2026-10-19','2026-10-25',true)).toEqual(['phone']);
+});

@@ -1,3 +1,4 @@
+import {COIN_CONTROL_EVENT} from '../coinControl';
 import CoinRecap from './CoinRecap';
 import { isPersonalOwner } from "../accountScope";
 import { getHabits, mappingStart, emptyMapping } from "../mapping";
@@ -25,13 +26,13 @@ export default function RecapDialog() {
     const refresh = () => { try { const latest = load(); if (isPersonalOwner()&&!latest.goalPlans?.length) { persist({ ...latest, goalPlans: [initialGoalPlan(latest)] }); } setData(load()); setToday(localDay());setHour(new Date().getHours()); } catch { /* Existing save errors are displayed by the app. */ } };
     const open = () => { refresh(); setManual(recapWindows(localDay()).filter(w=>w.range.to>=mappingStart(load().mapping||emptyMapping()))); };
     refresh();
-    window.addEventListener(LOCAL_EVENT, refresh);
+    window.addEventListener(COIN_CONTROL_EVENT,refresh);window.addEventListener(LOCAL_EVENT, refresh);
     window.addEventListener(REMOTE_EVENT, refresh);
     window.addEventListener("storage", refresh);
     window.addEventListener("focus", refresh);
     window.addEventListener("eldly-open-recaps", open);
     const timer = window.setInterval(refresh, 60000);
-    return () => { window.clearInterval(timer); window.removeEventListener(LOCAL_EVENT, refresh); window.removeEventListener(REMOTE_EVENT, refresh); window.removeEventListener("storage", refresh); window.removeEventListener("focus", refresh); window.removeEventListener("eldly-open-recaps", open); };
+    return () => { window.clearInterval(timer); window.removeEventListener(COIN_CONTROL_EVENT,refresh);window.removeEventListener(LOCAL_EVENT, refresh); window.removeEventListener(REMOTE_EVENT, refresh); window.removeEventListener("storage", refresh); window.removeEventListener("focus", refresh); window.removeEventListener("eldly-open-recaps", open); };
   }, []);
   const queue = data ? manual ?? pendingRecaps(data, today, hour) : [];
   const current = queue[0];

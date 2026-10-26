@@ -1,3 +1,5 @@
+import {coinDataForWeek} from './coinControl';
+import {archivedForWeek} from '../shared/effective-goals';
 import { TRACKING_START } from "./tracking";
 import { add, diff, localDay, monday, type Data } from "./engine";
 import { emptyMapping, type HabitId } from "./mapping";
@@ -34,9 +36,9 @@ export function goalValueLabel(goal: Pick<Goal, "mode" | "habit">, value: number
   return `${humanValue(value, goal.habit as Metric)}${goal.mode === "average" ? "/day" : ""}`;
 }
 export function weeklyGoals(data: Data, start: string, today = localDay()) {
-  const from = monday(start), to = add(from, 6), plan = goalPlan(data, from);
+  const from = monday(start), to = add(from, 6);data=coinDataForWeek(data,from);const plan = goalPlan(data, from);
   const mapping = data.mapping || emptyMapping();
-  return GOALS.map(goal => {
+  return GOALS.filter(goal=>(!mapping.habits||mapping.habits.some(h=>h.id===goal.habit))&&!archivedForWeek(mapping.habits?.find(h=>h.id===goal.habit),from)).map(goal => {
     const target = plan?.targets[goal.id] ?? goal.target;
     const stats = goal.mode === "days" ? null : metricStats(mapping, goal.habit as Metric, { from, to });
     const actual = goal.mode === "days" ? Object.entries(mapping.entries).filter(([date,row]) => {
@@ -60,8 +62,8 @@ export function goalHistory(data: Data, range: Range, today = localDay()) {
   const summary = GOALS.filter(goal=>goal.id!=="tennis-hours").map(goal=>({
     id:goal.id==="tennis-days"?"tennis":goal.id,
     label:goal.id==="tennis-days"?"Tennis · both targets":goal.label,
-    met:weeks.filter(week=>goal.id==="tennis-days"?week.results.filter(result=>result.habit==="tennis").every(result=>result.met):week.results.find(result=>result.id===goal.id)?.met).length,
-    total:weeks.length,
+    met:weeks.filter(week=>goal.id==="tennis-days"?week.results.some(result=>result.habit==="tennis")&&week.results.filter(result=>result.habit==="tennis").every(result=>result.met):week.results.find(result=>result.id===goal.id)?.met).length,
+    total:weeks.filter(week=>week.results.some(result=>result.id===goal.id)).length,
   }));
   return {weeks,summary};
 }

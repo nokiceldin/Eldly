@@ -33,3 +33,26 @@ create unique index if not exists myspace_one_gift_per_friend_week on myspace_ce
 alter table myspace_celebration_coins drop constraint if exists myspace_celebration_coins_sender_week_key;
 alter table myspace_coin_controls add column if not exists revision bigint not null default 0;
 alter table myspace_notifications add column if not exists rule_changes jsonb not null default '[]';
+
+-- Preserve previously earned bonuses when introducing dated tracker archiving.
+create table if not exists myspace_app_migrations(name text primary key,applied_at timestamptz not null default now());
+revoke all on myspace_app_migrations from public;
+DO $archive_migration$
+declare account_row record;
+begin
+ if not exists(select 1 from myspace_app_migrations where name='dated-tracker-archives-v1') then
+  for account_row in
+   with archived as (
+    select r.user_id,
+     array_to_json(array(select jsonb_array_elements_text(jsonb_set(r.record_key::jsonb,'{4}','"archivedFrom"'::jsonb))))::text as key,
+     to_char(date_trunc('week',now() at time zone coalesce(p.timezone,'UTC')),'YYYY-MM-DD') as stamp
+    from eldinos_account_records r left join myspace_profiles p on p.user_id=r.user_id
+    where not r.deleted and jsonb_array_length(r.record_key::jsonb)=5 and r.record_key::jsonb->>0='checkly-data-v1' and r.record_key::jsonb->>1='mapping' and r.record_key::jsonb->>2='habits' and r.record_key::jsonb->>4='archived' and r.value->'value'='true'::jsonb
+   )
+   select archived.user_id,jsonb_agg(jsonb_build_object('record_key',key,'value',jsonb_build_object('node','value','value',stamp))) as changes
+   from archived where not exists(select 1 from eldinos_account_records a where a.user_id=archived.user_id and not a.deleted and a.record_key=archived.key)
+   group by archived.user_id
+  loop perform myspace_account_apply(account_row.user_id,account_row.changes);end loop;
+  insert into myspace_app_migrations(name) values('dated-tracker-archives-v1');
+ end if;
+end;$archive_migration$;

@@ -1,7 +1,7 @@
 import {defaultRule} from './coin-config.js';
 export function currentFriendConfig(raw,policy,week){
  const active=!policy?raw:week<policy.starts_on?policy.legacy:[...policy.periods].filter(p=>p.from<=week).sort((a,b)=>b.from.localeCompare(a.from))[0]?.config;
- return {...raw,habits:raw.habits.map(h=>{const approved=active?.habits.find(a=>a.id===h.id);return {...h,xp:approved?.xp||{amount:0,basis:'entry'},goal:approved?.goal??h.goal,previousGoals:approved?.previousGoals??h.previousGoals};}),goalPlans:active?.goalPlans||[],coinBonusPlans:active?.coinBonusPlans||[{id:'pending',from:'1900-01-01',goal:0,record:0}]};
+ return {...raw,habits:raw.habits.map(h=>{const approved=active?.habits.find(a=>a.id===h.id);return {...h,xp:approved?.xp||{amount:0,basis:'entry'},goal:approved?.goal,previousGoals:approved?.previousGoals};}),goalPlans:active?.goalPlans||[],coinBonusPlans:active?.coinBonusPlans||[{id:'pending',from:'1900-01-01',goal:0,record:0}]};
 }
 export function coinChanges(before,after){
  const changes=[];

@@ -5,7 +5,7 @@ import { addRequestedRoutines } from "./personalRoutines";
 import { GOALS } from "./goals";
 import { writeLocal } from "./sync/local";
 import { normalizeDailyChecks, validateMapping } from "./mapping";
-import { empty, localDay, syncChecklyHomework, type Data } from "./engine";
+import { empty, localDay, monday, syncChecklyHomework, type Data } from "./engine";
 const KEY = "checkly-data-v1";
 const date = (x: unknown) =>
   typeof x === "string" &&
@@ -96,6 +96,7 @@ export function load(): Data {
     const raw = localStorage.getItem(scopedKey(KEY));
     if (!raw) return isPersonalOwner() ? addRequestedRoutines(empty()) : { ...empty(), categories: [], sampleLoaded: true, personalRoutinesVersion: 1, mapping: {version:1,entries:{},habits:[],startedOn:localDay()} };
     const d = JSON.parse(raw);
+    if(d.mapping?.habits)d.mapping.habits=d.mapping.habits.map((h:any)=>h.archived&&!h.archivedFrom?{...h,archivedFrom:monday(localDay())}:h);
     if (!validate(d))
       throw Error(
         "Saved data is not compatible. Export or restore a valid backup.",

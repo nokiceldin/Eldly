@@ -1,3 +1,4 @@
+import {createRewardService,touchesReceipts} from './reward-service.js';
 import { randomBytes,randomUUID,createHash } from 'node:crypto';
 import { compare,hash as hashPassword } from 'bcryptjs';
 import {avatarPreset} from '../shared/avatar-options.js';
@@ -8,7 +9,7 @@ const hash=value=>createHash('sha256').update(value).digest('hex');
 const cookie=(value,maxAge)=>`${COOKIE}=${value}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAge}`;
 const publicUser=row=>({id:row.id,email:`${row.username}@accounts.eldinos.invalid`,app_metadata:{...row.app_metadata,username:row.username}});
 export function createAccountHandler(sql){
- const social=createSocialService(sql),push=createPushService(sql,{ensure:social.ensure});
+ const social=createSocialService(sql),push=createPushService(sql,{ensure:social.ensure}),rewards=createRewardService(sql,{ensure:social.ensure});
  return async function handler(req,res){
   res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');
   const action=req.query?.action;
@@ -71,6 +72,7 @@ export function createAccountHandler(sql){
    const user=users[0];
    if(action==='session'&&req.method==='GET')return res.status(200).json({user:user?publicUser(user):null});
    if(!user)return res.status(401).json({error:'Please sign in again.'});
+   if(action==='rewards'&&req.method==='POST')return res.status(200).json(await rewards.mutate(user.id,body));
    if(action==='push'&&req.method==='GET')return res.status(200).json(await push.status(user.id,tokenHash));
    if(action==='push'&&req.method==='POST'){
     if(body.action==='subscribe'){await social.mutate(user,{action:'visit',timezone:body.timezone||'UTC'},'push');return res.status(200).json(await push.subscribe(user.id,tokenHash,body.subscription));}
@@ -94,7 +96,7 @@ export function createAccountHandler(sql){
     }
     case 'eldinos_account_apply':case 'eldly_shared_apply':
      if(!Array.isArray(args.changes))return res.status(400).json({error:'Invalid changes'});
-     result=await sql.query('select myspace_account_apply($1::uuid,$2::jsonb) as data',[user.id,JSON.stringify(args.changes)]);
+     result=touchesReceipts(args.changes)?[{data:await rewards.apply(user.id,args.changes)}]:await sql.query('select myspace_account_apply($1::uuid,$2::jsonb) as data',[user.id,JSON.stringify(args.changes)]);
      try{await social.milestones(user.id);}catch{console.error('Milestone notification could not be updated. It will retry on the next visit.');}break;
     case 'eldinos_account_initialize':case 'eldly_shared_initialize':
      if(!Array.isArray(args.records))return res.status(400).json({error:'Invalid records'});
@@ -103,6 +105,7 @@ export function createAccountHandler(sql){
    }
    return res.status(200).json({data:result[0].data});
   }catch(error){
+   if(error?.message?.startsWith('REWARD:'))return res.status(400).json({error:error.message.slice(8).trim(),code:'reward_request'});
    if(error?.message?.startsWith('PUSH:'))return res.status(400).json({error:error.message.slice(6).trim(),code:'push_request'});
    if(error?.message?.startsWith('SOCIAL:'))return res.status(400).json({error:error.message.slice(8).trim(),code:'social_request'});
    if(action==='register'&&error?.code==='23505')return res.status(409).json({error:'That username is already taken. Please choose another.',code:'username_taken'});

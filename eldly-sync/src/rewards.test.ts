@@ -63,3 +63,7 @@ describe('coins, weekly bonuses and rewards',()=>{
   expect(validRewards({rewards:'bad' as any})).toBe(false);
  });
 });
+it('preserves earnings for recorded zero phone time in the original duration format',()=>{
+ const d={...empty(),mapping:{version:1 as const,startedOn:'2026-10-19',entries:{'2026-10-19':{'screen-time':{kind:'duration' as const,minutes:0}}}}};
+ expect(coinHistory(d,'2026-10-26',null)[0]).toMatchObject({baseTotal:2,goalBonus:9,total:11});
+});

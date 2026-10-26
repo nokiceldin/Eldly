@@ -572,7 +572,7 @@ export function normalizeWeeklyMarkers(data: Data): Data {
 
 /** Link Check's real daily completion to Mapping without retroactively rewarding late work. */
 export function syncChecklyHomework(data: Data, today: Day): Data {
-  if(data.mapping?.habits!==undefined)return data;
+  if(data.mapping?.habits!==undefined&&(!isPersonalOwner()||!data.mapping.habits.some(h=>h.id==='homework'&&!h.archived)))return data;
   const groups = new Map<Day, Task[]>();
   for (const task of allTasks(data, today, today)) {
     for (const day of new Set([task.scheduled, visibleDate(task, today)])) {

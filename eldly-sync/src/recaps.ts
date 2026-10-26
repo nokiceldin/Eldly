@@ -1,3 +1,4 @@
+import {coinDataForWeek} from './coinControl';
 import { personalGoalAt } from "./personalGoals";
 import { goalPlan } from "./goals";
 import { TRACKING_START } from "./tracking";
@@ -31,7 +32,8 @@ export function buildRecap(data: Data, window: RecapWindow, today = localDay()) 
   const positives: string[] = [], attention: string[] = [];
   for (const row of metrics) {
     const { metric, current, previous, label } = row;
-    const habit=getHabits(mapping).find(h=>h.id===metric);
+    const effective=coinDataForWeek(data,monday(window.range.to));
+    const habit=getHabits(effective.mapping).find(h=>h.id===metric);
     const average=habit?.kind==='sleep'||habit?.kind==='phone';
     const value=average?current.average||0:current.total;
     const old=average?previous.average||0:previous.total;
@@ -39,8 +41,9 @@ export function buildRecap(data: Data, window: RecapWindow, today = localDay()) 
     const lower=red||habit?.kind==='phone';
     const recorded=Object.entries(mapping.entries).some(([day,entries])=>day>=from&&day<=window.range.to&&!!entries[metric]);
     const suffix=average?' daily average':metric==='praying'?' prayers':'';
-    const personalTarget=habit?personalGoalAt(habit,monday(window.range.to)):undefined;
-    const ownerTarget=goalPlan(data,monday(window.range.to))?.targets;
+    const approvedHabit=habit;
+    const personalTarget=approvedHabit?personalGoalAt(approvedHabit,monday(window.range.to)):undefined;
+    const ownerTarget=goalPlan(effective,monday(window.range.to))?.targets;
     const target=personalTarget?.target??((!mapping.habits||data.goalPlans?.length)?(metric==='sleep'?ownerTarget?.sleep??510:metric==='screen-time'?ownerTarget?.['screen-time']??240:undefined):undefined);
     if(recorded){
       if(red&&value>0)attention.push(`${label}: ${humanValue(value,metric,mapping)}${suffix}`);

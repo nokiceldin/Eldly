@@ -1,3 +1,4 @@
+import {effectiveData} from '../shared/effective-goals.js';
 import {currentFriendConfig,coinChanges} from './friend-rules.js';
 import {celebrationCoins} from './celebration-coins.js';
 import {trackingStreak} from '../shared/streak.js';
@@ -31,8 +32,8 @@ export function createSocialService(sql,{now=()=>new Date()}={}){
   if(!profiles[0])return;
   const day=dayAt(profiles[0].timezone,now()),from=monday(day),data=await accountData(id);
   await run(id,'track_streak',{...trackingStreak(data.mapping,day),day});
-  const previous=addDay(from,-7);
-  const events=[...achievedGoals(data,from,day).map(goal=>`${from}:${goal}`),...(data.mapping&&(data.mapping.startedOn||'2026-10-15')<=previous?achievedGoals(data,previous,addDay(from,-1),true).map(goal=>`${previous}:${goal}`):[])];
+  const previous=addDay(from,-7),control=await policy(id);
+  const events=[...achievedGoals(effectiveData(data,from,control),from,day).map(goal=>`${from}:${goal}`),...(data.mapping&&(data.mapping.startedOn||'2026-10-15')<=previous?achievedGoals(effectiveData(data,previous,control),previous,addDay(from,-1),true).map(goal=>`${previous}:${goal}`):[])];
   // Friends receive only generic milestones. Goal names stay in the owner’s private inbox.
   if(events.length){const ownGoals=Object.fromEntries(events.map(event=>{const goal=event.slice(11),legacy=legacyGoals.find(g=>g[0]===goal);return [event,data.mapping?.habits?.find(h=>h.id===goal)?.label||(legacy?defaults.find(d=>d[0]===legacy[1])?.[1]||'Weekly goal':'Weekly goal')];}));await run(id,'goal_events',{events,ownGoals});}
  }
@@ -54,8 +55,10 @@ export function createSocialService(sql,{now=()=>new Date()}={}){
   await activateApproved(pair.other);
   const [raw,control,state]=await Promise.all([config(pair.other),policy(pair.other),sql.query('select revision from eldinos_account_state where user_id=$1',[pair.other])]);
   const week=await giftWeek(pair.other),version=`${pair.id}:${createHash('sha256').update(JSON.stringify(raw)).digest('hex')}:${control?.revision||0}`;
-  const baseline=currentFriendConfig(raw,control,week),editing={...baseline,goalPlans:raw.goalPlans,habits:baseline.habits.map(h=>{const draft=raw.habits.find(d=>d.id===h.id);return {...h,goal:draft?.goal,previousGoals:draft?.previousGoals};})};
-  return {userId:pair.other,pairId:pair.id,version,dataRevision:Number(state[0]?.revision||0),policyRevision:Number(control?.revision||0),week,config:editing,baseline};
+  const needsApproval=!control?.periods?.some(p=>p.from<=week);
+  const starting=control&&!control.periods.length?{...control,starts_on:'9999-12-31'}:control;
+  const baseline=currentFriendConfig(raw,starting,week),editing={...baseline,goalPlans:raw.goalPlans,habits:baseline.habits.map(h=>{const draft=raw.habits.find(d=>d.id===h.id);return {...h,goal:draft?.goal,previousGoals:draft?.previousGoals};})};
+  return {userId:pair.other,pairId:pair.id,version,dataRevision:Number(state[0]?.revision||0),policyRevision:Number(control?.revision||0),week,config:editing,baseline,needsApproval};
  }
  async function dashboard(user){
   await ensure();
@@ -107,7 +110,7 @@ export function createSocialService(sql,{now=()=>new Date()}={}){
    if(!target||body.userId!==target.userId)throw Error('SOCIAL: You can only edit your current best friend’s coin rules.');
    if(body.version!==target.version)throw Error('SOCIAL: These rules changed. Reopen your friend’s profile and try again.');
    try{p.config=reviewConfig(target.config,body);}catch(e){throw Error('SOCIAL: '+e.message);}
-   p.changes=coinChanges(target.baseline,p.config);if(!p.changes.length)throw Error('SOCIAL: No coin rules changed.');
+   p.changes=coinChanges(target.baseline,p.config);if(!p.changes.length){if(!target.needsApproval)throw Error('SOCIAL: No coin rules changed.');p.changes=['Starting coin rules confirmed.'];}
    p.userId=target.userId;p.pairId=target.pairId;p.from=target.week;p.expectedRevision=target.policyRevision;p.dataRevision=target.dataRevision;p.id=randomUUID();
   }
   if(action==='visit'){
