@@ -1,3 +1,4 @@
+import NumberInput from './NumberInput';
 import { useState, useRef, useEffect, type ReactNode } from "react";
 import {
   Plus,
@@ -275,8 +276,7 @@ export default function Editor({
               {frequency === "interval" && (
                 <label>
                   Repeat every (weeks)
-                  <input
-                    type="number"
+                  <NumberInput
                     min="1"
                     max="104"
                     required

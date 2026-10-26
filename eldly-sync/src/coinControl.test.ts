@@ -32,3 +32,12 @@ it('adds private gift credits to spendable balance without changing tracker earn
 it('shows the applied partner rate rather than editable local drafts and updates when a new policy arrives',async()=>{
  vi.useFakeTimers();vi.setSystemTime(new Date('2026-11-03T12:00:00'));try{const {displayCoinData}=await import('./coinControl');cacheCoinPolicy(policy);const d=data();expect(d.mapping!.habits![0].xp!.amount).toBe(1000);expect(displayCoinData(d).mapping!.habits![0].xp!.amount).toBe(8);expect(displayCoinData(d).mapping!.habits![1].xp!.amount).toBe(0);cacheCoinPolicy({...policy,periods:[{from:'2026-11-02',config:config(12),reviewer:'friend'}]});expect(displayCoinData(d).mapping!.habits![0].xp!.amount).toBe(12);expect(d.mapping!.habits![0].xp!.amount).toBe(1000);}finally{vi.useRealTimers();}
 });
+it('shows negative approved rates and subtracts them from tracking totals',async()=>{
+ vi.useFakeTimers();vi.setSystemTime(new Date('2026-11-03T12:00:00'));
+ try{
+  const negative=config(-100);delete negative.habits[0].xp!.weeklyCap;
+  const next={...policy,periods:[{from:'2026-11-02',config:negative,reviewer:'friend'}]};cacheCoinPolicy(next);
+  const {displayCoinData}=await import('./coinControl');expect(displayCoinData(data()).mapping!.habits![0].xp!.amount).toBe(-100);
+  expect(pointsHistory(data().mapping,'2026-11-03',next).find(w=>w.from==='2026-11-02')!.total).toBe(-200);
+ }finally{vi.useRealTimers();}
+});

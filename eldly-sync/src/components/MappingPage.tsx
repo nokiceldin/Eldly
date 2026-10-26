@@ -1,3 +1,4 @@
+import NumberInput from './NumberInput';
 import TrackerSettings from './TrackerSettings';
 import RewardsCard from './RewardsCard';
 import TrackerEditor from "./TrackerEditor";
@@ -109,10 +110,10 @@ export function EntryEditor({ habit, day, entry, close, save }: { habit: Habit; 
         commit({ kind: "sleep", nightMinutes, dayMinutes });
       }
     }}>
-      {(habit.kind === "duration" || habit.kind === "phone") && <><p>{habit.kind === "phone" ? "Screen time" : "How long?"}</p><div className="mapping-fields"><label>Hours<input autoFocus type="number" inputMode="numeric" min="0" max="24" step="1" placeholder="0" value={hours} onChange={(e) => setHours(e.target.value)} /></label><label>Minutes<input type="number" inputMode="numeric" min="0" max="59" step="1" placeholder="0" value={minutes} onChange={(e) => setMinutes(e.target.value)} /></label></div></>}
-      {habit.kind === "phone" && <label className="phone-pickups-field">Pickups<input type="number" inputMode="numeric" min="0" max="1000000" step="1" placeholder="Not recorded" value={pickups} onChange={e => setPickups(e.target.value)} /></label>}
-      {habit.kind === "prayer" && <label>How many times?<input autoFocus required type="number" inputMode="numeric" min="1" max="1000" step="1" value={count} onChange={(e) => setCount(e.target.value)} /></label>}
-      {habit.kind === "sleep" && <><div className="mapping-fields"><label>Night · hours<input autoFocus type="number" inputMode="decimal" min="0" max="24" step="any" placeholder="0" value={night} onChange={(e) => setNight(e.target.value)} /></label><label>Daytime · hours<input type="number" inputMode="decimal" min="0" max="24" step="any" placeholder="0" value={daytime} onChange={(e) => setDaytime(e.target.value)} /></label></div></>}
+      {(habit.kind === "duration" || habit.kind === "phone") && <><p>{habit.kind === "phone" ? "Screen time" : "How long?"}</p><div className="mapping-fields"><label>Hours<NumberInput autoFocus inputMode="numeric" min="0" max="24" step="1" placeholder="0" value={hours} onChange={(e) => setHours(e.target.value)} /></label><label>Minutes<NumberInput inputMode="numeric" min="0" max="59" step="1" placeholder="0" value={minutes} onChange={(e) => setMinutes(e.target.value)} /></label></div></>}
+      {habit.kind === "phone" && <label className="phone-pickups-field">Pickups<NumberInput inputMode="numeric" min="0" max="1000000" step="1" placeholder="Not recorded" value={pickups} onChange={e => setPickups(e.target.value)} /></label>}
+      {habit.kind === "prayer" && <label>How many times?<NumberInput autoFocus required inputMode="numeric" min="1" max="1000" step="1" value={count} onChange={(e) => setCount(e.target.value)} /></label>}
+      {habit.kind === "sleep" && <><div className="mapping-fields"><label>Night · hours<NumberInput autoFocus inputMode="decimal" min="0" max="24" step="any" placeholder="0" value={night} onChange={(e) => setNight(e.target.value)} /></label><label>Daytime · hours<NumberInput inputMode="decimal" min="0" max="24" step="any" placeholder="0" value={daytime} onChange={(e) => setDaytime(e.target.value)} /></label></div></>}
       {error && <p className="mapping-error" role="alert">{error}</p>}
       <div className="mapping-dialog-actions">{entry && <button type="button" className="mapping-clear" onClick={() => commit()}>Clear</button>}<button type="button" className="secondary" onClick={close}>Cancel</button><button className="primary" type="submit">Save</button></div>
     </form>

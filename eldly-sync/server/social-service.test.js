@@ -132,3 +132,11 @@ it('applies already approved scheduled rules immediately, preserves past weeks, 
  const policy=await service.policy(a);expect(policy.starts_on).toBe('2026-10-19');expect(policy.periods.at(-1).from).toBe('2026-10-19');expect(policy.periods.at(-1).config.habits[0].xp.amount).toBe(8);expect(policy.legacy.habits[0].xp.amount).toBe(10);
  expect((await dash(a)).notifications.filter(n=>n.kind==='rules_changed')).toHaveLength(1);await dash(a);await dash(b);expect((await dash(a)).notifications.filter(n=>n.kind==='rules_changed')).toHaveLength(1);
 });
+
+it('preserves a negative best-friend rate in saved policy, editor and change notification',async()=>{
+ await pair();const rules=(await dash(b)).bestFriendRules;
+ await act(b,'set_friend_rules',{userId:a,version:rules.version,adjustments:{'tennis-test':{amount:-100,weeklyCap:null}}});
+ expect((await service.policy(a)).periods.at(-1).config.habits[0].xp.amount).toBe(-100);
+ expect((await dash(b)).bestFriendRules.config.habits[0].xp.amount).toBe(-100);
+ expect((await dash(a)).notifications.find(n=>n.kind==='rules_changed').ruleChanges.join(' ')).toContain('-100 coins');
+});
