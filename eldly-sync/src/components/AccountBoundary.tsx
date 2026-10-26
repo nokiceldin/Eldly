@@ -1,3 +1,4 @@
+import AppUpdate from './AppUpdate';
 import {ProfileContext} from '../profileContext';
 import {PortraitChoices} from './AvatarEditor';
 import ProfileAvatar from './ProfileAvatar';
@@ -11,12 +12,12 @@ import { useEffect, useState, type ReactNode } from 'react';
 import type {AccountUser as User} from '../privateAuth';
 import { LogOut, UserRound } from 'lucide-react';
 import { authClient, privateAccounts, usernameEmail } from '../auth';
-import { setAccountScope, isGuest } from '../accountScope';
+import { updateAccountHomeName, setAccountScope, isGuest } from '../accountScope';
 import { enrolled, synchronize } from '../sync/engine';
 export default function AccountBoundary({children}:{children:ReactNode}) {
  const [identity,setIdentity]=useState<User|'guest'|null>(null),[ready,setReady]=useState(false),[login,setLogin]=useState(false),[menu,setMenu]=useState(false);
  const [avatar,setAvatar]=useState<AvatarStyle>(defaultAvatar);
- useEffect(()=>{const changed=(e:Event)=>setAvatar((e as CustomEvent<SocialState>).detail.profile.avatar);window.addEventListener(SOCIAL_EVENT,changed);return()=>window.removeEventListener(SOCIAL_EVENT,changed);},[]);
+ useEffect(()=>{const changed=(e:Event)=>{const profile=(e as CustomEvent<SocialState>).detail.profile;if(profile.homeName)updateAccountHomeName(profile.homeName);setAvatar(profile.avatar);};window.addEventListener(SOCIAL_EVENT,changed);return()=>window.removeEventListener(SOCIAL_EVENT,changed);},[]);
  const [avatarId,setAvatarId]=useState('original');
  const [username,setUsername]=useState(''),[password,setPassword]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false),[creating,setCreating]=useState(false);
  useEffect(()=>{
@@ -61,11 +62,12 @@ export default function AccountBoundary({children}:{children:ReactNode}) {
   {creating&&<section className="signup-portraits"><h3>Portrait</h3><PortraitChoices value={avatarId} onChange={setAvatarId} disabled={busy}/></section>}
   {error&&<p role="alert">{error}</p>}
   <button className="account-primary" disabled={busy}>{busy?(creating?'Creating account…':'Signing in…'):(creating?'Create account':'Sign in')}</button>
+  {!creating&&<button type="button" className="account-guest" onClick={()=>setError('Ask your account administrator for a manual password reset.')}>Forgot password?</button>}
   {privateAccounts&&<button type="button" className="account-guest" disabled={busy} onClick={()=>{setCreating(!creating);setError('');setPassword('');}}>{creating?'Already have an account? Sign in':'New here? Create account'}</button>}
   <button type="button" className="account-guest" disabled={busy} onClick={()=>{localStorage.setItem('eldinos-guest-mode','1');window.location.hash='';window.location.reload();}}>Continue as guest</button>
   <small>Guest data stays on this device.</small>
   {identity&&<button type="button" disabled={busy} onClick={()=>setLogin(false)}>Back</button>}
  </form></main>;
  const name=identity==='guest'?'Guest':identity.app_metadata.username||identity.email?.split('@')[0]||'Account';
- return <Soundtrack><ProfileContext.Provider value={avatar}>{children}<div className="account-control"><button onClick={()=>identity!=='guest'&&privateAccounts?window.dispatchEvent(new Event('myspace-open-profile')):setMenu(!menu)} aria-label={identity!=='guest'&&privateAccounts?'Open profile':'Account'} aria-haspopup={identity!=='guest'&&privateAccounts?'dialog':undefined} aria-expanded={identity!=='guest'&&privateAccounts?undefined:menu}>{identity!=='guest'&&privateAccounts?<ProfileAvatar style={avatar} size={30}/>:<UserRound size={15}/>} {name}</button><PointsCounter/>{identity!=='guest'&&privateAccounts&&<SocialBar accountActions={<><SoundtrackButton/><button disabled={busy} onClick={()=>void logout()}><LogOut size={15}/>Sign Out</button>{error&&<p role="alert">{error}</p>}</>}/>}<section hidden={!menu} className="account-menu" aria-label="Account">{identity==='guest'&&<SoundtrackButton/>}{identity==='guest'?<button onClick={()=>{setMenu(false);setLogin(true);}}>Sign in</button>:<>{privateAccounts&&<button onClick={()=>{setMenu(false);window.dispatchEvent(new Event('myspace-open-profile'));}}>Profile</button>}<button disabled={busy} onClick={()=>void logout()}><LogOut size={15}/>Sign Out</button></>}{error&&<p role="alert">{error}</p>}</section></div></ProfileContext.Provider></Soundtrack>;
+ return <Soundtrack><AppUpdate/><ProfileContext.Provider value={avatar}>{children}<div className="account-control"><button onClick={()=>identity!=='guest'&&privateAccounts?window.dispatchEvent(new Event('myspace-open-profile')):setMenu(!menu)} aria-label={identity!=='guest'&&privateAccounts?'Open profile':'Account'} aria-haspopup={identity!=='guest'&&privateAccounts?'dialog':undefined} aria-expanded={identity!=='guest'&&privateAccounts?undefined:menu}>{identity!=='guest'&&privateAccounts?<ProfileAvatar style={avatar} size={30}/>:<UserRound size={15}/>} {name}</button><PointsCounter/>{identity!=='guest'&&privateAccounts&&<SocialBar accountActions={<><SoundtrackButton/><button disabled={busy} onClick={()=>void logout()}><LogOut size={15}/>Sign Out</button>{error&&<p role="alert">{error}</p>}</>}/>}<section hidden={!menu} className="account-menu" aria-label="Account">{identity==='guest'&&<SoundtrackButton/>}{identity==='guest'?<button onClick={()=>{setMenu(false);setLogin(true);}}>Sign in</button>:<>{privateAccounts&&<button onClick={()=>{setMenu(false);window.dispatchEvent(new Event('myspace-open-profile'));}}>Profile</button>}<button disabled={busy} onClick={()=>void logout()}><LogOut size={15}/>Sign Out</button></>}{error&&<p role="alert">{error}</p>}</section></div></ProfileContext.Provider></Soundtrack>;
 }

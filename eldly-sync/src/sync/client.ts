@@ -1,3 +1,4 @@
+import {recordDiagnostic} from '../diagnostics';
 import { authClient, privateAccounts } from "../auth";
 import { accountScope, isGuest } from "../accountScope";
 // Authenticated RPCs derive account ownership on the server.
@@ -21,7 +22,7 @@ export function createPublicClient(url:string|undefined,key:string|undefined) { 
         body:JSON.stringify(privateAccounts?{name,args}:args), signal:controller.signal,
       });
       const data = await response.json();
-      if (!response.ok) throw Error(data.error || data.message || `Cloud request failed (${response.status}).`);
+      if (!response.ok) {recordDiagnostic('cloud',data.reference);throw Error(data.error || data.message || `Cloud request failed (${response.status}).`); }
       return {data:privateAccounts?data.data:data};
     } catch (error) { return {error:{message: error instanceof Error ? error.message : String(error)}}; }
     finally { clearTimeout(timeout); }

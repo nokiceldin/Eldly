@@ -1,0 +1,13 @@
+import {useEffect,useState} from 'react';
+import {accountHomeName} from '../accountScope';
+import OperationsPanel from './OperationsPanel';
+async function request(body?:Record<string,unknown>){
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);
+ try{const r=await fetch('/api/account?action=profile',{method:body?'POST':'GET',credentials:'same-origin',cache:'no-store',signal:controller.signal,...(body?{headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{})});const data=await r.json();if(!r.ok)throw Error(data.error||'Could not update account.');return data;}finally{clearTimeout(timer);}
+}
+export default function ProfileSettings(){
+ const [name,setName]=useState(accountHomeName),[current,setCurrent]=useState(''),[password,setPassword]=useState(''),[confirm,setConfirm]=useState(''),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
+ useEffect(()=>{let alive=true;void request().then(d=>{if(alive)setName(d.user.app_metadata.home_name||accountHomeName());}).catch(()=>{});return()=>{alive=false;};},[]);
+ async function save(body:Record<string,unknown>){if(busy)return;setBusy(true);setMessage('');try{await request(body);if(body.action==='rename')window.location.reload();else{setCurrent('');setPassword('');setConfirm('');setMessage('Password changed.');}}catch(e){setMessage(e instanceof Error?e.message:'Could not save.');}finally{setBusy(false);}}
+ return <details className="profile-settings"><summary>Account settings</summary><form onSubmit={e=>{e.preventDefault();void save({action:'rename',name});}}><label>Home name<input required maxLength={40} value={name} onChange={e=>setName(e.target.value)}/></label><button disabled={busy}>Save name</button></form><details><summary>Change password</summary><form onSubmit={e=>{e.preventDefault();if(password!==confirm){setMessage('New passwords must match.');return;}void save({action:'password',currentPassword:current,newPassword:password});}}><label>Current password<input type="password" autoComplete="current-password" required value={current} onChange={e=>setCurrent(e.target.value)}/></label><label>New password<input type="password" autoComplete="new-password" minLength={8} required value={password} onChange={e=>setPassword(e.target.value)}/></label><label>Confirm new password<input type="password" autoComplete="new-password" minLength={8} required value={confirm} onChange={e=>setConfirm(e.target.value)}/></label><small>Other devices will sign out.</small><button disabled={busy}>Change password</button></form></details>{message&&<p role="status">{message}</p>}<OperationsPanel/></details>;
+}

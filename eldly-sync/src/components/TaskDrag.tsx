@@ -1,3 +1,4 @@
+import {GripVertical} from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { DndContext, DragOverlay, KeyboardSensor, MouseSensor, TouchSensor, closestCenter, pointerWithin, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -32,7 +33,7 @@ export function TaskDropDay({day,tasks,children}:{day:string;tasks:Task[];childr
   return <div ref={setNodeRef} className={`task-drop-day ${isOver?'task-drop-hover':''}`}><SortableContext items={tasks.map(t=>dragId(day,t.id))} strategy={verticalListSortingStrategy}>{children}</SortableContext></div>;
 }
 export function DraggableTask({task,day,tasks,children}:{task:Task;day:string;tasks:Task[];children:ReactNode}) {
-  const {setNodeRef,attributes,listeners,transform,transition,isDragging}=useSortable({id:dragId(day,task.id),data:{task,day,ids:tasks.map(t=>t.id)}});
+  const {setNodeRef,setActivatorNodeRef,attributes,listeners,transform,transition,isDragging}=useSortable({id:dragId(day,task.id),data:{task,day,ids:tasks.map(t=>t.id)}});
   const reduce=useReducedMotion();
-  return <div ref={setNodeRef} {...attributes} {...listeners} className={`task-draggable ${isDragging?'task-is-dragging':''}`} style={{transform:CSS.Transform.toString(transform),transition:reduce?undefined:transition,opacity:isDragging?.25:1}} aria-label={`Move ${task.title}`} onContextMenu={e=>e.preventDefault()}>{children}</div>;
+  return <div ref={setNodeRef} onMouseDown={e=>{if(!(e.target as Element).closest(".task-drag-handle"))listeners?.onMouseDown?.(e);}} onTouchStart={e=>{if(!(e.target as Element).closest(".task-drag-handle"))listeners?.onTouchStart?.(e);}} className={`task-draggable ${isDragging?'task-is-dragging':''}`} style={{transform:CSS.Transform.toString(transform),transition:reduce?undefined:transition,opacity:isDragging?.25:1}} onContextMenu={e=>e.preventDefault()}><button type="button" ref={setActivatorNodeRef} {...attributes} {...listeners} className="task-drag-handle" aria-label={`Move ${task.title}`}><GripVertical size={15}/></button>{children}</div>;
 }

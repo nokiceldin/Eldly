@@ -6,9 +6,9 @@ export type Reward={id:string;title:string;cost:number;archived?:boolean};
 export type RewardPurchase={id:string;rewardId:string;title:string;cost:number;at:string;refunded?:boolean};
 export const validCost=(n:unknown):n is number=>typeof n==='number'&&Number.isSafeInteger(n)&&n>0&&n<=1000000000;
 const title=(s:unknown)=>typeof s==='string'&&s.trim().length>0&&s.length<=100;
-export function validRewards(d:Pick<Data,'rewards'|'rewardPurchases'>){
+export function validRewards(d:Pick<Data,'rewards'|'rewardPurchases'|'mainRewardId'>){
  const rewards=d.rewards??[],purchases=d.rewardPurchases??[];
- return Array.isArray(rewards)&&Array.isArray(purchases)&&new Set(rewards.map(r=>r?.id)).size===rewards.length&&new Set(purchases.map(p=>p?.id)).size===purchases.length&&rewards.every(r=>r&&typeof r.id==='string'&&title(r.title)&&validCost(r.cost)&&(r.archived===undefined||typeof r.archived==='boolean'))&&purchases.every(p=>p&&typeof p.id==='string'&&typeof p.rewardId==='string'&&title(p.title)&&validCost(p.cost)&&typeof p.at==='string'&&Number.isFinite(Date.parse(p.at))&&(p.refunded===undefined||typeof p.refunded==='boolean'));
+ return (d.mainRewardId===undefined||typeof d.mainRewardId==='string')&&Array.isArray(rewards)&&Array.isArray(purchases)&&new Set(rewards.map(r=>r?.id)).size===rewards.length&&new Set(purchases.map(p=>p?.id)).size===purchases.length&&rewards.every(r=>r&&typeof r.id==='string'&&title(r.title)&&validCost(r.cost)&&(r.archived===undefined||typeof r.archived==='boolean'))&&purchases.every(p=>p&&typeof p.id==='string'&&typeof p.rewardId==='string'&&title(p.title)&&validCost(p.cost)&&typeof p.at==='string'&&Number.isFinite(Date.parse(p.at))&&(p.refunded===undefined||typeof p.refunded==='boolean'));
 }
 export function coinHistory(data:Pick<Data,'mapping'|'goalPlans'|'coinBonusPlans'>,today=localDay(),policy:CoinPolicy|null=readCoinPolicy()){
  return ledgerWeeks(data,today,policy);
@@ -31,4 +31,10 @@ export function buyReward(data:Data,id:string,today=localDay()):Data{
 }
 export function undoReward(data:Data,id:string):Data{
  return {...data,rewardPurchases:(data.rewardPurchases||[]).map(p=>p.id===id?{...p,refunded:true}:p)};
+}
+
+export function activeRewards(data:Pick<Data,'rewards'|'rewardPurchases'|'mainRewardId'>){
+ const bought=new Set((data.rewardPurchases||[]).filter(p=>!p.refunded).map(p=>p.rewardId));
+ const active=(data.rewards||[]).filter(r=>!r.archived&&!bought.has(r.id));
+ return [...active.filter(r=>r.id===data.mainRewardId),...active.filter(r=>r.id!==data.mainRewardId)];
 }

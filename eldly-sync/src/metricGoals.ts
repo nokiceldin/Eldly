@@ -1,4 +1,4 @@
-import {monday,localDay,type Data} from './engine';
+import {add,monday,localDay,type Data} from './engine';
 import {GOALS,goalPlan,goalValueLabel} from './goals';
 import {getHabits} from './mapping';
 import {personalGoalAt} from './personalGoals';
@@ -15,4 +15,14 @@ export function metricGoals(data:Data,metric:Metric,range:Range,owner:boolean,to
  if(!habit||!goal)return [];
  const average=habit.kind==='sleep'||habit.kind==='phone';
  return [{id:habit.id,label:average?'Daily goal':'Weekly goal',value:`${goal.maximum?'≤':'≥'} ${humanValue(goal.target,metric,effective.mapping)}${average?'/day':'/week'}`}];
+}
+
+export function metricGoalTimeline(data:Data,metric:Metric,range:Range,owner:boolean,today=localDay()){
+ const through=range.to<today?range.to:today,segments:{from:string;to:string;value:string}[]=[];
+ for(let week=monday(range.from);week<=through;week=add(week,7)){
+  const from=week<range.from?range.from:week,to=add(week,6)<through?add(week,6):through;
+  const value=metricGoals(data,metric,{from,to},owner,today).map(g=>g.value).join(' · ')||'No goal';
+  const last=segments.at(-1);if(last?.value===value)last.to=to;else segments.push({from,to,value});
+ }
+ return segments;
 }

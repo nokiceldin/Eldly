@@ -34,7 +34,7 @@ const builtinType=(id:string)=>[...defaultItems,...sharedItems,...matchItems].fi
 export function packingDefaults(){return isPersonalOwner()?{items:[...defaultItems,{id:'owner-laundry-bag',name:'Laundry bag',categoryId:'clothes'}],categories:defaultCategories}:{items:sharedItems,categories:sharedCategories};}
 // Court essentials for a single match, separate from overnight travel packing.
 export const matchItems: Item[] = [
- ...defaultItems.filter(i => ['tennis-01','tennis-02','tennis-03','tennis-04','tennis-05','tennis-06','tennis-07','tennis-08','tennis-09','tennis-10','tennis-11','tennis-13','tennis-14','tennis-15','tennis-16','tennis-18','health-09','health-10','health-11','travel-04'].includes(i.id)),
+ ...defaultItems.filter(i => ['tennis-01','tennis-02','tennis-03','tennis-04','tennis-05','tennis-06','tennis-07','tennis-08','tennis-09','tennis-10','tennis-11','tennis-13','tennis-14','tennis-15','tennis-16','tennis-18','health-09','health-10','health-11','travel-04'].includes(i.id)).map(i=>i.id==='tennis-01'?{...i,categoryId:'travel'}:i),
  { quantityType:'snacks', id: 'match-snacks', name: 'Match snacks / energy bars', categoryId: 'tennis' },
  { quantityType:'grips', id: 'match-overgrips', name: 'Extra overgrips', categoryId: 'tennis' },
  { id: 'match-phone', name: 'Phone', categoryId: 'tech' },

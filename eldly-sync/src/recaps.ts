@@ -46,8 +46,7 @@ export function buildRecap(data: Data, window: RecapWindow, today = localDay()) 
     const ownerTarget=goalPlan(effective,monday(window.range.to))?.targets;
     const target=personalTarget?.target??((!mapping.habits||data.goalPlans?.length)?(metric==='sleep'?ownerTarget?.sleep??510:metric==='screen-time'?ownerTarget?.['screen-time']??240:undefined):undefined);
     if(recorded){
-      if(red&&value>0)attention.push(`${label}: ${humanValue(value,metric,mapping)}${suffix}`);
-      else if(lower){if(target!==undefined&&value<=target)positives.push(`${label}: ${humanValue(value,metric,mapping)}${suffix}`);}
+      if(lower){if(target!==undefined){(value<=target?positives:attention).push(`${label}: ${humanValue(value,metric,mapping)}${suffix}`);}else if(red&&value>0)attention.push(`${label}: ${humanValue(value,metric,mapping)}${suffix}`);}
       else if(value>0&&(!average||target===undefined||value>=target))positives.push(`${label}: ${humanValue(value,metric,mapping)}${suffix}`);
     }
     // Compare daily averages across unequal periods; only compare totals when
@@ -61,4 +60,13 @@ export function buildRecap(data: Data, window: RecapWindow, today = localDay()) 
   }
   if (completed) positives.unshift(`${completed} ${completed === 1 ? "task" : "tasks"} completed`);
   return { ...window, metrics, positives, attention, completed, totalTasks: tasks.length, days: Math.max(0, diff(window.range.to, from) + 1) };
+}
+
+/** Rebuild a historical recap from current records, including late corrections. */
+export function recapFor(period:RecapPeriod,anchor:string):RecapWindow{
+ const d=parse(anchor),year=d.getFullYear(),month=d.getMonth();
+ const from=period==='week'?monday(anchor):period==='month'?localDay(new Date(year,month,1,12)):`${year}-01-01`;
+ const to=period==='week'?add(from,6):period==='month'?localDay(new Date(year,month+1,0,12)):`${year}-12-31`;
+ const previousFrom=period==='week'?add(from,-7):period==='month'?localDay(new Date(year,month-1,1,12)):`${year-1}-01-01`;
+ return {id:`${period}:${from}`,period,range:{from,to},previous:{from:previousFrom,to:add(from,-1)}};
 }

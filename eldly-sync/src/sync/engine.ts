@@ -78,3 +78,5 @@ export async function synchronize():Promise<number> {
   };
   return navigator.locks ? navigator.locks.request(`eldinos-sync:${accountScope()||'legacy'}`,run) : run();
 }
+
+export function syncSummary(){try{const s=read();return {revision:s.revision,pending:s.pending.length};}catch{return {revision:0,pending:0};}}

@@ -1,4 +1,4 @@
-const CACHE = "myspace-shell-v25-packing-validation-recovery";
+const CACHE = "myspace-shell-v26-personal-recaps-settings";
 const SHELL = [
   "/audio/coin-pickup.wav",
   "/",

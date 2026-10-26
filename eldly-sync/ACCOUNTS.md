@@ -104,3 +104,17 @@ Cloud settings include an immediate Retry sync action; a forced retry during an 
 An existing task’s details include optional Completed on. Changing it updates that occurrence, recap attribution and linked homework; normal check-off still uses the existing completion behavior.
 
 Packing imports, cached packing state and cloud restoration share nested validators for trips, templates, default lists and packing memory. Imports are validated before merging, with a scoped Previous backup retained before saving. Legacy orphaned item references are safely removed without dropping trips or historical feedback. Items retain semantic quantity types across renames and equivalent English/Swedish defaults share rules; saved manual quantities and learned feedback take precedence. The departure clock ticks while visible and refreshes on focus/visibility.
+
+### Remaining audit improvements (19–27)
+
+Packing item names keep a local draft and save on blur/Enter; an empty final value restores the previous name. Match keys use Travel & essentials. Task drag rows have a separate keyboard drag button rather than a button wrapped around other buttons; touch targets and reduced-motion styles are retained.
+
+Authenticated account settings allow editing the private home name and changing a password after verifying the current password. Password changes keep the current device signed in and revoke other sessions; account IDs and saved records are untouched. Forgotten-password recovery remains manual by the user's explicit choice. Do not reset an account by deleting/recreating its user or workspace. Verify identity through the established manual process, then update its password hash and revoke sessions without changing its ID.
+
+Ending a best-friend agreement deliberately retains the approved policy and coin lock until a new accepted best friend submits rules. This is the user's explicit preference; do not automatically restore self-control.
+
+Manual recap viewing includes a period/date picker for all completed weeks, months and years since account creation. Historical stories rebuild from current records. Personal accounts receive a tracker-driven weekly story and optional monthly goal suggestions. Applying a suggestion dates the future target and retains past goals; peer-controlled accounts still require approval. Detailed Data views show target changes across long ranges, grouped phone-time totals are labeled separately from daily averages, and Goals includes a collapsed weekly coin breakdown.
+
+Archived rewards have Restore controls. `mainRewardId` explicitly selects the featured reward and server gift calculation uses that same reward; if it is archived, purchased or missing, the first remaining active reward is the fallback. Purchase receipts remain independent.
+
+Storage & health is authenticated and scoped. It shows live account record/storage counts, pending edits/notifications and browser storage estimates. Aggregate app counts and links to provider usage dashboards are owner-only. Provider billing/quota dashboards remain authoritative; this feature does not claim unlimited free capacity or change plans. Server failure logs contain a random support reference, action and error code, never credentials or stored records. Device diagnostics retain at most 20 scoped category/reference records. Backup verification round-trips both apps without changing live data; recovery is exercised in isolated test storage. The app offers Reload to update when a new service worker activates, preserving saved edits in the scoped cache.

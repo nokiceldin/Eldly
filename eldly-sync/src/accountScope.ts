@@ -11,3 +11,4 @@ export function scopedKey(key:string){return scope===null?key:`eldinos:${scope}:
 export function isGuest(){return scope==='guest';}
 
 export function accountHomeName(){return homeName;}
+export function updateAccountHomeName(name:string){if(name.trim())homeName=name.trim();}

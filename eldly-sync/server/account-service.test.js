@@ -133,3 +133,22 @@ it('buys rewards only for the cookie account, ignores forged prices, and makes r
  const body={action:'buy',rewardId:'r',userId:owner,cost:1,balance:999999};const first=await call('rewards',{cookie,body}),second=await call('rewards',{cookie,body});expect(first.statusCode).toBe(200);expect(first.body.receipt.cost).toBe(10);expect(second.body.receipt.id).toBe(first.body.receipt.id);
  const ownerReceipts=(await db.query('select * from eldinos_account_records where user_id=$1 and record_key like $2',[owner,'%rewardPurchases%'])).rows;expect(ownerReceipts).toHaveLength(0);
 });
+it('edits only the signed-in home name and changes a password without touching account data',async()=>{
+ const created=await call('register',{body:{username:'profile_test',password:'before-password'}}),cookie=created.headers['Set-Cookie'].split(';')[0],id=created.body.user.id;
+ const second=await call('login',{body:{email:'profile_test',password:'before-password'}}),otherCookie=second.headers['Set-Cookie'].split(';')[0];
+ await call('rpc',{cookie,body:{name:'eldinos_account_initialize',args:{records:[{record_key:'[]',value:{node:'object'}},{record_key:'["checkly-data-v1"]',value:{node:'object'}},{record_key:'["checkly-data-v1","private"]',value:{node:'value',value:'keep me'}}]}}});
+ expect((await call('profile',{method:'GET',cookie})).body.user).not.toHaveProperty('password_hash');
+ expect((await call('profile',{cookie,body:{action:'rename',name:'   '}})).statusCode).toBe(400);
+ const renamed=await call('profile',{cookie,body:{action:'rename',name:'My home',userId:owner}});expect(renamed.body.user.id).toBe(id);expect(renamed.body.user.app_metadata.home_name).toBe('My home');
+ expect((await db.query('select app_metadata from myspace_users where id=$1',[owner])).rows[0].app_metadata.home_name).toBeUndefined();
+ expect((await call('profile',{cookie,body:{action:'password',currentPassword:'wrong',newPassword:'after-password'}})).statusCode).toBe(400);
+ expect((await call('profile',{cookie,body:{action:'password',currentPassword:'before-password',newPassword:'after-password'}})).statusCode).toBe(200);
+ expect((await call('session',{method:'GET',cookie})).body.user.id).toBe(id);expect((await call('session',{method:'GET',cookie:otherCookie})).body.user).toBeNull();
+ expect((await call('login',{body:{email:'profile_test',password:'before-password'}})).statusCode).toBe(400);
+ expect((await call('login',{body:{email:'profile_test',password:'after-password'}})).statusCode).toBe(200);
+ const saved=await call('rpc',{cookie,body:{name:'eldinos_account_pull',args:{after_revision:0}}});expect(JSON.stringify(saved.body)).toContain('keep me');
+});
+it('scopes diagnostics to the account and exposes aggregate usage only to the verified owner',async()=>{
+ for(const [username,isOwner] of [['owner',true],['friend',false]]){const login=await call('login',{body:{email:username,password:'testing-password'}}),cookie=login.headers['Set-Cookie'].split(';')[0];const result=await call('diagnostics',{method:'GET',cookie});expect(result.statusCode).toBe(200);expect(result.body.healthy).toBe(true);expect(result.body.records).toBeGreaterThan(0);expect(!!result.body.platform).toBe(isOwner);expect(JSON.stringify(result.body)).not.toContain('password');}
+ expect((await call('diagnostics',{method:'GET'})).statusCode).toBe(401);
+});

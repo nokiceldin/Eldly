@@ -72,6 +72,34 @@ export function createAccountHandler(sql){
    const user=users[0];
    if(action==='session'&&req.method==='GET')return res.status(200).json({user:user?publicUser(user):null});
    if(!user)return res.status(401).json({error:'Please sign in again.'});
+   if(action==='diagnostics'&&req.method==='GET'){
+    await social.ensure();
+    const stats=await sql.query(`select count(*)::int as records,coalesce(sum(octet_length(value::text)),0)::bigint as bytes from eldinos_account_records where user_id=$1 and not deleted`,[user.id]);
+    const queued=await sql.query(`select count(*)::int as pending from myspace_push_outbox o join myspace_notifications n on n.id=o.notification_id where n.recipient=$1 and o.sent_at is null`,[user.id]);
+    const worker=await sql.query('select processed_at from myspace_push_health where id=true');
+    const platform=user.app_metadata?.legacy_owner===true?(await sql.query(`select (select count(*)::int from myspace_users where active) as accounts,count(*)::int as records,coalesce(sum(octet_length(value::text)),0)::bigint as bytes from eldinos_account_records where not deleted`))[0]:null;
+    return res.status(200).json({healthy:true,records:Number(stats[0].records),bytes:Number(stats[0].bytes),pendingNotifications:Number(queued[0].pending),lastWorkerCheck:worker[0]?.processed_at||null,platform});
+   }
+   if(action==='profile'&&req.method==='GET')return res.status(200).json({user:publicUser(user)});
+   if(action==='profile'&&req.method==='POST'){
+    if(body.action==='rename'){
+     const name=typeof body.name==='string'?body.name.trim():'';
+     if(!name||name.length>40)return res.status(400).json({error:'Use a name between 1 and 40 characters.'});
+     const updated=await sql.query("update myspace_users set app_metadata=app_metadata||jsonb_build_object('home_name',$2::text) where id=$1 returning *",[user.id,name]);
+     return res.status(200).json({user:publicUser(updated[0])});
+    }
+    if(body.action==='password'){
+     if(typeof body.currentPassword!=='string'||body.currentPassword.length>200||typeof body.newPassword!=='string'||body.newPassword.length<8||Buffer.byteLength(body.newPassword)>72)return res.status(400).json({error:'Use your current password and a new password of 8–72 bytes.'});
+     const attempts=await sql.query(`insert into myspace_login_attempts(attempt_key) values($1) on conflict(attempt_key) do update set attempts=case when myspace_login_attempts.window_start<now()-interval '15 minutes' then 1 else myspace_login_attempts.attempts+1 end,window_start=case when myspace_login_attempts.window_start<now()-interval '15 minutes' then now() else myspace_login_attempts.window_start end returning attempts`,[hash('password|'+user.id)]);
+     if(attempts[0].attempts>8)return res.status(429).json({error:'Too many attempts. Please wait 15 minutes.'});
+     if(!await compare(body.currentPassword,user.password_hash))return res.status(400).json({error:'Current password is incorrect.'});
+     const nextHash=await hashPassword(body.newPassword,12);
+     const updated=await sql.query(`with changed as (update myspace_users set password_hash=$2 where id=$1 and password_hash=$3 returning id), revoked as (delete from myspace_sessions where user_id in(select id from changed) and token_hash<>$4) select id from changed`,[user.id,nextHash,user.password_hash,tokenHash]);
+     if(!updated.length)return res.status(409).json({error:'Your password changed elsewhere. Sign in again.'});
+     return res.status(200).json({ok:true});
+    }
+    return res.status(400).json({error:'Unknown profile change.'});
+   }
    if(action==='rewards'&&req.method==='POST')return res.status(200).json(await rewards.mutate(user.id,body));
    if(action==='push'&&req.method==='GET')return res.status(200).json(await push.status(user.id,tokenHash));
    if(action==='push'&&req.method==='POST'){
@@ -110,7 +138,9 @@ export function createAccountHandler(sql){
    if(error?.message?.startsWith('SOCIAL:'))return res.status(400).json({error:error.message.slice(8).trim(),code:'social_request'});
    if(action==='register'&&error?.code==='23505')return res.status(409).json({error:'That username is already taken. Please choose another.',code:'username_taken'});
    const invalid=error instanceof SyntaxError||['23514','22P02'].includes(error?.code);
-   return res.status(invalid?400:503).json({error:invalid?'Invalid account data.':'Account service temporarily unavailable. Your saved data has been kept.'});
+   const reference=randomUUID();
+   console.error(JSON.stringify({event:'account_error',reference,action:typeof action==='string'?action.slice(0,30):'unknown',code:typeof error?.code==='string'?error.code.slice(0,10):'unavailable'}));
+   return res.status(invalid?400:503).json({error:invalid?'Invalid account data.':'Account service temporarily unavailable. Your saved data has been kept.',reference});
   }
  };
 }

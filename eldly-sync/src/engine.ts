@@ -46,6 +46,7 @@ export interface Routine {
 }
 export interface Data {
   coinBonusPlans?: import('./coinBonuses').CoinBonusPlan[];
+  mainRewardId?:string;
   rewards?: import('./rewards').Reward[];
   rewardPurchases?: import('./rewards').RewardPurchase[];
   recapSeen?: Record<string, true>;

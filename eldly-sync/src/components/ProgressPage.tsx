@@ -1,4 +1,5 @@
-import {metricGoals} from '../metricGoals';
+import CoinHistoryPanel from './CoinHistoryPanel';
+import {metricGoalTimeline,metricGoals} from '../metricGoals';
 import PersonalGoalsPanel from "./PersonalGoalsPanel";
 import { isPersonalOwner } from "../accountScope";
 import { TRACKING_START } from "../tracking";
@@ -45,6 +46,7 @@ export default function ProgressPage({ onHome }: { onHome: () => void }) {
   const loggedDays = Object.entries(data.entries).filter(([date, row]) => date >= range.from && date <= range.to && metrics.some(id => row[id])).length;
   const rangeLabel = `${format(range.from, { month: "short", day: "numeric", year: "numeric" })} – ${format(range.to, { month: "short", day: "numeric", year: "numeric" })}`;
   const details = data.entries[day];
+  const timeline=metric?metricGoalTimeline({...load(),mapping:data},metric,range,isPersonalOwner(),today):[];
   const targets=metric?metricGoals({...load(),mapping:data},metric,range,isPersonalOwner(),today):[];
   return <main className="progress-page">
     <button className="eldly-back" onClick={() => metric || goalsOpen ? back() : onHome()}><ChevronLeft size={20} /> {metric || goalsOpen ? "Data" : "Home"}</button>
@@ -69,12 +71,14 @@ export default function ProgressPage({ onHome }: { onHome: () => void }) {
       {period === "custom" && <div className="progress-custom"><label>From<input ref={customFrom} type="date" min={mappingStart(data)} max="9999-12-31" value={custom.from} onInput={e => {const value=e.currentTarget.value;setCustom(old => ({ ...old, from: value }));}} onChange={e => setCustom(old => ({ ...old, from: e.target.value }))} /></label><label>To<input ref={customTo} type="date" min={mappingStart(data)} max="9999-12-31" value={custom.to} onInput={e => {const value=e.currentTarget.value;setCustom(old => ({ ...old, to: value }));}} onChange={e => setCustom(old => ({ ...old, to: e.target.value }))} /></label></div>}
       <button className="progress-filter-done" onClick={() => {if(period==="custom")setCustom({from:customFrom.current?.value||custom.from,to:customTo.current?.value||custom.to});setFiltersOpen(false);}}>Done</button>
     </section>}
+    {validRange&&goalsOpen&&<CoinHistoryPanel data={load()} range={range}/>}
     {validRange && goalsOpen && (isPersonalOwner() ? <GoalsPanel range={range} mapping={data} expanded /> : <PersonalGoalsPanel range={range} mapping={data}/>)}
     {validRange && !goalsOpen ? <>
       {!metrics.length&&<p className="personal-empty">Add a tracker in Track to see your personal graphs here.</p>}
       <div className="progress-charts">{(metric ? [metric] : metrics).map(id => <MetricCard key={`${id}:${range.from}:${range.to}`} metric={id} data={data} range={range} onOpen={metric ? undefined : () => openMetric(id)} onSelectDay={date => {setDay(date); if(isCountMetric(id,data))save(date,id,data.entries[date]?.[id]?undefined:{kind:"check"});else setEditor(getHabits(data).find(h=>h.id===id)!);}} />)}</div>
       {metric && <>
-        <div className="progress-highlights metric-detail-stats"><div><span>Total</span><strong>{humanValue(stats[metric].total,metric,data)}</strong></div><div><span>{isCountMetric(metric,data)?"Days tracked":"Daily average"}</span><strong>{isCountMetric(metric,data)?stats[metric].total:stats[metric].average===null?"—":humanValue(stats[metric].average!,metric,data)}</strong></div>{targets.length?<div className="metric-goal-stat"><span>{targets[0].label}</span>{targets.map(g=><strong key={g.id}>{g.value}</strong>)}</div>:<div className="metric-goal-stat"><span>Goal</span><strong className="metric-no-goal">Not set</strong></div>}</div>
+        <div className="progress-highlights metric-detail-stats"><div><span>Total</span><strong>{humanValue(stats[metric].total,metric,data)}</strong></div><div><span>{isCountMetric(metric,data)?"Days tracked":"Daily average"}</span><strong>{isCountMetric(metric,data)?stats[metric].total:stats[metric].average===null?"—":humanValue(stats[metric].average!,metric,data)}</strong></div>{targets.length?<div className="metric-goal-stat"><span>{timeline.length>1?'Goal at range end':targets[0].label}</span>{targets.map(g=><strong key={g.id}>{g.value}</strong>)}</div>:<div className="metric-goal-stat"><span>Goal</span><strong className="metric-no-goal">Not set</strong></div>}</div>
+        {timeline.length>1&&<details className="metric-target-history"><summary>Goal changes</summary>{timeline.map(s=><div key={s.from}><span>{format(s.from,{month:'short',day:'numeric'})} – {format(s.to,{month:'short',day:'numeric',year:'numeric'})}</span><strong>{s.value}</strong></div>)}</details>}
         <section className="metric-history"><h2>Daily history</h2>{metricValues(data,metric,range).slice().reverse().slice(0,historyLimit).map(row => <button key={row.date} onClick={() => {setDay(row.date); const habit=getHabits(data).find(h=>h.id===metric)!; if(isCountMetric(metric,data))save(row.date,metric,data.entries[row.date]?.[metric]?undefined:{kind:"check"});else setEditor(habit);}}><span>{format(row.date,{weekday:"short",month:"short",day:"numeric"})}</span><strong>{data.entries[row.date]?.[metric] ? entryDescription(data.entries[row.date][metric]!,getHabits(data).find(h=>h.id===metric)) : humanValue(0,metric,data)}</strong><Plus size={14}/></button>)}{metricValues(data,metric,range).length>historyLimit&&<button className="metric-load-more" onClick={()=>setHistoryLimit(n=>n+62)}>More dates</button>}</section>
       </>}
     </> : !validRange && <p role="alert" className="mapping-error">The start date must be on or before the end date.</p>}
@@ -107,15 +111,15 @@ function MetricCard({ metric, data, range, onSelectDay, onOpen }: { metric: Metr
     {onOpen && <button className="metric-open-button" aria-label={`Open ${metricLabel(metric,data)} data`} onClick={onOpen} />}
     <div className="metric-card-heading metric-heading-minimal">
       <h2 id={`metric-${metric}`}>{metricLabel(metric,data)}</h2>
-      <div className="metric-value"><strong>{stats.days && primary !== null ? humanValue(primary, metric,data) : "—"}</strong>{isAverage && <span>avg</span>}
+      <div className="metric-value"><strong>{stats.days && primary !== null ? humanValue(primary, metric,data) : "—"}</strong>{isAverage && <span>daily avg</span>}
 
       </div>
     </div>
-    <div className="metric-chart" inert={!!onOpen}><svg viewBox="0 0 390 160" role="group" aria-label={`${metricLabel(metric,data)} chart, ${group === "day" ? "daily values" : metric === "sleep" ? `${group}ly averages` : `${group} totals`}`}>
+    <div className="metric-chart" inert={!!onOpen}><svg viewBox="0 0 390 160" role="group" aria-label={`${metricLabel(metric,data)} chart, ${group === "day" ? "daily values" : isSleep ? `${group}ly averages` : `${group} totals`}`}>
       {[0, .5, 1].map(f => <g key={f}><line x1={left} x2={left + width} y1={top + height * (1 - f)} y2={top + height * (1 - f)} stroke="#ffffff12" /><text x={left - 7} y={top + height * (1 - f) + 3} textAnchor="end" fill="#858b81" fontSize={9}>{Number((ceiling * f).toFixed(1))}{getHabits(data).find(h=>h.id===metric)?.kind === "prayer" || isCountMetric(metric,data) ? "" : "h"}</text></g>)}
       {bins.map((b, i) => {
         const x = left + i * step, w = Math.max(2, step * .64), yScale = height / (ceiling * scale), primaryH = (b.value || 0) * yScale, secondaryH = b.secondary * yScale;
-        const tooltip = `${b.label}: ${b.value === null ? "Not recorded" : humanValue(b.value + b.secondary, metric,data)}${b.days > 1 && metric === "sleep" ? " average" : ""}`;
+        const tooltip = `${b.label}: ${b.value === null ? "Not recorded" : humanValue(b.value + b.secondary, metric,data)}${b.days > 1 && isSleep ? " average" : ""}`;
         return <g key={b.from}>
           {b.value !== null && <g role="button" tabIndex={0} aria-label={`${tooltip}. View day.`} onFocus={() => setActive(i)} onMouseEnter={() => setActive(i)} onClick={() => { setActive(i); onSelectDay(b.exampleDate || b.from); }} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setActive(i); onSelectDay(b.exampleDate || b.from); } }}>
             <title>{tooltip}</title><rect x={x} y={top} width={step} height={height} fill="transparent" />
@@ -135,9 +139,9 @@ function MetricCard({ metric, data, range, onSelectDay, onOpen }: { metric: Metr
         </g>)}
       </>}
     </svg>{!stats.days && !pickupStats?.days && <span className="metric-empty">No entries</span>}</div>
-    {isPhone && <div className="metric-legend phone-use-legend"><span><i style={{ background: color }} />Screen time</span><span><i style={{ background: "#9fd5bd", borderRadius: "50%" }} />Pickups{pickupStats?.average !== null && pickupStats?.average !== undefined ? ` · ${Math.round(pickupStats.average)} avg` : ""}</span></div>}
+    {isPhone && <div className="metric-legend phone-use-legend"><span><i style={{ background: color }} />Screen time{group!=="day"?` · ${group==='week'?'weekly':group==='month'?'monthly':'yearly'} totals`:""}</span><span><i style={{ background: "#9fd5bd", borderRadius: "50%" }} />Pickups{pickupStats?.average !== null && pickupStats?.average !== undefined ? ` · ${Math.round(pickupStats.average)} avg` : ""}</span></div>}
     {isSleep && <div className="metric-legend"><span><i style={{ background: COLORS.sleep }} />Night</span><span><i style={{ background: "#c5edb9" }} />Daytime</span></div>}
-    {selected && (selected.value !== null || selectedPickups?.value !== null && selectedPickups?.value !== undefined) && <div className="metric-foot">{selected.label} · {selected.value !== null ? humanValue(selected.value + selected.secondary, metric,data) : "—"}{selectedPickups?.value !== null && selectedPickups?.value !== undefined ? ` · ${selectedPickups.value} pickups` : ""}{metric === "sleep" && selected.days > 1 ? " avg" : ""}</div>}
+    {selected && (selected.value !== null || selectedPickups?.value !== null && selectedPickups?.value !== undefined) && <div className="metric-foot">{selected.label} · {selected.value !== null ? humanValue(selected.value + selected.secondary, metric,data) : "—"}{selectedPickups?.value !== null && selectedPickups?.value !== undefined ? ` · ${selectedPickups.value} pickups` : ""}{isSleep && selected.days > 1 ? " avg" : ""}</div>}
 
 
   </article>;
