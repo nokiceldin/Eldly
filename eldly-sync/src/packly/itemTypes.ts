@@ -1,0 +1,4 @@
+export type QuantityType='underwear'|'socks'|'shirt'|'shorts'|'layer'|'rackets'|'water'|'snacks'|'grips'|'single';
+// Labels are used only to classify legacy/custom items once. Saved types survive renames.
+const names:Record<string,QuantityType>={kallingar:'underwear',underwear:'underwear','vanliga strumpor':'socks','tennis strumpor':'socks','regular socks':'socks','tennis socks':'socks',tshirt:'shirt','t-shirt':'shirt','t-shirts':'shirt','tennis t-shirts':'shirt',shorts:'shorts','tennis shorts':'shorts',jeans:'layer',mjukisbyxor:'layer',sweatpants:'layer',hoodie:'layer','tröja':'layer',sweater:'layer',skjorta:'layer',shirt:'layer',rack:'rackets','tennis rackets':'rackets',vattenflaska:'water','water bottle':'water','match snacks / energy bars':'snacks','extra overgrips':'grips'};
+export const quantityType=(name:string):QuantityType=>names[name.trim().toLowerCase()]||'single';

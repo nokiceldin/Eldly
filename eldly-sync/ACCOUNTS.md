@@ -96,3 +96,11 @@ Each opted-in account gets a delayed queue message for the next 21:00 in its sto
 New trackers store `startedOn`; preceding days are excluded from averages. Legacy trackers without a date retain the account start. Track cells reject new entries before the tracker/account start or after the device’s current day. Existing imported history is retained. Personal goal displays resolve the selected week, including removed or archived historical goals.
 
 Private auth caches only a sanitized, last-verified device identity for up to 30 days, never passwords or bearer tokens. A connection failure can reopen that account’s existing scoped cache; a definitive expired/revoked session cannot. Reconnection rechecks offline sessions before sync. Offline sign-out immediately removes cached identity and keeps a device lock until the old server cookie is revoked. A device still needs one successful online sign-in/download first. Online/focus wakes reset sync backoff.
+
+### Recovery, refresh and packing validation
+
+Cloud settings include an immediate Retry sync action; a forced retry during an active request runs after that request finishes. Online/focus wakes bypass backoff, and the first interaction after idle refreshes cloud and friend data. Opening a profile refreshes both; concurrent social reads share one request for the same account scope.
+
+An existing task’s details include optional Completed on. Changing it updates that occurrence, recap attribution and linked homework; normal check-off still uses the existing completion behavior.
+
+Packing imports, cached packing state and cloud restoration share nested validators for trips, templates, default lists and packing memory. Imports are validated before merging, with a scoped Previous backup retained before saving. Legacy orphaned item references are safely removed without dropping trips or historical feedback. Items retain semantic quantity types across renames and equivalent English/Swedish defaults share rules; saved manual quantities and learned feedback take precedence. The departure clock ticks while visible and refreshes on focus/visibility.

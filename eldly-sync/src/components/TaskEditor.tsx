@@ -13,6 +13,7 @@ import {
   type Task,
   type Routine,
   parse,
+  localDay,
   uid,
   parseWeeklyTitle,
   parseSchoolWeeks,
@@ -57,6 +58,7 @@ export default function Editor({
     editor.task?.scheduled || editor.routine?.start || editor.date,
   );
   const [due, setDue] = useState(editor.task?.due || "");
+  const [completedOn,setCompletedOn]=useState(editor.task?.completed||"");
   const [notes, setNotes] = useState(source?.notes || "");
   const [carry, setCarry] = useState(source?.carry ?? true);
   const [important, setImportant] = useState(source?.important || false);
@@ -166,7 +168,7 @@ export default function Editor({
                 carry,
                 important,
                 deadline: type === "deadline",
-                completed: t?.completed,
+                completed: completedOn||undefined,
                 routineId: t?.routineId,
                 order: t?.order ?? Date.now(),
                 sample: t?.sample,
@@ -338,6 +340,7 @@ export default function Editor({
                   </select>
                 </label>
               )}
+              {editor.task&&<label>Completed on<input type="date" max={localDay()} value={completedOn} onChange={e=>setCompletedOn(e.target.value)}/></label>}
               <label>
                 Notes
                 <textarea

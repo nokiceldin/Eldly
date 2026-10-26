@@ -1,4 +1,4 @@
-const CACHE = "myspace-shell-v24-dated-rules-offline";
+const CACHE = "myspace-shell-v25-packing-validation-recovery";
 const SHELL = [
   "/audio/coin-pickup.wav",
   "/",

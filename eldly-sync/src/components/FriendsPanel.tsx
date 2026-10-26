@@ -24,7 +24,7 @@ export default function FriendsPanel({initial,initialTab,initialError,close,acco
  const [editingAvatar,setEditingAvatar]=useState(false);
  const [confirm,setConfirm]=useState<{body:Record<string,unknown>;title:string;description:string}|null>(null);
  const dialog=useRef<HTMLDialogElement>(null),alive=useRef(true);
- useEffect(()=>{alive.current=true;const prior=document.activeElement as HTMLElement;dialog.current?.showModal();const receive=(e:Event)=>setState((e as CustomEvent<SocialState>).detail);window.addEventListener(SOCIAL_EVENT,receive);void socialRequest().catch(e=>{if(alive.current)setError(e.message);});return()=>{alive.current=false;window.removeEventListener(SOCIAL_EVENT,receive);prior?.focus({preventScroll:true});};},[]);
+ useEffect(()=>{alive.current=true;window.dispatchEvent(new Event('myspace-sync-now'));const prior=document.activeElement as HTMLElement;dialog.current?.showModal();const receive=(e:Event)=>{setState((e as CustomEvent<SocialState>).detail);setError('');};window.addEventListener(SOCIAL_EVENT,receive);void socialRequest().catch(e=>{if(alive.current)setError(e.message);});return()=>{alive.current=false;window.removeEventListener(SOCIAL_EVENT,receive);prior?.focus({preventScroll:true});};},[]);
  const unreadIds=state?.notifications.filter(n=>!n.read).map(n=>n.id).sort().join(',')||'';
  const lastReadAttempt=useRef('');
  useEffect(()=>{
