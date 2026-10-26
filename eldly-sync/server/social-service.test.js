@@ -140,3 +140,10 @@ it('preserves a negative best-friend rate in saved policy, editor and change not
  expect((await dash(b)).bestFriendRules.config.habits[0].xp.amount).toBe(-100);
  expect((await dash(a)).notifications.find(n=>n.kind==='rules_changed').ruleChanges.join(' ')).toContain('-100 coins');
 });
+it('omits untouched tracker rules when submitting only a bonus change',async()=>{
+ await pair();const rules=(await dash(b)).bestFriendRules;
+ await act(b,'set_friend_rules',{userId:a,version:rules.version,adjustments:Object.fromEntries(rules.config.habits.map(h=>[h.id,{...h.xp,weeklyCap:h.xp.weeklyCap??null,dailyCountCap:h.xp.dailyCountCap??null,threshold:h.xp.threshold??null,secondary:h.xp.secondary??null}])),bonuses:{goal:9,record:20}});
+ expect((await dash(a)).notifications.find(n=>n.kind==='rules_changed').ruleChanges).toEqual(['Coins per weekly goal: 3 → 9']);
+ const next=(await dash(b)).bestFriendRules;
+ await expect(act(b,'set_friend_rules',{userId:a,version:next.version,adjustments:Object.fromEntries(next.config.habits.map(h=>[h.id,{...h.xp}]))})).rejects.toThrow('No coin rules changed');
+});
