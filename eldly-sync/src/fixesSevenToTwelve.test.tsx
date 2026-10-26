@@ -48,3 +48,9 @@ it('counts missing days only after a new tracker begins and preserves legacy tra
  expect(canTrack(d,'run','2026-10-26','2026-10-28')).toBe(true);
  d.habits=[h];expect(metricStats(d,'run',{from:'2026-10-19',to:'2026-10-28'}).days).toBe(10);
 });
+
+it('shows a newly added tracker’s current goal during its first partial week',()=>{
+ setAccountScope('guest');vi.useFakeTimers();vi.setSystemTime(new Date('2026-10-28T12:00:00'));
+ const mapping={...data().mapping,habits:[{...h,startedOn:'2026-10-27',goal:{...h.goal,from:'2026-10-26'}}]};
+ expect(renderToStaticMarkup(<PersonalGoalsPanel mapping={mapping} range={{from:'2026-10-26',to:'2026-11-01'}}/>)).toContain('Run');
+});
