@@ -88,3 +88,8 @@ self.addEventListener('notificationclick',event=>{
   if(tab){await tab.focus();tab.postMessage({type:'myspace-open-inbox'});}else await self.clients.openWindow('/?inbox=1');
  })());
 });
+
+self.addEventListener('message',event=>{
+ if(event.data?.type!=='myspace-shell-version'||!event.ports?.[0])return;
+ event.waitUntil((async()=>{try{const cache=await caches.open(CACHE),document=await cache.match('/index.html');const html=await document?.text();const asset=html?.match(/<script\b[^>]*\bsrc=["']([^"']+)["']/i)?.[1];event.ports[0].postMessage({asset});}catch{event.ports[0].postMessage({asset:null});}})());
+});
