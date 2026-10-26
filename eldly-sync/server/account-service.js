@@ -139,7 +139,7 @@ export function createAccountHandler(sql){
    if(action==='register'&&error?.code==='23505')return res.status(409).json({error:'That username is already taken. Please choose another.',code:'username_taken'});
    const invalid=error instanceof SyntaxError||['23514','22P02'].includes(error?.code);
    const reference=randomUUID();
-   console.error(JSON.stringify({event:'account_error',reference,action:typeof action==='string'?action.slice(0,30):'unknown',code:typeof error?.code==='string'?error.code.slice(0,10):'unavailable'}));
+   console.error(JSON.stringify({event:'account_error',reference,action:['register','login','profile','rpc','social','push','diagnostics','health','session','logout','rewards'].includes(action)?action:'unknown',code:typeof error?.code==='string'?error.code.slice(0,10):'unavailable'}));
    return res.status(invalid?400:503).json({error:invalid?'Invalid account data.':'Account service temporarily unavailable. Your saved data has been kept.',reference});
   }
  };
