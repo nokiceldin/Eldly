@@ -95,6 +95,8 @@ begin
    insert into myspace_notifications(id,recipient,actor,kind,source_key,milestone) select gen_random_uuid(),case when f.a=actor then f.b else f.a end,actor,'streak','streak:'||actor||':'||day||':'||n,n from myspace_friends f where actor in(f.a,f.b) and f.status='accepted' on conflict(recipient,source_key) do nothing;
   end if;
  elsif action='goal_events' then
+  insert into myspace_notifications(id,recipient,actor,kind,source_key,rule_changes)
+  select gen_random_uuid(),actor,actor,'goal_self','own-goal:'||e.key,jsonb_build_array(e.value) from jsonb_each_text(coalesce(p->'ownGoals','{}'::jsonb)) e on conflict(recipient,source_key) do nothing;
   insert into myspace_notifications(id,recipient,actor,kind,source_key)
   select gen_random_uuid(),case when f.a=actor then f.b else f.a end,actor,'goal','goal:'||actor||':'||e from jsonb_array_elements_text(p->'events') e cross join myspace_friends f where actor in(f.a,f.b) and f.status='accepted' on conflict(recipient,source_key) do nothing;
  elsif action='celebrate' then

@@ -147,3 +147,15 @@ it('omits untouched tracker rules when submitting only a bonus change',async()=>
  const next=(await dash(b)).bestFriendRules;
  await expect(act(b,'set_friend_rules',{userId:a,version:next.version,adjustments:Object.fromEntries(next.config.habits.map(h=>[h.id,{...h.xp}]))})).rejects.toThrow('No coin rules changed');
 });
+it('notifies the owner of a named goal privately once per week without sending push or allowing self gifts',async()=>{
+ await act(a,'visit',{timezone:'America/Chicago'});
+ const d={...empty(),mapping:{version:1,startedOn:'2026-10-19',habits:[{id:'reading',label:'Private reading',kind:'check',color:'blue',xp:{amount:3,basis:'entry'},goal:{target:1,maximum:false,from:'2026-10-19'}}],entries:{'2026-10-23':{reading:{kind:'check'}}}}};
+ await save(a,d);await service.milestones(a);await service.milestones(a);
+ const own=(await dash(a)).notifications.filter(n=>n.kind==='goal_self');expect(own).toHaveLength(1);expect(own[0]).toMatchObject({read:false,ruleChanges:['Private reading']});
+ expect((await db.query('select * from myspace_push_outbox where notification_id=$1',[own[0].id])).rows).toHaveLength(0);
+ await expect(act(a,'celebrate',{id:own[0].id,withCoins:true})).rejects.toThrow();
+ await act(a,'notifications_read');expect((await dash(a)).notifications.find(n=>n.id===own[0].id).read).toBe(true);
+ await friends();expect(JSON.stringify((await dash(b)).notifications)).not.toContain('Private reading');
+ now=new Date('2026-10-26T16:00:00Z');d.mapping.entries['2026-10-26']={reading:{kind:'check'}};await save(a,d);
+ expect((await dash(a)).notifications.filter(n=>n.kind==='goal_self')).toHaveLength(2);
+});

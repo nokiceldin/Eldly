@@ -4,7 +4,7 @@ import {trackingStreak} from '../shared/streak.js';
 import {avatarPreset} from '../shared/avatar-options.js';
 import {readFileSync} from 'node:fs';
 import {randomUUID,createHash} from 'node:crypto';
-import {coinConfig,reviewConfig,inflateRecords,achievedGoals} from './coin-config.js';
+import {coinConfig,reviewConfig,inflateRecords,achievedGoals,legacyGoals,defaults} from './coin-config.js';
 const schema=readFileSync(new URL('./social-schema.sql',import.meta.url),'utf8');
 const pushSchema=readFileSync(new URL('./push-schema.sql',import.meta.url),'utf8');
 const actions=readFileSync(new URL('./social-actions.sql',import.meta.url),'utf8');
@@ -33,8 +33,8 @@ export function createSocialService(sql,{now=()=>new Date()}={}){
   await run(id,'track_streak',{...trackingStreak(data.mapping,day),day});
   const previous=addDay(from,-7);
   const events=[...achievedGoals(data,from,day).map(goal=>`${from}:${goal}`),...(data.mapping&&(data.mapping.startedOn||'2026-10-15')<=previous?achievedGoals(data,previous,addDay(from,-1),true).map(goal=>`${previous}:${goal}`):[])];
-  // No activity, goal name, target or value leaves this server-side calculation.
-  if(events.length)await run(id,'goal_events',{events});
+  // Friends receive only generic milestones. Goal names stay in the owner’s private inbox.
+  if(events.length){const ownGoals=Object.fromEntries(events.map(event=>{const goal=event.slice(11),legacy=legacyGoals.find(g=>g[0]===goal);return [event,data.mapping?.habits?.find(h=>h.id===goal)?.label||(legacy?defaults.find(d=>d[0]===legacy[1])?.[1]||'Weekly goal':'Weekly goal')];}));await run(id,'goal_events',{events,ownGoals});}
  }
  async function gifts(id){await ensure();return Number((await sql.query('select coalesce(sum(amount),0) as total from myspace_celebration_coins where recipient=$1',[id]))[0]?.total||0);}
  async function giftWeek(id){const profile=(await sql.query('select timezone from myspace_profiles where user_id=$1',[id]))[0];return monday(dayAt(profile?.timezone||'UTC',now()));}
@@ -125,6 +125,7 @@ export function createSocialService(sql,{now=()=>new Date()}={}){
     p.week=await giftWeek(user.id);
    }
   }
+  if(action==='notifications_read')await milestones(user.id);
   await run(user.id,action,p);
   return dashboard(user);
  }
