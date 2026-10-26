@@ -1,3 +1,4 @@
+import {trackedEntry} from '../shared/streak.js';
 import {ECDH,randomUUID} from 'node:crypto';
 import webPush from 'web-push';
 import {QueueClient} from '@vercel/queue';
@@ -81,8 +82,8 @@ export function createPushService(sql,{ensure,now=()=>new Date(),publicKey=proce
   const today=dayAt(p.timezone,now()),dueDay=dayAt(p.timezone,new Date(row.scheduled_for));
   if(today===dueDay&&new Date(row.scheduled_for)>new Date(now().getTime()-3600000)){
    const records=await sql.query('select record_key,value,deleted from eldinos_account_records where user_id=$1',[message.userId]);const data=inflateRecords(records)['checkly-data-v1'];
-   const tracked=Object.keys(data?.mapping?.entries?.[today]||{}).length>0;
-   if(p.last_visit!==today||!tracked)await sql.query(`insert into myspace_notifications(id,recipient,actor,kind,source_key) values($1,$2,$2,'reminder',$3) on conflict(recipient,source_key) do nothing`,[randomUUID(),message.userId,`reminder:${today}`]);
+   const tracked=Object.values(data?.mapping?.entries?.[today]||{}).some(trackedEntry);
+   if(!tracked)await sql.query(`insert into myspace_notifications(id,recipient,actor,kind,source_key) values($1,$2,$2,'reminder',$3) on conflict(recipient,source_key) do nothing`,[randomUUID(),message.userId,`reminder:${today}`]);
   }
   await publishPending();await schedule(message.userId,row.generation);
  }

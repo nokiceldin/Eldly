@@ -1,3 +1,4 @@
+import {validDefaultLists} from '../packly/data';
 import { scopedKey } from "../accountScope";
 import { validate } from '../storage';
 export const LOCAL_EVENT = 'eldly-local-save';
@@ -19,6 +20,7 @@ export function validateSnapshot(value: unknown): value is Snapshot {
   if (Object.keys(s).some(k => !KEYS.includes(k as typeof KEYS[number]))) return false;
   if (s[KEYS[0]] !== undefined && !validate(s[KEYS[0]])) return false;
   const p = s[KEYS[1]] as any;
+  if(p&&!validDefaultLists(p.defaultLists))return false;
   return p === undefined || (!!p && typeof p === 'object' && Array.isArray(p.trips) && p.trips.length > 0 && typeof p.activeId === 'string' && p.trips.every((t: any) => t && typeof t.id === 'string' && typeof t.name === 'string' && Array.isArray(t.items) && Array.isArray(t.categories) && Array.isArray(t.queue) && t.statuses && typeof t.statuses === 'object' && typeof t.position === 'number'));
 }
 export function restore(s: Snapshot) {

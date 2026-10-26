@@ -77,10 +77,12 @@ begin
   if not found then raise exception 'SOCIAL: Open your profile and try again.';end if;
  elsif action='visit' then
   day:=(p->>'day')::date;
-  insert into myspace_profiles(user_id,timezone,last_visit,streak,longest) values(actor,p->>'timezone',day,1,1)
-  on conflict(user_id) do update set timezone=case when myspace_profiles.last_visit is null then excluded.timezone else myspace_profiles.timezone end,streak=case when myspace_profiles.last_visit=day-1 then myspace_profiles.streak+1 else 1 end,longest=greatest(myspace_profiles.longest,case when myspace_profiles.last_visit=day-1 then myspace_profiles.streak+1 else 1 end),last_visit=day where myspace_profiles.last_visit is null or myspace_profiles.last_visit<day;
-  select streak into n from myspace_profiles where user_id=actor;
-  if n in(7,25,50,100,200,365,500,1000) or (n>1000 and n%100=0) then
+  insert into myspace_profiles(user_id,timezone,timezone_locked) values(actor,p->>'timezone',true) on conflict(user_id) do update set timezone=case when myspace_profiles.timezone_locked then myspace_profiles.timezone else excluded.timezone end,timezone_locked=true;
+ elsif action='track_streak' then
+  day:=(p->>'day')::date;
+  update myspace_profiles set last_visit=(p->>'lastTracked')::date,streak=(p->>'streak')::integer,longest=(p->>'longest')::integer where user_id=actor;
+  n:=(p->>'streak')::integer;
+  if (p->>'trackedToday')::boolean and (n in(7,25,50,100,200,365,500,1000) or (n>1000 and n%100=0)) then
    insert into myspace_notifications(id,recipient,actor,kind,source_key,milestone) select gen_random_uuid(),case when f.a=actor then f.b else f.a end,actor,'streak','streak:'||actor||':'||day||':'||n,n from myspace_friends f where actor in(f.a,f.b) and f.status='accepted' on conflict(recipient,source_key) do nothing;
   end if;
  elsif action='goal_events' then
@@ -91,8 +93,13 @@ begin
   if notification.id is null then raise exception 'SOCIAL: This milestone was already celebrated or is unavailable.';end if;
   other:=notification.actor;
   if not exists(select 1 from myspace_friends where a=least(actor,other) and b=greatest(actor,other) and status='accepted') then raise exception 'SOCIAL: Only current friends can celebrate.';end if;
+  if p ? 'giftAmount' then
+   if notification.kind<>'goal' then raise exception 'SOCIAL: Coin gifts are for goal achievements.';end if;
+   if exists(select 1 from myspace_celebration_coins where sender=actor and week=(p->>'week')::date) then raise exception 'SOCIAL: You already sent your coin gift this week. Send congratulations instead.';end if;
+   insert into myspace_celebration_coins(notification_id,sender,recipient,week,amount) values(notification.id,actor,other,(p->>'week')::date,(p->>'giftAmount')::numeric);
+  end if;
   update myspace_notifications set celebrated=true,read_at=coalesce(read_at,now()) where id=notification.id;
-  insert into myspace_notifications(id,recipient,actor,kind,source_key,milestone) values((p->>'newId')::uuid,other,actor,'celebration','celebration:'||notification.id,notification.milestone) on conflict(recipient,source_key) do nothing;
+  insert into myspace_notifications(id,recipient,actor,kind,source_key,milestone,gift_amount) values((p->>'newId')::uuid,other,actor,'celebration','celebration:'||notification.id,notification.milestone,coalesce((p->>'giftAmount')::numeric,0)) on conflict(recipient,source_key) do nothing;
  elsif action='notifications_read' then
   update myspace_notifications set read_at=now() where recipient=actor and read_at is null;
  else raise exception 'SOCIAL: Unknown action.';

@@ -27,3 +27,6 @@ export function coinDataForWeek<T extends Pick<Data,'mapping'|'goalPlans'|'coinB
  const config=configForWeek(policy,week);if(!config)return data;
  return {...data,mapping:{...(data.mapping||{version:1 as const,entries:{}}),habits:config.habits},goalPlans:config.goalPlans,coinBonusPlans:config.coinBonusPlans};
 }
+
+export function giftBalance(){if(!accountScope()||isGuest()||typeof localStorage==='undefined')return 0;try{const value=Number(localStorage.getItem(scopedKey('celebration-coins-v1'))||0);return Number.isFinite(value)&&value>=0?value:0;}catch{return 0;}}
+export function cacheGiftBalance(value:number){if(!accountScope()||isGuest()||!Number.isFinite(value)||value<0)return;const key=scopedKey('celebration-coins-v1'),next=String(value);if(localStorage.getItem(key)===next)return;localStorage.setItem(key,next);if(typeof window!=='undefined')window.dispatchEvent(new Event(COIN_CONTROL_EVENT));}

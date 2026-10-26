@@ -60,4 +60,4 @@ export function pointsStats(mapping:MappingData=emptyMapping(),today=localDay())
  const weeks=pointsHistory(mapping,today),completed=weeks.filter(w=>!w.current&&!w.partial);
  return {weeks,total:weeks.reduce((n,w)=>n+w.total,0),current:weeks.find(w=>w.current)?.total||0,average:completed.length?completed.reduce((n,w)=>n+w.total,0)/completed.length:null,best:completed.length?completed.reduce((a,b)=>b.total>a.total?b:a):null};
 }
-export const formatPoints=(n:number)=>Number.isInteger(n)?String(n):String(Math.round(n*10)/10);
+export const formatPoints=(n:number)=>Number.isInteger(n)?String(n):String(Math.round(n*100)/100);

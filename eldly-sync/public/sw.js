@@ -1,4 +1,4 @@
-const CACHE = "myspace-shell-v20-phone-notifications";
+const CACHE = "myspace-shell-v21-profile-streak-packing";
 const SHELL = [
   "/audio/coin-pickup.wav",
   "/",

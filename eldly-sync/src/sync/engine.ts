@@ -3,9 +3,9 @@ import { supabase, cloudNamespace } from './client';
 import { apply, acknowledge, diff, flatten, inflate, type Change, type Records } from './records';
 import { snapshot, restore, validateSnapshot } from './local';
 import { empty } from '../engine';
-import { cacheCoinPolicy,type CoinPolicy } from '../coinControl';
+import { cacheCoinPolicy,cacheGiftBalance,type CoinPolicy } from '../coinControl';
 type State = {version:1; mirror: Records; baseline: Records; pending: Change[]; revision:number};
-export type Pull = {initialized:boolean; revision:number; records:{record_key:string;value:unknown;deleted:boolean}[];coinPolicy?:CoinPolicy|null};
+export type Pull = {initialized:boolean; revision:number; records:{record_key:string;value:unknown;deleted:boolean}[];coinPolicy?:CoinPolicy|null;giftBalance?:number};
 const KEY = `eldly-shared-sync-v2:${cloudNamespace}`;
 export function enrolled() { return localStorage.getItem(scopedKey(KEY)) !== null; }
 function read():State { const raw=localStorage.getItem(scopedKey(KEY)); if(!raw) throw Error('Choose your starting data first.'); const state=JSON.parse(raw); if(state.version!==1) throw Error('Sync data needs a newer Eldinos version.'); return {...state,baseline:flatten(state.baseline)}; }
@@ -31,6 +31,7 @@ export function start(remote:Pull) {
   if(!localStorage.getItem(backup)) localStorage.setItem(backup,JSON.stringify({version:1,data:local}));
   restore(decoded);
   if('coinPolicy' in remote)cacheCoinPolicy(remote.coinPolicy||null);
+  if('giftBalance' in remote)cacheGiftBalance(remote.giftBalance||0);
   write({version:1,mirror,baseline:mirror,pending:[],revision:remote.revision});
 }
 export function hasLocalData() { return Object.keys(snapshot()).length > 0; }
@@ -58,6 +59,7 @@ export async function synchronize():Promise<number> {
     const remote=await pull(s.revision);
     assertScope(); capture(); s=read();
     if('coinPolicy' in remote)cacheCoinPolicy(remote.coinPolicy||null);
+    if('giftBalance' in remote)cacheGiftBalance(remote.giftBalance||0);
     const mirror=apply(s.mirror,remote.records.map(r=>({key:r.record_key,value:r.value,deleted:r.deleted})));
     const merged=apply(mirror,s.pending), decoded=inflate(merged);
     if(!validateSnapshot(decoded)) throw Error('Conflicting data could not be merged. Your edits are safe on this device; retry or export a backup.');

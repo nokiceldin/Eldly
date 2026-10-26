@@ -26,3 +26,6 @@ it('applies a later approval only to its future week, keeping prior coin totals 
  const next={...policy,periods:[...policy.periods,{from:'2026-11-09',config:config(2),reviewer:'friend'}]};
  expect(pointsHistory(data().mapping,'2026-11-09',next).slice(0,3)).toEqual(pointsHistory(data().mapping,'2026-11-09',policy).slice(0,3));
 });
+it('adds private gift credits to spendable balance without changing tracker earnings or weekly records',async()=>{
+ const {cacheGiftBalance}=await import('./coinControl');const d=data();const before=coinWallet(d,'2026-11-09'),history=coinHistory(d,'2026-11-09');cacheGiftBalance(25.01);expect(coinWallet(d,'2026-11-09')).toEqual({...before,balance:before.balance+25.01});expect(coinHistory(d,'2026-11-09')).toEqual(history);setAccountScope('another-account');expect(coinWallet(d,'2026-11-09').balance).toBe(before.balance);setAccountScope('account-a');cacheGiftBalance(0);expect(coinWallet(d,'2026-11-09')).toEqual(before);
+});

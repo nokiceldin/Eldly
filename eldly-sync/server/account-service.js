@@ -90,7 +90,7 @@ export function createAccountHandler(sql){
     case 'eldinos_account_pull':case 'eldly_shared_pull':{
      const revision=args.after_revision??0;if(!Number.isSafeInteger(revision)||revision<0)return res.status(400).json({error:'Invalid revision'});
      result=await sql.query('select myspace_account_pull($1::uuid,$2::bigint) as data',[user.id,revision]);
-     result[0].data.coinPolicy=await social.policy(user.id);break;
+     result[0].data.coinPolicy=await social.policy(user.id);result[0].data.giftBalance=await social.gifts(user.id);break;
     }
     case 'eldinos_account_apply':case 'eldly_shared_apply':
      if(!Array.isArray(args.changes))return res.status(400).json({error:'Invalid changes'});

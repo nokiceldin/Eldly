@@ -4,7 +4,7 @@ import { localDay } from './engine';
 import { pointsHistory } from './points';
 import { weeklyGoals } from './goals';
 import { personalGoalAt } from './personalGoals';
-import {coinDataForWeek,readCoinPolicy,type CoinPolicy} from './coinControl';
+import {coinDataForWeek,readCoinPolicy,giftBalance,type CoinPolicy} from './coinControl';
 export type Reward={id:string;title:string;cost:number;archived?:boolean};
 export type RewardPurchase={id:string;rewardId:string;title:string;cost:number;at:string;refunded?:boolean};
 export const validCost=(n:unknown):n is number=>typeof n==='number'&&Number.isSafeInteger(n)&&n>0&&n<=1000000000;
@@ -45,7 +45,7 @@ export function coinStats(data:Pick<Data,'mapping'|'goalPlans'|'coinBonusPlans'>
 export function coinWallet(data:Pick<Data,'mapping'|'goalPlans'|'coinBonusPlans'|'rewardPurchases'>,today=localDay()){
  const earned=coinStats(data,today).total;
  const spent=(data.rewardPurchases||[]).filter(p=>!p.refunded).reduce((n,p)=>n+p.cost,0);
- return {earned,spent,balance:Math.round((earned-spent)*10)/10};
+ return {earned,spent,balance:Math.round((earned+giftBalance()-spent)*100)/100};
 }
 export function buyReward(data:Data,id:string,today=localDay()):Data{
  const reward=data.rewards?.find(r=>r.id===id&&!r.archived);

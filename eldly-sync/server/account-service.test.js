@@ -62,7 +62,7 @@ it('registers a normalized non-owner account, persists only a password hash and 
  expect(registered.headers['Set-Cookie']).toContain('HttpOnly; Secure; SameSite=Lax');
  expect((await call('session',{method:'GET',cookie})).body.user.id).toBe(id);
  const rpc=(cookie,name,args)=>call('rpc',{cookie,body:{name,args}});
- expect((await rpc(cookie,'eldinos_account_pull',{after_revision:0})).body.data).toEqual({initialized:false,revision:0,records:[],coinPolicy:null});
+ expect((await rpc(cookie,'eldinos_account_pull',{after_revision:0})).body.data).toEqual({initialized:false,revision:0,records:[],coinPolicy:null,giftBalance:0});
  const records=[{record_key:'[]',value:{node:'object'}},{record_key:'["checkly-data-v1"]',value:{node:'object'}}];
  expect((await rpc(cookie,'eldinos_account_initialize',{records})).statusCode).toBe(200);
  const record={record_key:'["checkly-data-v1","my-task"]',value:{node:'value',value:'Friend task'}};
@@ -110,7 +110,7 @@ it('protects social endpoints with the existing session and origin checks and ig
  expect((await call('social',{origin:'https://evil.test',body:{action:'visit'}})).statusCode).toBe(403);
  const login=await call('login',{body:{email:'friend',password:'testing-password'}}),cookie=login.headers['Set-Cookie'].split(';')[0];
  const visit=await call('social',{cookie,body:{action:'visit',timezone:'UTC',user_id:owner,streak:1000,day:'2099-01-01'}});
- expect(visit.statusCode).toBe(200);expect(visit.body.profile).toMatchObject({id:friend,username:'friend',streak:1});
+ expect(visit.statusCode).toBe(200);expect(visit.body.profile).toMatchObject({id:friend,username:'friend',streak:0});
  const forged=await call('social',{cookie,body:{action:'save_avatar',userId:owner,avatarId:'cedar'}});
  expect(forged.statusCode).toBe(200);expect(forged.body.profile.id).toBe(friend);expect((await db.query('select avatar from myspace_profiles where user_id=$1',[owner])).rows).toEqual([]);
  expect((await call('social',{cookie,body:{action:'goal_events',events:['fake']}})).statusCode).toBe(400);

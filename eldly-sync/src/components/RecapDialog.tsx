@@ -16,12 +16,13 @@ const labels = { week: "Weekly", month: "Monthly", year: "Yearly" };
 export default function RecapDialog() {
   const [data, setData] = useState<Data | null>(null);
   const [today, setToday] = useState(localDay());
+  const [hour,setHour]=useState(()=>new Date().getHours());
   const [manual, setManual] = useState<RecapWindow[] | null>(null);
   const [error, setError] = useState("");
   const [applied,setApplied] = useState<string[]>([]);
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
-    const refresh = () => { try { const latest = load(); if (isPersonalOwner()&&!latest.goalPlans?.length) { persist({ ...latest, goalPlans: [initialGoalPlan(latest)] }); } setData(load()); setToday(localDay()); } catch { /* Existing save errors are displayed by the app. */ } };
+    const refresh = () => { try { const latest = load(); if (isPersonalOwner()&&!latest.goalPlans?.length) { persist({ ...latest, goalPlans: [initialGoalPlan(latest)] }); } setData(load()); setToday(localDay());setHour(new Date().getHours()); } catch { /* Existing save errors are displayed by the app. */ } };
     const open = () => { refresh(); setManual(recapWindows(localDay()).filter(w=>w.range.to>=mappingStart(load().mapping||emptyMapping()))); };
     refresh();
     window.addEventListener(LOCAL_EVENT, refresh);
@@ -32,7 +33,7 @@ export default function RecapDialog() {
     const timer = window.setInterval(refresh, 60000);
     return () => { window.clearInterval(timer); window.removeEventListener(LOCAL_EVENT, refresh); window.removeEventListener(REMOTE_EVENT, refresh); window.removeEventListener("storage", refresh); window.removeEventListener("focus", refresh); window.removeEventListener("eldly-open-recaps", open); };
   }, []);
-  const queue = data ? manual ?? pendingRecaps(data, today) : [];
+  const queue = data ? manual ?? pendingRecaps(data, today, hour) : [];
   const current = queue[0];
   const recap = data && current ? buildRecap(data, current, today) : null;
   useLayoutEffect(() => {

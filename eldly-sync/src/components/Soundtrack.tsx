@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Music2, VolumeX } from 'lucide-react';
 import { scopedKey } from '../accountScope';
 import { configurePlaybackAudio } from '../sounds';
 
 /** One player lives above all app pages; the preference belongs to this account/device. */
-export default function Soundtrack() {
+const SoundtrackContext=createContext({enabled:false,toggle:()=>{}});
+export function SoundtrackButton(){const {enabled,toggle}=useContext(SoundtrackContext);return <button type="button" className="soundtrack-toggle" aria-label={enabled?'Turn background music off':'Turn background music on'} aria-pressed={enabled} onClick={toggle}>{enabled?<Music2 size={18}/>:<VolumeX size={18}/>}</button>;}
+export default function Soundtrack({children}:{children:ReactNode}) {
  const [enabled,setEnabled]=useState(()=>{try{return localStorage.getItem(scopedKey('soundtrack-enabled'))==='true';}catch{return false;}});
  const player=useRef<HTMLAudioElement|null>(null);
  useEffect(()=>{
@@ -41,6 +43,6 @@ export default function Soundtrack() {
   try{localStorage.setItem(scopedKey('soundtrack-enabled'),String(next));}catch{/* This session can still change music. */}
   setEnabled(next);
  }
- // Remains mounted when the menu closes, so navigating never restarts the song.
- return <><audio ref={player} loop preload="metadata" aria-hidden="true"/><button type="button" className="soundtrack-toggle" aria-label={enabled?'Turn background music off':'Turn background music on'} aria-pressed={enabled} onClick={toggle}>{enabled?<Music2 size={18}/>:<VolumeX size={18}/>}</button></>;
+ // Player stays mounted while profile controls open and close.
+ return <SoundtrackContext.Provider value={{enabled,toggle}}><audio ref={player} loop preload="metadata" aria-hidden="true"/>{children}</SoundtrackContext.Provider>;
 }

@@ -1,3 +1,5 @@
+import {celebrationCoins} from './celebration-coins.js';
+import {trackingStreak} from '../shared/streak.js';
 import {avatarPreset} from '../shared/avatar-options.js';
 import {readFileSync} from 'node:fs';
 import {randomUUID,createHash} from 'node:crypto';
@@ -27,23 +29,30 @@ export function createSocialService(sql,{now=()=>new Date()}={}){
   await ensure();const profiles=await sql.query('select timezone from myspace_profiles where user_id=$1',[id]);
   if(!profiles[0])return;
   const day=dayAt(profiles[0].timezone,now()),from=monday(day),data=await accountData(id);
+  await run(id,'track_streak',{...trackingStreak(data.mapping,day),day});
   const previous=addDay(from,-7);
   const events=[...achievedGoals(data,from,day).map(goal=>`${from}:${goal}`),...(data.mapping&&(data.mapping.startedOn||'2026-10-15')<=previous?achievedGoals(data,previous,addDay(from,-1),true).map(goal=>`${previous}:${goal}`):[])];
   // No activity, goal name, target or value leaves this server-side calculation.
   if(events.length)await run(id,'goal_events',{events});
  }
+ async function gifts(id){await ensure();return Number((await sql.query('select coalesce(sum(amount),0) as total from myspace_celebration_coins where recipient=$1',[id]))[0]?.total||0);}
+ async function giftWeek(id){const profile=(await sql.query('select timezone from myspace_profiles where user_id=$1',[id]))[0];return monday(dayAt(profile?.timezone||'UTC',now()));}
  async function dashboard(user){
   await ensure();
+  await milestones(user.id);
   const [friends,bestRequests,pairs,proposals,notifications,profiles,control]=await Promise.all([
    sql.query(`select f.id,f.status,f.requested_by,u.id as user_id,u.username,p.avatar_preset,p.timezone,p.last_visit::text,p.streak,p.longest from myspace_friends f join myspace_users u on u.id=case when f.a=$1 then f.b else f.a end left join myspace_profiles p on p.user_id=u.id where $1 in(f.a,f.b) and f.status in('pending','accepted') and u.active order by u.username`,[user.id]),
    sql.query(`select r.id,r.requester,r.recipient,u.username from myspace_best_requests r join myspace_users u on u.id=case when r.requester=$1 then r.recipient else r.requester end where $1 in(r.requester,r.recipient) and r.status='pending' order by r.created_at`,[user.id]),
    sql.query(`select q.id,q.starts_on::text,u.id as user_id,u.username from myspace_best_members m join myspace_best_pairs q on q.id=m.pair_id join myspace_users u on u.id=case when q.a=$1 then q.b else q.a end where m.user_id=$1 and q.ended_at is null`,[user.id]),
    sql.query(`select p.id,p.owner_id,p.reviewer_id,p.config,p.status,p.reviewed_config,p.effective_from::text,p.created_at,p.reviewed_at,u.username as owner_username from myspace_coin_proposals p join myspace_users u on u.id=p.owner_id join myspace_best_members m on m.pair_id=p.pair_id and m.user_id=$1 where $1 in(p.owner_id,p.reviewer_id) order by p.created_at desc limit 30`,[user.id]),
-   sql.query(`select n.id,n.kind,n.milestone,n.celebrated,n.read_at,n.created_at,u.username,p.avatar from myspace_notifications n join myspace_users u on u.id=n.actor left join myspace_profiles p on p.user_id=u.id where n.recipient=$1 order by n.created_at desc,n.id desc limit 100`,[user.id]),
+   sql.query(`select n.id,n.kind,n.milestone,n.gift_amount,n.celebrated,n.read_at,n.created_at,u.username,p.avatar from myspace_notifications n join myspace_users u on u.id=n.actor left join myspace_profiles p on p.user_id=u.id where n.recipient=$1 order by n.created_at desc,n.id desc limit 100`,[user.id]),
    sql.query('select avatar_preset,timezone,last_visit::text,streak,longest from myspace_profiles where user_id=$1',[user.id]),
    policy(user.id)
   ]);
-  return {profile:{id:user.id,username:user.username,avatarId:profiles[0]?.avatar_preset||'original',avatar:avatarPreset(profiles[0]?.avatar_preset).style,streak:streak(profiles[0],now()),longest:profiles[0]?.longest||0,timezone:profiles[0]?.timezone||null},friends:friends.map(f=>({id:f.id,userId:f.user_id,username:f.username,avatar:avatarPreset(f.avatar_preset||'original').style,status:f.status,incoming:f.requested_by!==user.id,streak:streak(f,now())})),bestRequests:bestRequests.map(r=>({id:r.id,username:r.username,incoming:r.recipient===user.id})),bestFriend:pairs[0]?{id:pairs[0].id,userId:pairs[0].user_id,username:pairs[0].username,startsOn:pairs[0].starts_on}:null,proposals:proposals.map(p=>({id:p.id,ownerId:p.owner_id,ownerUsername:p.owner_username,incoming:p.reviewer_id===user.id,config:p.config,status:p.status,reviewedConfig:p.reviewed_config,effectiveFrom:p.effective_from,createdAt:p.created_at})),notifications:notifications.map(n=>({id:n.id,kind:n.kind,milestone:n.milestone,celebrated:n.celebrated,read:!!n.read_at,createdAt:n.created_at,username:n.username,avatar:avatarPreset(n.avatar_preset||'original').style})),coinPolicy:control};
+  const week=await giftWeek(user.id),used=await sql.query('select 1 from myspace_celebration_coins where sender=$1 and week=$2',[user.id,week]);
+  const offers=new Map();
+  if(!used.length)for(const n of notifications.filter(n=>n.kind==='goal'&&!n.celebrated&&friends.some(f=>f.username===n.username&&f.status==='accepted'))){if(!offers.has(n.username)){const friend=friends.find(f=>f.username===n.username);offers.set(n.username,celebrationCoins(await accountData(friend.user_id)));}}
+  return {giftBalance:await gifts(user.id),giftUsed:used.length>0,profile:{id:user.id,username:user.username,avatarId:profiles[0]?.avatar_preset||'original',avatar:avatarPreset(profiles[0]?.avatar_preset).style,streak:streak(profiles[0],now()),longest:profiles[0]?.longest||0,timezone:profiles[0]?.timezone||null},friends:friends.map(f=>({id:f.id,userId:f.user_id,username:f.username,avatar:avatarPreset(f.avatar_preset||'original').style,status:f.status,incoming:f.requested_by!==user.id,streak:streak(f,now())})),bestRequests:bestRequests.map(r=>({id:r.id,username:r.username,incoming:r.recipient===user.id})),bestFriend:pairs[0]?{id:pairs[0].id,userId:pairs[0].user_id,username:pairs[0].username,startsOn:pairs[0].starts_on}:null,proposals:proposals.map(p=>({id:p.id,ownerId:p.owner_id,ownerUsername:p.owner_username,incoming:p.reviewer_id===user.id,config:p.config,status:p.status,reviewedConfig:p.reviewed_config,effectiveFrom:p.effective_from,createdAt:p.created_at})),notifications:notifications.map(n=>({id:n.id,kind:n.kind,milestone:n.milestone,giftAmount:Number(n.gift_amount||0),giftOffer:offers.get(n.username)||null,celebrated:n.celebrated,read:!!n.read_at,createdAt:n.created_at,username:n.username,avatar:avatarPreset(n.avatar_preset||'original').style})),coinPolicy:control};
  }
  async function mutate(user,body,ip){
   await ensure();const action=body.action;
@@ -72,14 +81,22 @@ export function createSocialService(sql,{now=()=>new Date()}={}){
    try{p.config=reviewConfig(rows[0].config,body);}catch(e){throw Error('SOCIAL: '+e.message);}
   }
   if(action==='visit'){
-   const r=await sql.query('select timezone,last_visit from myspace_profiles where user_id=$1',[user.id]);
-   p.timezone=(r[0]?.last_visit?r[0].timezone:body.timezone)||'UTC';
+   const r=await sql.query('select timezone,last_visit,timezone_locked from myspace_profiles where user_id=$1',[user.id]);
+   p.timezone=(r[0]?.timezone_locked?r[0].timezone:body.timezone)||r[0]?.timezone||'UTC';
    try{p.day=dayAt(p.timezone,now());}catch{throw Error('SOCIAL: Choose a valid time zone.');}
   }
-  if(action==='celebrate')p.newId=randomUUID();
+  if(action==='celebrate'){
+   p.newId=randomUUID();
+   if(body.withCoins===true){
+    const n=(await sql.query("select actor,kind,celebrated from myspace_notifications where id=$1 and recipient=$2",[p.id,user.id]))[0];
+    if(!n||n.kind!=='goal'||n.celebrated)throw Error('SOCIAL: Only an uncelebrated goal can receive coins.');
+    p.giftAmount=celebrationCoins(await accountData(n.actor));
+    if(!p.giftAmount)throw Error('SOCIAL: This friend has no active reward. Send congratulations instead.');
+    p.week=await giftWeek(user.id);
+   }
+  }
   await run(user.id,action,p);
-  if(action==='visit')await milestones(user.id);
   return dashboard(user);
  }
- return {ensure,policy,milestones,dashboard,mutate};
+ return {ensure,policy,milestones,dashboard,mutate,gifts};
 }

@@ -17,10 +17,10 @@ export function recapWindows(today = localDay()): RecapWindow[] {
   ];
   return windows.map(w => ({ ...w, id: `${w.period}:${w.range.from}` }));
 }
-export function pendingRecaps(data: Data, today = localDay()) {
+export function pendingRecaps(data: Data, today = localDay(), hour = new Date().getHours()) {
   const dates = [...Object.keys(data.mapping?.entries || {}), ...data.tasks.map(t => t.scheduled), ...data.routines.map(r => r.start)].sort();
   const first = dates[0] || data.mapping?.startedOn;
-  return recapWindows(today).filter(w => !data.recapSeen?.[w.id] && first && w.range.to >= mappingStart(data.mapping||emptyMapping()));
+  return recapWindows(today).filter(w => (w.period!=="week"||today!==add(w.range.to,1)||hour>=18) && !data.recapSeen?.[w.id] && first && w.range.to >= mappingStart(data.mapping||emptyMapping()));
 }
 export function buildRecap(data: Data, window: RecapWindow, today = localDay()) {
   const from = window.range.from < mappingStart(data.mapping||emptyMapping()) ? mappingStart(data.mapping||emptyMapping()) : window.range.from;

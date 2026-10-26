@@ -44,8 +44,18 @@ it('emits private generic goal milestones once and sends one celebration back',a
  await friends();await act(a,'friend_request',{username:'carol'});await act(a,'visit',{timezone:'America/Indiana/Indianapolis'});expect((await dash(b)).notifications.filter(n=>n.kind==='goal'||n.kind==='celebration')).toHaveLength(0);
  await save(a,{...empty(),mapping:{version:1,startedOn:'2026-10-19',habits:[{id:'tennis-secret',label:'PRIVATE-GOAL-LABEL',kind:'check',color:'blue',xp:{amount:10,basis:'entry'},goal:{target:5,maximum:false,from:'2026-10-19'}}],entries:Object.fromEntries([19,20,21,22,23].map(d=>[`2026-10-${d}`,{'tennis-secret':{kind:'check'}}]))}});await service.milestones(a);await service.milestones(a);const inbox=await dash(b);expect(inbox.notifications.filter(n=>n.kind==='goal'||n.kind==='celebration')).toHaveLength(1);expect(inbox.notifications.filter(n=>n.kind==='goal'||n.kind==='celebration')[0]).toMatchObject({kind:'goal',username:'alice',read:false});expect(JSON.stringify(inbox)).not.toMatch(/tennis-secret|PRIVATE-GOAL-LABEL/);expect((await dash(c)).notifications.filter(n=>n.kind==='goal'||n.kind==='celebration')).toHaveLength(0);const id=inbox.notifications.filter(n=>n.kind==='goal'||n.kind==='celebration')[0].id;await expect(act(c,'celebrate',{id})).rejects.toThrow('unavailable');await act(b,'celebrate',{id});expect((await dash(a)).notifications.filter(n=>n.kind==='goal'||n.kind==='celebration')[0]).toMatchObject({kind:'celebration',username:'bob'});expect((await dash(b)).notifications.filter(n=>n.kind==='goal'||n.kind==='celebration')[0].celebrated).toBe(true);await expect(act(b,'celebrate',{id})).rejects.toThrow('already celebrated');expect((await dash(a)).notifications.filter(n=>n.kind==='goal'||n.kind==='celebration')).toHaveLength(1);await act(a,'notifications_read');expect((await dash(a)).notifications.filter(n=>n.kind==='goal'||n.kind==='celebration')[0].read).toBe(true);
 });
-it('counts one local-day visit and resets after a missed day',async()=>{
- await friends();for(let d=19;d<=25;d++){now=new Date(`2026-10-${d}T16:00:00Z`);await act(a,'visit',{timezone:'America/Indiana/Indianapolis',day:'2099-01-01',streak:1000});}let state=await dash(a);expect(state.profile.streak).toBe(7);expect(state.profile.longest).toBe(7);expect((await dash(b)).notifications.filter(n=>n.kind==='streak')).toHaveLength(1);await act(a,'visit',{timezone:'Pacific/Kiritimati'});state=await dash(a);expect(state.profile.streak).toBe(7);expect(state.profile.timezone).toBe('America/Indiana/Indianapolis');now=new Date('2026-10-27T16:00:00Z');expect((await dash(a)).profile.streak).toBe(0);await act(a,'visit');expect((await dash(a)).profile).toMatchObject({streak:1,longest:7});expect(dayAt('America/Indiana/Indianapolis',new Date('2026-10-24T02:00:00Z'))).toBe('2026-10-23');
+it('counts tracked days instead of visits, ignores forged counts, and repairs deleted days',async()=>{
+ await friends();await act(a,'visit',{timezone:'America/Indiana/Indianapolis'});expect((await dash(a)).profile.streak).toBe(0);
+ const data={...empty(),mapping:{version:1,startedOn:'2026-10-19',habits:[],entries:{}}};
+ for(let d=19;d<=25;d++){now=new Date(`2026-10-${d}T16:00:00Z`);data.mapping.entries[`2026-10-${d}`]={practice:{kind:'check'}};await save(a,data);await act(a,'visit',{timezone:'Pacific/Kiritimati',day:'2099-01-01',streak:1000});}
+ let state=await dash(a);expect(state.profile).toMatchObject({streak:7,longest:7,timezone:'America/Indiana/Indianapolis'});expect((await dash(b)).notifications.filter(n=>n.kind==='streak')).toHaveLength(1);
+ await act(a,'visit');expect((await dash(b)).notifications.filter(n=>n.kind==='streak')).toHaveLength(1);
+ now=new Date('2026-10-26T16:00:00Z');await act(a,'visit');expect((await dash(a)).profile.streak).toBe(7);
+ now=new Date('2026-10-27T16:00:00Z');await act(a,'visit');expect((await dash(a)).profile).toMatchObject({streak:0,longest:7});
+ data.mapping.entries['2026-10-27']={practice:{kind:'check'}};await save(a,data);await service.milestones(a);expect((await dash(a)).profile).toMatchObject({streak:1,longest:7});
+ delete data.mapping.entries['2026-10-27'];await db.query("update eldinos_account_records set deleted=true where user_id=$1 and record_key like '%2026-10-27%'",[a]);await save(a,data);await service.milestones(a);expect((await dash(a)).profile.streak).toBe(0);
+ await expect(act(a,'track_streak',{streak:999})).rejects.toThrow('Unknown action');
+ expect(dayAt('America/Indiana/Indianapolis',new Date('2026-10-24T02:00:00Z'))).toBe('2026-10-23');
 });
 it('rejects internal goal-event fanout from clients',async()=>{await expect(act(a,'goal_events',{events:['fake']})).rejects.toThrow('Unknown action');});
 it('persists only fixed portrait choices for the caller and shares the portrait with friends',async()=>{
@@ -73,4 +83,21 @@ it('keeps maximum-goal notifications until the week is complete',async()=>{
  const {achievedGoals}=await import('./coin-config.js');
  const data={mapping:{version:1,startedOn:'2026-10-19',habits:[{id:'limit',label:'Private limit',kind:'check',goal:{target:2,maximum:true,from:'2026-10-19'}}],entries:{'2026-10-19':{limit:{kind:'check'}}}}};
  expect(achievedGoals(data,'2026-10-19','2026-10-23')).toEqual([]);expect(achievedGoals(data,'2026-10-19','2026-10-25',true)).toEqual(['limit']);
+});
+
+it('gives exactly 1% of the current main reward for a goal, once per sender each week, without debiting the sender',async()=>{
+ await friends();await act(a,'visit',{timezone:'America/Indiana/Indianapolis'});await act(b,'visit',{timezone:'America/Indiana/Indianapolis'});
+ const data={...empty(),rewards:[{id:'bought',title:'Old reward',cost:999},{id:'main',title:'Private reward name',cost:2501},{id:'next',title:'Next',cost:9000}],rewardPurchases:[{id:'purchase',rewardId:'bought',title:'Old reward',cost:999,at:now.toISOString()}]};await save(a,data);
+ await db.query('select myspace_social_action($1,$2,$3::jsonb)',[a,'goal_events',JSON.stringify({events:['2026-10-19:one','2026-10-19:two','2026-10-19:three']})]);
+ let state=await dash(b);const goals=state.notifications.filter(n=>n.kind==='goal');expect(goals[0].giftOffer).toBe(25.01);expect(JSON.stringify(state)).not.toContain('Private reward name');
+ await act(b,'celebrate',{id:goals[0].id,withCoins:true,giftAmount:999999,userId:c,week:'1900-01-01'});
+ expect(await service.gifts(a)).toBe(25.01);expect(await service.gifts(b)).toBe(0);expect(await service.gifts(c)).toBe(0);
+ expect((await dash(a)).notifications.find(n=>n.kind==='celebration').giftAmount).toBe(25.01);expect((await dash(b)).giftUsed).toBe(true);
+ await expect(act(b,'celebrate',{id:goals[1].id,withCoins:true})).rejects.toThrow('already sent');await act(b,'celebrate',{id:goals[1].id});expect(await service.gifts(a)).toBe(25.01);
+ now=new Date('2026-10-26T16:00:00Z');data.rewards[1].cost=100;await save(a,data);await act(b,'celebrate',{id:goals[2].id,withCoins:true});expect(await service.gifts(a)).toBe(26.01);
+ await expect(act(b,'celebrate',{id:goals[2].id,withCoins:true})).rejects.toThrow('uncelebrated');
+});
+it('offers congratulations without coins when there is no reward and blocks third parties and streak coin gifts',async()=>{
+ await friends();await db.query('select myspace_social_action($1,$2,$3::jsonb)',[a,'goal_events',JSON.stringify({events:['one']})]);const n=(await dash(b)).notifications.find(n=>n.kind==='goal');expect(n.giftOffer).toBeNull();
+ await expect(act(b,'celebrate',{id:n.id,withCoins:true})).rejects.toThrow('no active reward');await expect(act(c,'celebrate',{id:n.id,withCoins:true})).rejects.toThrow('uncelebrated');await act(b,'celebrate',{id:n.id,giftAmount:500});expect(await service.gifts(a)).toBe(0);expect((await dash(b)).giftUsed).toBe(false);
 });

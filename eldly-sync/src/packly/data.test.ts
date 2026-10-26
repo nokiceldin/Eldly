@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { completed, defaultItems, getStatus, makeConfiguredTrip, newTrip, normalizeTrip, packedCount, remaining, type TripDetails } from './data';
+import { completed, defaultItems, getStatus, makeConfiguredTrip, newTrip, normalizeTrip, packedCount, remaining, packingDefaults, type TripDetails } from './data';
 const details: TripDetails = { type:'normal',startDate:'2026-10-16',durationDays:3,returnDate:'2026-10-18',departure:'',destination:'',climate:'mild',laundry:false,reminderMinutes:[] };
 describe('integrated Packly data', () => {
   it('retains the full starter packing lists and trip types', () => {
     expect(defaultItems).toHaveLength(76);
-    expect(makeConfiguredTrip('Tennis','tennis',{...details,type:'tennis'}).items).toHaveLength(76);
-    expect(makeConfiguredTrip('Normal','normal',details).items).toHaveLength(56);
+    expect(makeConfiguredTrip('Tennis','tennis',{...details,type:'tennis'}).items).toHaveLength(77);
+    expect(makeConfiguredTrip('Normal','normal',details).items).toHaveLength(57);
   });
   it('keeps trips independent and preserves packed status through a save/reload', () => {
     const first = newTrip('First'), second = newTrip('Second');
@@ -22,7 +22,7 @@ describe('integrated Packly data', () => {
     trip.statuses[trip.items[2].id]='unpacked';
     expect(completed(trip)).toBe(2);
     expect(packedCount(trip)).toBe(1);
-    expect(remaining(trip)).toHaveLength(74);
+    expect(remaining(trip)).toHaveLength(75);
   });
   it('normalizes old trip data and removes deleted items from saved queues', () => {
     const trip = newTrip('Old');
@@ -66,7 +66,7 @@ describe('packing memory and equipment updates',()=>{
   const migrated=normalizeTrip(old);
   expect(migrated.items.map(i=>i.name)).toEqual(expect.arrayContaining(['Shoe laces','Shoe glue']));
   expect(migrated.statuses['tennis-02']).toBe('packed');
-  expect(normalizeTrip(migrated).items).toHaveLength(76);
+  expect(normalizeTrip(migrated).items).toHaveLength(77);
   migrated.items=migrated.items.filter(i=>i.id!=='tennis-19');
   expect(normalizeTrip(migrated).items.some(i=>i.id==='tennis-19')).toBe(false);
  });
@@ -98,7 +98,7 @@ describe('packing memory and equipment updates',()=>{
    expect(trip.items).toHaveLength(75);
    expect(trip.categories.map(c=>c.name)).toContain('School & personal');
    expect(trip.items.map(i=>i.name)).toEqual(expect.arrayContaining(['Shoelaces','Shoe glue','School laptop and charger','Jeans','Sleepwear','Tickets / booking details']));
-   expect(trip.items.some(i=>/PS4|Nordea|Beats/.test(i.name))).toBe(false);
+   expect(trip.items.some(i=>/PS4|Nordea|Beats|Laundry bag/.test(i.name))).toBe(false);
    const school=trip.categories.find(c=>c.id==='school')!;
    expect(trip.items.find(i=>i.name==='School laptop and charger')?.categoryId).toBe(school.id);
    trip.items=trip.items.filter(i=>i.name!=='Shoe glue');
@@ -108,6 +108,17 @@ describe('packing memory and equipment updates',()=>{
    expect(restored.items.map(i=>i.name)).toContain('My extra');
    expect(new Set(restored.items.map(i=>i.id)).size).toBe(restored.items.length);
    setAccountScope('owner',true);
-   expect(newTrip('Owner').items).toEqual(defaultItems);
+   expect(newTrip('Owner').items).toEqual(packingDefaults().items);
   }finally{setAccountScope('owner',true);}
  });
+
+it('saves additions, removals and quantities in default templates without rewriting old trips',()=>{
+ const old=makeConfiguredTrip('Old','tennis',{...details,type:'tennis'});
+ const template={id:'my-default',name:'Default list',type:'tennis' as const,categories:old.categories,items:[...old.items.slice(1),{id:'custom-bag',name:'Extra bag',categoryId:'clothes'}],quantities:{'custom-bag':2},critical:[],lastMinute:[]};
+ const restored=JSON.parse(JSON.stringify({defaultLists:{tennis:template}}));
+ const next=makeConfiguredTrip('Next','tennis',{...details,type:'tennis'},[],restored.defaultLists.tennis);
+ expect(next.items.some(i=>i.id===old.items[0].id)).toBe(false);expect(next.items.find(i=>i.id==='custom-bag')?.name).toBe('Extra bag');expect(next.quantities['custom-bag']).toBe(2);expect(old.items.some(i=>i.id==='custom-bag')).toBe(false);
+});
+
+it('adds the owner laundry bag once and respects later removal',()=>{const t=newTrip('Mine');t.items=t.items.filter(i=>i.id!=='owner-laundry-bag');const upgraded=normalizeTrip(t);expect(upgraded.items.filter(i=>i.id==='owner-laundry-bag')).toHaveLength(1);expect(normalizeTrip(upgraded).items.filter(i=>i.id==='owner-laundry-bag')).toHaveLength(1);upgraded.items=upgraded.items.filter(i=>i.id!=='owner-laundry-bag');expect(normalizeTrip(upgraded).items.some(i=>i.id==='owner-laundry-bag')).toBe(false);});
+it('validates saved default lists while allowing automatic quantities and empty categories',async()=>{const {validDefaultLists}=await import('./data');const t=makeConfiguredTrip('Default','tennis',{...details,type:'tennis'});const template={id:'default-tennis',name:'Default',type:'tennis' as const,items:t.items,categories:[...t.categories,{id:'empty',name:'Extras',emoji:'📦'}],quantities:{},critical:[],lastMinute:[]};expect(validDefaultLists({tennis:template})).toBe(true);expect(validDefaultLists({tennis:{...template,items:[{id:'bad',name:'Extra',categoryId:'missing'}]}})).toBe(false);expect(validDefaultLists({tennis:{...template,quantities:{extra:0}}})).toBe(false);expect(validDefaultLists({tennis:{...template,categories:[...template.categories,template.categories[0]]}})).toBe(false);});

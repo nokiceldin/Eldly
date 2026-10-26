@@ -15,3 +15,15 @@ revoke all on myspace_profiles,myspace_friends,myspace_best_pairs,myspace_best_m
 alter table myspace_profiles add column if not exists avatar jsonb not null default '{}';
 
 alter table myspace_profiles add column if not exists avatar_preset text not null default 'original';
+
+alter table myspace_notifications add column if not exists gift_amount numeric(12,2) not null default 0;
+create table if not exists myspace_celebration_coins(
+ notification_id uuid primary key references myspace_notifications(id),
+ sender uuid not null references myspace_users(id),recipient uuid not null references myspace_users(id),
+ week date not null,amount numeric(12,2) not null check(amount>0 and amount<=10000000),
+ created_at timestamptz not null default now(),unique(sender,week),check(sender<>recipient)
+);
+revoke all on myspace_celebration_coins from public;
+create index if not exists myspace_gift_recipient on myspace_celebration_coins(recipient);
+alter table myspace_profiles add column if not exists timezone_locked boolean not null default false;
+update myspace_profiles set timezone_locked=true where last_visit is not null and not timezone_locked;

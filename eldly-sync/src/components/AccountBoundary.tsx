@@ -5,7 +5,7 @@ import {SOCIAL_EVENT,type SocialState} from '../social';
 import {avatarPreset,defaultAvatar,type AvatarStyle} from '../../shared/avatar-options';
 import { authErrorMessage } from '../authErrors';
 import PointsCounter from './PointsCounter';
-import Soundtrack from './Soundtrack';
+import Soundtrack,{SoundtrackButton} from './Soundtrack';
 import SocialBar from './SocialBar';
 import { useEffect, useState, type ReactNode } from 'react';
 import type {AccountUser as User} from '../privateAuth';
@@ -67,5 +67,5 @@ export default function AccountBoundary({children}:{children:ReactNode}) {
   {identity&&<button type="button" disabled={busy} onClick={()=>setLogin(false)}>Back</button>}
  </form></main>;
  const name=identity==='guest'?'Guest':identity.app_metadata.username||identity.email?.split('@')[0]||'Account';
- return <ProfileContext.Provider value={avatar}>{children}<div className="account-control"><button onClick={()=>setMenu(!menu)} aria-expanded={menu}>{identity!=='guest'&&privateAccounts?<ProfileAvatar style={avatar} size={30}/>:<UserRound size={15}/>} {name}</button><PointsCounter/>{identity!=='guest'&&privateAccounts&&<SocialBar/>}<section hidden={!menu} className="account-menu" aria-label="Account"><Soundtrack/>{identity==='guest'?<button onClick={()=>{setMenu(false);setLogin(true);}}>Sign in</button>:<>{privateAccounts&&<button onClick={()=>{setMenu(false);window.dispatchEvent(new Event('myspace-open-profile'));}}>Profile</button>}<button disabled={busy} onClick={()=>void logout()}><LogOut size={15}/>Sign Out</button></>}{error&&<p role="alert">{error}</p>}</section></div></ProfileContext.Provider>;
+ return <Soundtrack><ProfileContext.Provider value={avatar}>{children}<div className="account-control"><button onClick={()=>identity!=='guest'&&privateAccounts?window.dispatchEvent(new Event('myspace-open-profile')):setMenu(!menu)} aria-label={identity!=='guest'&&privateAccounts?'Open profile':'Account'} aria-haspopup={identity!=='guest'&&privateAccounts?'dialog':undefined} aria-expanded={identity!=='guest'&&privateAccounts?undefined:menu}>{identity!=='guest'&&privateAccounts?<ProfileAvatar style={avatar} size={30}/>:<UserRound size={15}/>} {name}</button><PointsCounter/>{identity!=='guest'&&privateAccounts&&<SocialBar accountActions={<><SoundtrackButton/><button disabled={busy} onClick={()=>void logout()}><LogOut size={15}/>Sign Out</button>{error&&<p role="alert">{error}</p>}</>}/>}<section hidden={!menu} className="account-menu" aria-label="Account">{identity==='guest'&&<SoundtrackButton/>}{identity==='guest'?<button onClick={()=>{setMenu(false);setLogin(true);}}>Sign in</button>:<>{privateAccounts&&<button onClick={()=>{setMenu(false);window.dispatchEvent(new Event('myspace-open-profile'));}}>Profile</button>}<button disabled={busy} onClick={()=>void logout()}><LogOut size={15}/>Sign Out</button></>}{error&&<p role="alert">{error}</p>}</section></div></ProfileContext.Provider></Soundtrack>;
 }

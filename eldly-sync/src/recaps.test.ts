@@ -4,7 +4,7 @@ import { emptyMapping, setMappingEntry } from "./mapping";
 import { buildRecap, pendingRecaps, recapWindows } from "./recaps";
 import { validate } from "./storage";
 import { apply, diff, flatten, inflate } from "./sync/records";
-beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date(2026, 10, 2, 12)); });
+beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date(2026, 10, 2, 18)); });
 afterEach(() => vi.useRealTimers());
 describe("period recaps", () => {
   it("uses the last complete Monday–Sunday and calendar month/year", () => {
@@ -76,3 +76,6 @@ it('does not celebrate unrecorded phone time as a zero-use achievement',()=>{
  const data={...empty(),mapping:{version:1 as const,entries:{}}};
  expect(buildRecap(data,recapWindows('2026-11-02')[0]).positives.some(s=>s.startsWith('Phone use:'))).toBe(false);
 });
+
+it('waits until Monday 6pm for the weekly recap, catches up later, and leaves monthly timing alone',()=>{const data={...empty(),mapping:{version:1 as const,startedOn:'2026-10-19',habits:[],entries:{}}};expect(pendingRecaps(data,'2026-11-02',17).map(w=>w.period)).toEqual(['month']);expect(pendingRecaps(data,'2026-11-02',18).map(w=>w.period)).toEqual(['week','month']);expect(pendingRecaps(data,'2026-11-03',0).map(w=>w.period)).toEqual(['week','month']);});
+it('rebuilds an already viewed week from later backdated entries and removals',()=>{let mapping=setMappingEntry(emptyMapping(),'2026-10-28','tennis',{kind:'duration',minutes:60});const window=recapWindows('2026-11-02')[0];let data={...empty(),mapping,recapSeen:{[window.id]:true as const}};expect(buildRecap(data,window).metrics.find(m=>m.metric==='tennis')?.current.total).toBe(60);mapping=setMappingEntry(mapping,'2026-11-01','tennis',{kind:'duration',minutes:120});data={...data,mapping};expect(buildRecap(data,window).metrics.find(m=>m.metric==='tennis')?.current.total).toBe(180);mapping=setMappingEntry(mapping,'2026-11-01','tennis',undefined);expect(buildRecap({...data,mapping},window).metrics.find(m=>m.metric==='tennis')?.current.total).toBe(60);});
