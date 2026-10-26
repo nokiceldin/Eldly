@@ -1,5 +1,5 @@
 import {defaults,defaultRule,achievedGoals} from './coin-config.js';
-import {effectiveData,configAt,weekOf} from './effective-goals.js';
+import {effectiveData,configAt,weekOf,ruleAt} from './effective-goals.js';
 const add=(day,n)=>{const d=new Date(day+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);};
 export function entryCoins(id,e,rule){
  if(!e)return 0;
@@ -22,18 +22,23 @@ export function ledgerWeeks(data,today,policy=null){
   for(let day=from;day<=to&&day<=today;day=add(day,1)){
    if(day<start)continue;
    for(const [id,entry] of Object.entries(mapping.entries[day]||{})){
-    const habit=habits.find(h=>h.id===id);if(active&&!habit)continue;
+    const habit=habits.find(h=>h.id===id);if(active&&!habit||habit?.startedOn&&day<habit.startedOn)continue;
     if(active&&entry&&habit&&entry.kind!==habit.kind&&!(['recovery','reading','journaling','screen-time'].includes(id)&&entry.kind==='duration'))continue;
-    breakdown[id]=(breakdown[id]||0)+entryCoins(id,entry,habit?.xp);
+    breakdown[id]=(breakdown[id]||0)+entryCoins(id,entry,active?habit?.xp:ruleAt(habit,from));
    }
   }
-  for(const id of Object.keys(breakdown)){const habit=habits.find(h=>h.id===id),cap=habit?.xp?habit.xp.weeklyCap:active?undefined:defaultRule(id).weeklyCap;if(cap!==undefined)breakdown[id]=Math.sign(breakdown[id])*Math.min(cap,Math.abs(breakdown[id]));}
+  for(const id of Object.keys(breakdown)){const habit=habits.find(h=>h.id===id),rule=active?habit?.xp:ruleAt(habit,from),cap=rule?rule.weeklyCap:active?undefined:defaultRule(id).weeklyCap;if(cap!==undefined)breakdown[id]=Math.sign(breakdown[id])*Math.min(cap,Math.abs(breakdown[id]));}
   const baseTotal=Object.values(breakdown).reduce((a,b)=>a+b,0),eligible=!current&&!partial;
   const goalsMet=eligible?achievedGoals(effective,from,to,true).map(id=>({id,label:habits.find(h=>h.id===id)?.label||({ 'tennis-days':'Tennis days','tennis-hours':'Tennis time'}[id])||id})):[];
   const bonusRates=[...(effective.coinBonusPlans||[])].filter(p=>p.from<=from).sort((a,b)=>b.from.localeCompare(a.from))[0]||{goal:3,record:20};
-  const goalBonus=goalsMet.length*bonusRates.goal,recordBonus=eligible&&best!==null&&baseTotal>best&&baseTotal>0?bonusRates.record:0;
-  if(eligible)best=best===null?baseTotal:Math.max(best,baseTotal);
-  weeks.push({from,to,current,partial,breakdown,bonusRates,baseTotal,goalBonus,recordBonus,goalsMet,total:Math.round((baseTotal+goalBonus+recordBonus)*10)/10});
+  const goalBonus=goalsMet.length*bonusRates.goal,recordScore=baseTotal+goalBonus;
+  const previous=weeks.filter(w=>!w.current&&!w.partial);
+  const historical=from<'2026-10-26';
+  const benchmark=historical?(previous.length?Math.max(...previous.map(w=>w.baseTotal)):null):best;
+  const score=historical?baseTotal:recordScore;
+  const recordBonus=eligible&&benchmark!==null&&score>benchmark&&score>0?bonusRates.record:0;
+  if(eligible)best=best===null?recordScore:Math.max(best,recordScore);
+  weeks.push({from,to,current,partial,breakdown,bonusRates,baseTotal,recordScore,goalBonus,recordBonus,goalsMet,total:Math.round((baseTotal+goalBonus+recordBonus)*10)/10});
  }
  return weeks;
 }

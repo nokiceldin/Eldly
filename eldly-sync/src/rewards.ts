@@ -15,7 +15,7 @@ export function coinHistory(data:Pick<Data,'mapping'|'goalPlans'|'coinBonusPlans
 }
 export function coinStats(data:Pick<Data,'mapping'|'goalPlans'|'coinBonusPlans'>,today=localDay()){
  const weeks=coinHistory(data,today),completed=weeks.filter(w=>!w.current&&!w.partial);
- return {weeks,total:Math.round(weeks.reduce((n,w)=>n+w.total,0)*10)/10,current:weeks.find(w=>w.current)?.total||0,average:completed.length?completed.reduce((n,w)=>n+w.total,0)/completed.length:null,best:completed.length?completed.reduce((a,b)=>b.total>a.total?b:a):null};
+ return {weeks,total:Math.round(weeks.reduce((n,w)=>n+w.total,0)*10)/10,current:weeks.find(w=>w.current)?.total||0,average:completed.length?completed.reduce((n,w)=>n+w.total,0)/completed.length:null,best:completed.length?completed.reduce((a,b)=>b.recordScore>a.recordScore?b:a):null};
 }
 export function coinWallet(data:Pick<Data,'mapping'|'goalPlans'|'coinBonusPlans'|'rewardPurchases'>,today=localDay()){
  const earned=coinStats(data,today).total;

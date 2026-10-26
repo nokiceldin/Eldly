@@ -12,7 +12,7 @@ export function personalGoalHistory(mapping:MappingData,habit:Habit,range:Range,
  for(let week=first;add(week,6)<today&&add(week,6)<=range.to;week=add(week,7)){
   const effective=coinDataForWeek({mapping},week).mapping!;
   const approved=effective.habits?.find(h=>h.id===habit.id)||(!effective.habits?habit:undefined);
-  const goal=approved&&personalGoalAt(approved,week);if(!goal||archivedForWeek(approved,week)||week<mappingStart(mapping))continue;
+  const goal=approved&&personalGoalAt(approved,week);if(!goal||archivedForWeek(approved,week)||week<mappingStart(mapping)||approved.startedOn&&week<approved.startedOn)continue;
   const stats=metricStats(mapping,habit.id,{from:week,to:add(week,6)});const actual=habit.kind==='sleep'||habit.kind==='phone'?stats.average||0:stats.total;
   total++;if(goal.maximum?actual<=goal.target:actual>=goal.target)met++;
  }

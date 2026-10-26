@@ -1,3 +1,4 @@
+import {canTrack} from './trackingBounds';
 import {COIN_CONTROL_EVENT,displayCoinData} from './coinControl';
 import { LOCAL_EVENT, REMOTE_EVENT } from "./sync/local";
 import { useEffect, useState } from "react";
@@ -19,6 +20,8 @@ export function useMappingData() {
   const save = (day: string, id: HabitId, entry?: MappingEntry): string | null => {
     try {
       const latest = load();
+      const mappingData=latest.mapping||emptyMapping();
+      if(entry&&!canTrack(mappingData,id,day))throw Error('Choose a day within this tracker’s history, up to today.');
       const existing = latest.mapping?.entries[day]?.[id];
       // Linked homework is controlled by its tasks, including edits from Data.
       if (existing?.kind === "check" && existing.source === "checkly") return null;

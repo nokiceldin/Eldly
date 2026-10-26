@@ -1,8 +1,9 @@
 // Date-specific rules shared by notifications, statistics and the coin ledger.
 export const weekOf=day=>{const d=new Date(day+'T12:00:00Z');d.setUTCDate(d.getUTCDate()-((d.getUTCDay()+6)%7));return d.toISOString().slice(0,10);};
+export function ruleAt(habit,week){return [...(habit?.xpHistory||[])].filter(p=>p.from<=week).sort((a,b)=>b.from.localeCompare(a.from))[0]?.rule||habit?.xp;}
 export function configAt(policy,week){
  if(!policy)return null;
- if(week<policy.starts_on)return policy.legacy;
+ if(week<policy.starts_on)return {...policy.legacy,habits:policy.legacy.habits.map(h=>({...h,xp:ruleAt(h,week)}))};
  return [...policy.periods].filter(p=>p.from<=week).sort((a,b)=>b.from.localeCompare(a.from))[0]?.config||{habits:[],goalPlans:[],coinBonusPlans:[{id:'pending',from:'1900-01-01',goal:0,record:0}]};
 }
 export function archivedForWeek(habit,week){return !!habit?.archiveHistory?.some(p=>p.from<=week&&week<p.until)||!!habit?.archived&&(!habit.archivedFrom||week>=weekOf(habit.archivedFrom));}

@@ -21,9 +21,11 @@ export function shiftPeriod(anchor: string, period: Period, direction: number) {
 }
 export function metricValues(data: MappingData, metric: Metric, range: Range, dimension: "primary" | "pickups" = "primary") {
   const values: { date: string; value: number; secondary: number }[] = [];
+  const trackerStart=data.habits?.find(h=>h.id===metric)?.startedOn||mappingStart(data);
+  const start=trackerStart>mappingStart(data)?trackerStart:mappingStart(data);
   const through = range.to < localDay() ? range.to : localDay();
   // Blank elapsed days represent zero; future dates have not happened yet.
-  for (let date = range.from < mappingStart(data) ? mappingStart(data) : range.from; date <= through; date = add(date, 1)) {
+  for (let date = range.from < start ? start : range.from; date <= through; date = add(date, 1)) {
     const entry = data.entries[date]?.[metric];
     let value = 0, secondary = 0;
     if (dimension === "pickups") value = entry?.kind === "phone" ? entry.pickups ?? 0 : 0;

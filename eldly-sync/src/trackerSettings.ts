@@ -1,6 +1,7 @@
 import { add, localDay, monday, type Data } from './engine';
 import { getHabits, validXPRule, type Habit, type HabitColor, type XPRule } from './mapping';
 import { GOALS, defaultTargets, goalPlan, initialGoalPlan } from './goals';
+import { datedCoinRule } from './trackerRules';
 import { mergeTrackerChanges, validGoalTarget } from './trackerChanges';
 export type GoalEdit={id:string;label:string;value:string;maximum:boolean;hours:boolean;days:boolean};
 export function trackerGoals(data:Data,habit:Habit,owner:boolean,today=localDay()):GoalEdit[]{
@@ -13,7 +14,7 @@ export function saveTrackerSettings(latest:Data,before:Habit,label:string,rule:X
  if(!label.trim()||label.trim().length>80||!validXPRule(rule))throw Error('Check the tracker name, coin amount and limits.');
  const legacy=owner&&GOALS.some(g=>g.habit===before.id);
  const from=monday(today),currentHabits=latest.mapping?.habits??getHabits(latest.mapping);
- let habit:Habit={...before,label:label.trim(),color:color??before.color,xp:rule},plans=latest.goalPlans;
+ let habit:Habit={...before,label:label.trim(),color:color??before.color,...datedCoinRule(before,rule,from)},plans=latest.goalPlans;
  const changed=goals.filter(g=>{const prior=previousGoals.find(p=>p.id===g.id);return g.value!==prior?.value||g.maximum!==prior?.maximum;});
  for(const goal of changed){if(goal.value!==''&&!validGoalTarget(Number(goal.value),goal.maximum,goal.days?'check':before.kind))throw Error('Use a positive goal, or zero for a maximum. Weekly days must be whole numbers from 0 to 7.');}
  if(legacy&&changed.length){

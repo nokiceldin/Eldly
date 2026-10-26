@@ -1,3 +1,4 @@
+import {canTrack} from '../trackingBounds';
 import NumberInput from './NumberInput';
 import TrackerSettings from './TrackerSettings';
 import RewardsCard from './RewardsCard';
@@ -49,6 +50,7 @@ export default function MappingPage({ onHome }: { onHome: () => void }) {
                   aria-label={`${habit.label}, ${format(day)}`}
                   aria-description={entry ? entry.kind === "check" && entry.source === "checkly" ? entryDescription(entry,habit) : `${entryDescription(entry,habit)}. ${habit.kind === "check" ? "Select to unmark." : "Select to edit or clear."}` : "Not recorded"}
                   title={entry ? entryDescription(entry,habit) : undefined}
+                  disabled={!canTrack(data,habit.id,day,today)}
                   onClick={() => entry?.kind === "check" && entry.source === "checkly" ? undefined : habit.kind === "check" ? write(day, habit.id, entry ? undefined : { kind: "check" }) : setEditor({ habit, day })}>
                   <span aria-hidden="true">{entry ? "×" : ""}</span>
                 </button>

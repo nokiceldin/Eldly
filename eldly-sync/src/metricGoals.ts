@@ -10,7 +10,7 @@ export function metricGoals(data:Data,metric:Metric,range:Range,owner:boolean,to
  const week=monday(range.to<today?range.to:today),effective=coinDataForWeek(data,week);
  const legacy=owner?GOALS.filter(g=>g.habit===metric&&(!effective.mapping?.habits||effective.mapping.habits.some(h=>h.id===metric))):[];
  if(legacy.length){const plan=goalPlan(effective,week);return legacy.map(g=>({id:g.id,label:g.mode==='average'?'Daily goal':'Weekly goal',value:`${g.maximum?'≤':'≥'} ${goalValueLabel(g,plan?.targets[g.id]??g.target)}${g.mode==='average'?'':'/week'}`}));}
- const habit=getHabits(effective.mapping).find(h=>h.id===metric);
+ const habit=(effective.mapping?.habits||getHabits(effective.mapping)).find(h=>h.id===metric);
  const goal=habit&&personalGoalAt(habit,week);
  if(!habit||!goal)return [];
  const average=habit.kind==='sleep'||habit.kind==='phone';
