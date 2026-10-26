@@ -1,4 +1,4 @@
-const CACHE = "myspace-shell-v22-direct-friend-coins";
+const CACHE = "myspace-shell-v23-badges-friend-links";
 const SHELL = [
   "/audio/coin-pickup.wav",
   "/",
