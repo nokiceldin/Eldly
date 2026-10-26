@@ -1,6 +1,7 @@
 import type {ReactNode} from 'react';
 import {createPortal} from 'react-dom';
 import StreakFlame from './StreakFlame';
+import StreakCelebration,{STREAK_CELEBRATION_MS} from './StreakCelebration';
 import {trackingStreak} from '../../shared/streak';
 import {load} from '../storage';
 import {localDay} from '../engine';
@@ -25,7 +26,7 @@ export default function SocialBar({accountActions}:{accountActions?:ReactNode}){
    const mapping=load().mapping,previous=trackingStreak(previousMapping,today()),next=trackingStreak(mapping,today());setLocalStreak(next);
    if(event.type===LOCAL_EVENT&&!previous.trackedToday&&next.trackedToday&&next.streak>0){
     const key=scopedKey('streak-celebrated-'+today());
-    if(localStorage.getItem(key)!=='1'){localStorage.setItem(key,'1');setCelebration({from:next.streak-1,to:next.streak});clearTimeout(timer);timer=setTimeout(()=>setCelebration(null),2800);}
+    if(localStorage.getItem(key)!=='1'){localStorage.setItem(key,'1');setCelebration({from:next.streak-1,to:next.streak});clearTimeout(timer);timer=setTimeout(()=>setCelebration(null),STREAK_CELEBRATION_MS);}
    }
    const changed=next.streak!==previous.streak||next.trackedToday!==previous.trackedToday;previousMapping=mapping;
    if(event.type===LOCAL_EVENT&&changed)void synchronize().then(()=>socialRequest()).catch(()=>{});
@@ -55,5 +56,5 @@ export default function SocialBar({accountActions}:{accountActions?:ReactNode}){
   return()=>{alive=false;navigator.serviceWorker?.removeEventListener('message',openInbox);clearInterval(timer);window.removeEventListener(SOCIAL_EVENT,receive);window.removeEventListener('myspace-open-profile',show);window.removeEventListener('pointerdown',activity);window.removeEventListener('keydown',activity);window.removeEventListener('online',visible);document.removeEventListener('visibilitychange',visible);};
  },[]);
  const unread=(state?.notifications.filter(n=>!n.read).length||0)+(state?.friends.filter(f=>f.status==='pending'&&f.incoming&&!state.notifications.some(n=>n.kind==='friend_request'&&n.username===f.username&&!n.read)).length||0)+(state?.bestRequests.filter(r=>r.incoming).length||0);
- return <><NotificationPrompt/><button className="social-bell" aria-label={`Inbox${unread?`, ${unread} unread`:''}`} title={error||'Inbox'} onClick={()=>setOpen('notifications')}><Bell size={16}/>{unread>0&&<span className="social-unread">{unread>9?'9+':unread}</span>}</button><span className="social-streak" role="img" aria-label={`${localStreak.streak} day streak`} title={`${localStreak.streak} day streak`}><StreakFlame size={24}/>{localStreak.streak}</span>{open&&<FriendsPanel key={open} initial={state} initialTab={open} initialError={error} accountActions={accountActions} close={()=>setOpen(null)}/>}{celebration&&createPortal(<div className="streak-celebration" role="status" aria-label={`${celebration.to} day streak`} onClick={()=>setCelebration(null)}><div className="streak-celebration-glow"/><div className="streak-celebration-content"><StreakFlame size={150}/><div className="streak-roll" aria-hidden="true"><span>{celebration.from}</span><strong>{celebration.to}</strong></div><h2>Day streak!</h2><p>Keep your fire going.</p></div></div>,document.body)}</>;
+ return <><NotificationPrompt/><button className="social-bell" aria-label={`Inbox${unread?`, ${unread} unread`:''}`} title={error||'Inbox'} onClick={()=>setOpen('notifications')}><Bell size={16}/>{unread>0&&<span className="social-unread">{unread>9?'9+':unread}</span>}</button><span className="social-streak" role="img" aria-label={`${localStreak.streak} day streak`} title={`${localStreak.streak} day streak`}><StreakFlame size={24}/>{localStreak.streak}</span>{open&&<FriendsPanel key={open} initial={state} initialTab={open} initialError={error} accountActions={accountActions} close={()=>setOpen(null)}/>}{celebration&&createPortal(<StreakCelebration from={celebration.from} to={celebration.to} dismiss={()=>setCelebration(null)}/>,document.body)}</>;
 }
