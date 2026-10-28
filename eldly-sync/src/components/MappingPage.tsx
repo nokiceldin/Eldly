@@ -1,3 +1,4 @@
+import {splitSleepMinutes,sleepEntry} from '../sleepEntry';
 import {canTrack} from '../trackingBounds';
 import NumberInput from './NumberInput';
 import TrackerSettings from './TrackerSettings';
@@ -73,8 +74,10 @@ export function EntryEditor({ habit, day, entry, close, save }: { habit: Habit; 
   const [minutes, setMinutes] = useState((entry?.kind === "duration" || entry?.kind === "phone") && entry.minutes !== undefined ? String(entry.minutes % 60) : "");
   const [pickups, setPickups] = useState(entry?.kind === "phone" && entry.pickups !== undefined ? String(entry.pickups) : "");
   const [count, setCount] = useState(entry?.kind === "prayer" ? String(entry.count) : "");
-  const [night, setNight] = useState(entry?.kind === "sleep" ? String(entry.nightMinutes / 60) : "");
-  const [daytime, setDaytime] = useState(entry?.kind === "sleep" ? String(entry.dayMinutes / 60) : "");
+  const [night, setNight] = useState(entry?.kind === "sleep" ? splitSleepMinutes(entry.nightMinutes).hours : "");
+  const [daytime, setDaytime] = useState(entry?.kind === "sleep" ? splitSleepMinutes(entry.dayMinutes).hours : "");
+  const [nightMins,setNightMins]=useState(entry?.kind==='sleep'?splitSleepMinutes(entry.nightMinutes).minutes:'');
+  const [dayMins,setDayMins]=useState(entry?.kind==='sleep'?splitSleepMinutes(entry.dayMinutes).minutes:'');
   const [error, setError] = useState("");
   useEffect(() => {
     const previous = document.activeElement as HTMLElement;
@@ -107,15 +110,18 @@ export function EntryEditor({ habit, day, entry, close, save }: { habit: Habit; 
         if (!Number.isInteger(n) || n < 1 || n > 1000) { setError("Enter a whole-number count."); return; }
         commit({ kind: "prayer", count: n });
       } else if (habit.kind === "sleep") {
-        const nightMinutes = Math.round(Number(night || 0) * 60), dayMinutes = Math.round(Number(daytime || 0) * 60);
-        if ((!night && !daytime) || !Number.isFinite(nightMinutes + dayMinutes) || nightMinutes < 0 || dayMinutes < 0 || nightMinutes + dayMinutes < 0 || nightMinutes + dayMinutes > 1440) { setError("Enter your sleep, up to 24 hours in total."); return; }
-        commit({ kind: "sleep", nightMinutes, dayMinutes });
+        const value=sleepEntry(night,nightMins,daytime,dayMins);
+        if(!value){setError("Enter whole hours and minutes, up to 24 hours in total.");return;}
+        commit(value);
       }
     }}>
       {(habit.kind === "duration" || habit.kind === "phone") && <><p>{habit.kind === "phone" ? "Screen time" : "How long?"}</p><div className="mapping-fields"><label>Hours<NumberInput autoFocus inputMode="numeric" min="0" max="24" step="1" placeholder="0" value={hours} onChange={(e) => setHours(e.target.value)} /></label><label>Minutes<NumberInput inputMode="numeric" min="0" max="59" step="1" placeholder="0" value={minutes} onChange={(e) => setMinutes(e.target.value)} /></label></div></>}
       {habit.kind === "phone" && <label className="phone-pickups-field">Pickups<NumberInput inputMode="numeric" min="0" max="1000000" step="1" placeholder="Not recorded" value={pickups} onChange={e => setPickups(e.target.value)} /></label>}
       {habit.kind === "prayer" && <label>How many times?<NumberInput autoFocus required inputMode="numeric" min="1" max="1000" step="1" value={count} onChange={(e) => setCount(e.target.value)} /></label>}
-      {habit.kind === "sleep" && <><div className="mapping-fields"><label>Night · hours<NumberInput autoFocus inputMode="decimal" min="0" max="24" step="any" placeholder="0" value={night} onChange={(e) => setNight(e.target.value)} /></label><label>Daytime · hours<NumberInput inputMode="decimal" min="0" max="24" step="any" placeholder="0" value={daytime} onChange={(e) => setDaytime(e.target.value)} /></label></div></>}
+      {habit.kind === "sleep" && <>
+        <p>Night</p><div className="mapping-fields"><label>Hours<NumberInput aria-label="Night hours" autoFocus inputMode="numeric" min="0" max="24" step="1" placeholder="0" value={night} onChange={e=>setNight(e.target.value)}/></label><label>Minutes<NumberInput aria-label="Night minutes" inputMode="numeric" min="0" max="59" step="1" placeholder="0" value={nightMins} onChange={e=>setNightMins(e.target.value)}/></label></div>
+        <p>Daytime</p><div className="mapping-fields"><label>Hours<NumberInput aria-label="Daytime hours" inputMode="numeric" min="0" max="24" step="1" placeholder="0" value={daytime} onChange={e=>setDaytime(e.target.value)}/></label><label>Minutes<NumberInput aria-label="Daytime minutes" inputMode="numeric" min="0" max="59" step="1" placeholder="0" value={dayMins} onChange={e=>setDayMins(e.target.value)}/></label></div>
+      </>}
       {error && <p className="mapping-error" role="alert">{error}</p>}
       <div className="mapping-dialog-actions">{entry && <button type="button" className="mapping-clear" onClick={() => commit()}>Clear</button>}<button type="button" className="secondary" onClick={close}>Cancel</button><button className="primary" type="submit">Save</button></div>
     </form>
