@@ -1,4 +1,4 @@
-const CACHE = "myspace-shell-v28-tracker-permissions";
+const CACHE = "myspace-shell-v29-web-analytics";
 const SHELL = [
   "/audio/coin-pickup.wav",
   "/",
@@ -51,6 +51,7 @@ self.addEventListener("fetch", (event) => {
   if (
     request.method !== "GET" ||
     new URL(request.url).pathname.startsWith("/api/") ||
+    new URL(request.url).pathname.startsWith("/_vercel/insights/") ||
     new URL(request.url).pathname.startsWith("/myspace-soundtrack") ||
     new URL(request.url).origin !== self.location.origin
   )

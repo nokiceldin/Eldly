@@ -1,3 +1,4 @@
+import SiteAnalytics from './components/SiteAnalytics';
 import {useContext} from "react";
 import {ProfileContext} from "./profileContext";
 import ProfileAvatar from "./components/ProfileAvatar";
@@ -977,7 +978,7 @@ function App() {
     </main>
   );
 }
-createRoot(document.getElementById("root")!).render(<AccountBoundary><CloudBoundary><App /><RecapDialog /></CloudBoundary></AccountBoundary>);
+createRoot(document.getElementById("root")!).render(<><SiteAnalytics/><AccountBoundary><CloudBoundary><App /><RecapDialog /></CloudBoundary></AccountBoundary></>);
 if ("serviceWorker" in navigator)
   window.addEventListener("load", () =>
     navigator.serviceWorker.register("/sw.js").catch(() => {}),
