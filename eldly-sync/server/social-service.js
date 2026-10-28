@@ -103,13 +103,13 @@ export function createSocialService(sql,{now=()=>new Date()}={}){
    if(!['approve','decline'].includes(body.decision))throw Error('SOCIAL: Choose approve or decline.');p.decision=body.decision;
    const rows=await sql.query("select config from myspace_coin_proposals where id=$1 and reviewer_id=$2 and status='pending'",[p.id,user.id]);
    if(!rows[0])throw Error('SOCIAL: This review is not available to you.');
-   try{p.config=reviewConfig(rows[0].config,body);}catch(e){throw Error('SOCIAL: '+e.message);}
+   try{p.config=reviewConfig(rows[0].config,body,true);}catch(e){throw Error('SOCIAL: '+e.message);}
   }
   if(action==='set_friend_rules'){
    const target=await friendRules(user.id);
    if(!target||body.userId!==target.userId)throw Error('SOCIAL: You can only edit your current best friend’s coin rules.');
    if(body.version!==target.version)throw Error('SOCIAL: These rules changed. Reopen your friend’s profile and try again.');
-   try{p.config=reviewConfig(target.config,body);}catch(e){throw Error('SOCIAL: '+e.message);}
+   try{p.config=reviewConfig(target.config,body,true);}catch(e){throw Error('SOCIAL: '+e.message);}
    p.changes=coinChanges(target.baseline,p.config);if(!p.changes.length){if(!target.needsApproval)throw Error('SOCIAL: No coin rules changed.');p.changes=['Starting coin rules confirmed.'];}
    p.userId=target.userId;p.pairId=target.pairId;p.from=target.week;p.expectedRevision=target.policyRevision;p.dataRevision=target.dataRevision;p.id=randomUUID();
   }

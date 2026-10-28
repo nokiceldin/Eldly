@@ -1,4 +1,4 @@
-const CACHE = "myspace-shell-v27-packing-feedback";
+const CACHE = "myspace-shell-v28-tracker-permissions";
 const SHELL = [
   "/audio/coin-pickup.wav",
   "/",

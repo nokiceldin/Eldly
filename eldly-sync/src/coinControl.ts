@@ -26,7 +26,8 @@ export function cacheGiftBalance(value:number){if(!accountScope()||isGuest()||!N
 
 export function displayCoinData<T extends Pick<Data,'mapping'|'goalPlans'|'coinBonusPlans'>>(data:T):T{
  const d=new Date();d.setDate(d.getDate()-((d.getDay()+6)%7));const week=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
- const control=readCoinPolicy();if(!control)return data;const config=configForWeek(control,week);
- if(!data.mapping)return data;const raw=data.mapping.habits??HABITS;
- return {...data,goalPlans:config?.goalPlans||[],coinBonusPlans:config?.coinBonusPlans||[],mapping:{...data.mapping!,habits:raw.map(h=>({...h,xp:config?.habits.find(a=>a.id===h.id)?.xp||{amount:0,basis:'entry'},goal:config?.habits.find(a=>a.id===h.id)?.goal,previousGoals:config?.habits.find(a=>a.id===h.id)?.previousGoals}))}};
+ const control=readCoinPolicy();if(!control)return data;
+ const effective=effectiveData(data,week,control);
+ if(!data.mapping)return data;
+ return {...effective,mapping:{...data.mapping,habits:(data.mapping.habits??HABITS).map(h=>({...h,goal:effective.mapping?.habits?.find(a=>a.id===h.id)?.goal,previousGoals:effective.mapping?.habits?.find(a=>a.id===h.id)?.previousGoals,xp:effective.mapping?.habits?.find(a=>a.id===h.id)?.xp||{amount:0,basis:'entry'}}))}};
 }

@@ -34,7 +34,7 @@ it('allows one mutually accepted best friend and cancels competing invitations',
 it('only the partner can review, adjusts rates and never copies logs or rewrites the baseline',async()=>{
  await pair();const proposal=(await dash(b)).proposals.find(p=>p.incoming);expect(proposal.config.habits[0].xp.amount).toBe(10);expect(JSON.stringify(proposal)).not.toMatch(/PRIVATE-NOTE|entries/);
  await expect(act(a,'review_rules',{id:proposal.id,decision:'approve'})).rejects.toThrow('not available');await expect(act(c,'review_rules',{id:proposal.id,decision:'approve'})).rejects.toThrow('not available');
- await act(b,'review_rules',{id:proposal.id,decision:'approve',adjustments:{'tennis-test':{amount:6,weeklyCap:30}},bonuses:{goal:0,record:0}});const policy=await service.policy(a);expect(policy.legacy.habits[0].xp.amount).toBe(10);expect(policy.periods).toHaveLength(1);expect(policy.periods[0].config.habits[0].xp).toEqual({amount:6,basis:'entry',weeklyCap:30});expect(policy.periods[0].from>=policy.starts_on).toBe(true);
+ await act(b,'review_rules',{id:proposal.id,decision:'approve',adjustments:{'tennis-test':{amount:6,weeklyCap:30}},bonuses:{goal:0,record:0}});const policy=await service.policy(a);expect(policy.legacy.habits[0].xp.amount).toBe(10);expect(policy.periods).toHaveLength(1);expect(policy.periods[0].config.habits[0].xp).toEqual({amount:6,basis:'entry',weeklyCap:50});expect(policy.periods[0].from>=policy.starts_on).toBe(true);
  await expect(act(b,'review_rules',{id:proposal.id,decision:'approve'})).rejects.toThrow('not available');await act(a,'propose_rules',{config:{habits:[]}});const pending=(await dash(a)).proposals.find(p=>p.status==='pending');expect(pending.config.habits).toHaveLength(1);expect((await service.policy(a)).periods).toEqual(policy.periods);await act(b,'review_rules',{id:pending.id,decision:'decline'});expect((await service.policy(a)).periods).toEqual(policy.periods);
 });
 it('preserves the policy on leave or unfriend and blocks stale reviews',async()=>{
@@ -74,7 +74,7 @@ it('supports declined and canceled requests and invalidates superseded reviews',
  await act(a,'best_request',{userId:b});await act(b,'best_accept',{id:(await dash(b)).bestRequests[0].id});
  const old=(await dash(b)).proposals.find(p=>p.incoming&&p.status==='pending');await act(a,'propose_rules');
  await expect(act(b,'review_rules',{id:old.id,decision:'approve'})).rejects.toThrow('not available');
- const current=(await dash(b)).proposals.find(p=>p.incoming&&p.status==='pending');await act(b,'review_rules',{id:current.id,decision:'approve',adjustments:{'tennis-test':{weeklyCap:null}}});expect((await service.policy(a)).periods[0].config.habits[0].xp.weeklyCap).toBeUndefined();
+ const current=(await dash(b)).proposals.find(p=>p.incoming&&p.status==='pending');await act(b,'review_rules',{id:current.id,decision:'approve',adjustments:{'tennis-test':{weeklyCap:null}}});expect((await service.policy(a)).periods[0].config.habits[0].xp.weeklyCap).toBe(50);
 });
 it('can rerun the additive migration without deleting profiles or existing policies',async()=>{
  await pair();const before=await service.policy(a);const another=createSocialService({query:async(q,p)=>(await db.query(q,p)).rows},{now:()=>now});await another.ensure();expect(await another.policy(a)).toEqual(before);
@@ -117,14 +117,14 @@ it('lets only the current best friend submit immediate coin changes, syncs them 
  await pair();const view=await dash(b),rules=view.bestFriendRules;expect(rules.userId).toBe(a);expect(rules.config.habits[0].xp.amount).toBe(10);
  const body={userId:a,version:rules.version,adjustments:{'tennis-test':{amount:6,weeklyCap:30}},bonuses:{goal:9,record:40}};
  await expect(act(a,'set_friend_rules',body)).rejects.toThrow('current best friend');await expect(act(c,'set_friend_rules',body)).rejects.toThrow('current best friend');await expect(act(b,'set_friend_rules',{...body,userId:c})).rejects.toThrow('current best friend');
- await act(b,'set_friend_rules',body);const own=await dash(a),policy=await service.policy(a);expect(policy.starts_on).toBe('2026-10-19');expect(policy.periods.at(-1).from).toBe('2026-10-19');expect(policy.periods.at(-1).config.habits[0].xp).toEqual({amount:6,basis:'entry',weeklyCap:30});expect(policy.legacy.habits[0].xp.amount).toBe(10);
+ await act(b,'set_friend_rules',body);const own=await dash(a),policy=await service.policy(a);expect(policy.starts_on).toBe('2026-10-19');expect(policy.periods.at(-1).from).toBe('2026-10-19');expect(policy.periods.at(-1).config.habits[0].xp).toEqual({amount:6,basis:'entry',weeklyCap:50});expect(policy.legacy.habits[0].xp.amount).toBe(10);
  const notice=own.notifications.find(n=>n.kind==='rules_changed');expect(notice.username).toBe('bob');expect(notice.createdAt).toBeTruthy();expect(notice.ruleChanges.join(' ')).toContain('10 coins');expect(notice.ruleChanges.join(' ')).toContain('6 coins');expect(notice.ruleChanges.join(' ')).toContain('Coins per weekly goal: 3 → 9');expect(JSON.stringify(notice)).not.toMatch(/PRIVATE-NOTE|Private task title/);
  expect((await dash(b)).bestFriendRules.config.habits[0].xp.amount).toBe(6);await expect(act(b,'set_friend_rules',body)).rejects.toThrow('changed');
  const current=(await dash(b)).bestFriendRules;await act(a,'best_leave');await expect(act(b,'set_friend_rules',{...body,version:current.version})).rejects.toThrow('current best friend');
 });
-it('keeps friend-rule editors valid across logging but rejects changed trackers and can remove limits',async()=>{
+it('keeps friend-rule editors valid across logging but rejects changed trackers and preserves owner limits',async()=>{
  await pair();const rules=(await dash(b)).bestFriendRules;const rows=(await db.query('select record_key,value,deleted from eldinos_account_records where user_id=$1',[a])).rows;const {inflateRecords}=await import('./coin-config.js');const data=inflateRecords(rows)['checkly-data-v1'];data.mapping.entries['2026-10-23']={'tennis-test':{kind:'check'}};await save(a,data);
- await act(b,'set_friend_rules',{userId:a,version:rules.version,adjustments:{'tennis-test':{amount:12,weeklyCap:null}}});expect((await service.policy(a)).periods.at(-1).config.habits[0].xp).toEqual({amount:12,basis:'entry'});
+ await act(b,'set_friend_rules',{userId:a,version:rules.version,adjustments:{'tennis-test':{amount:12,weeklyCap:null}}});expect((await service.policy(a)).periods.at(-1).config.habits[0].xp).toEqual({amount:12,basis:'entry',weeklyCap:50});
  const next=(await dash(b)).bestFriendRules;data.mapping.habits[0].label='New tracker name';await save(a,data);await expect(act(b,'set_friend_rules',{userId:a,version:next.version,adjustments:{'tennis-test':{amount:7}}})).rejects.toThrow('changed');
 });
 it('applies already approved scheduled rules immediately, preserves past weeks, and notifies only once',async()=>{
@@ -187,4 +187,25 @@ it('adds archive dates to old records once without changing earlier history or e
 it('uses elapsed days for a current daily-average goal while withholding maximum goals until completion',async()=>{
  const {achievedGoals}=await import('./coin-config.js');const d={mapping:{version:1,startedOn:'2026-10-19',habits:[{id:'sleep',kind:'sleep',label:'Sleep',goal:{target:480,maximum:false,from:'2026-10-19'}},{id:'phone',kind:'phone',label:'Phone',goal:{target:240,maximum:true,from:'2026-10-19'}}],entries:Object.fromEntries([19,20,21,22,23].map(day=>[`2026-10-${day}`,{sleep:{kind:'sleep',nightMinutes:480,dayMinutes:0}}]))}};
  expect(achievedGoals(d,'2026-10-19','2026-10-23')).toEqual(['sleep']);expect(achievedGoals(d,'2026-10-19','2026-10-25',true)).toEqual(['phone']);
+});
+it('syncs owner-controlled hourly rules and goals while a partner can edit only monetary amounts',async()=>{
+ await act(a,'visit',{timezone:'America/Chicago'});await pair();let rules=(await dash(b)).bestFriendRules;
+ await act(b,'set_friend_rules',{userId:a,version:rules.version,adjustments:{'tennis-test':{amount:10}}});
+ const {inflateRecords}=await import('./coin-config.js');
+ const rows=(await db.query('select record_key,value,deleted from eldinos_account_records where user_id=$1',[a])).rows;
+ const data=inflateRecords(rows)['checkly-data-v1'];
+ now=new Date('2026-10-27T16:00:00Z');
+ data.mapping.habits[0]={...data.mapping.habits[0],kind:'duration',previousKinds:['check'],rulesFrom:'2026-10-26',xp:{amount:999,basis:'hour',weeklyCap:80,threshold:{comparison:'over',minutes:30}},previousGoals:[{target:5,maximum:false,from:'2026-10-19',until:'2026-10-26'}],goal:{target:120,maximum:false,from:'2026-10-26'}};
+ data.mapping.entries={'2026-10-20':{'tennis-test':{kind:'check'}},'2026-10-27':{'tennis-test':{kind:'duration',minutes:120}}};
+ await save(a,data);
+ expect((await dash(a)).notifications.some(n=>n.kind==='goal_self')).toBe(true);
+ rules=(await dash(b)).bestFriendRules;
+ expect(rules.config.habits[0]).toMatchObject({kind:'duration',goal:{target:120},xp:{amount:10,basis:'hour',weeklyCap:80,threshold:{minutes:30}}});
+ await act(b,'set_friend_rules',{userId:a,version:rules.version,adjustments:{'tennis-test':{amount:-20,basis:'entry',weeklyCap:null,threshold:null}}});
+ const policy=await service.policy(a);
+ expect(policy.periods.at(-1).config.habits[0].xp).toEqual({amount:-20,basis:'hour',weeklyCap:80,threshold:{comparison:'over',minutes:30}});
+ const {ledgerWallet}=await import('../shared/coin-ledger.js');
+ expect(ledgerWallet(data,'2026-10-27',policy).earned).toBe(-30);
+ expect((await dash(a)).notifications.filter(n=>n.kind==='rules_changed')[0].ruleChanges).toEqual(['Tennis: 10 coins → -20 coins']);
+ expect(policy.legacy.habits[0]).toMatchObject({kind:'check',goal:{target:5},xp:{amount:10,basis:'entry'}});
 });

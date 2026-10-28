@@ -24,7 +24,7 @@ export function coinConfig(data={},owner=false){
  if(!Array.isArray(habits)||habits.length>100)throw Error('Too many trackers.');
  const clean=habits.map(h=>{
   if(typeof h.id!=='string'||!/^[-a-zA-Z0-9_]{1,100}$/.test(h.id)||typeof h.label!=='string'||!h.label.trim()||h.label.length>80||!['check','duration','prayer','sleep','phone'].includes(h.kind))throw Error('Invalid tracker.');
-  return {...(date(h.startedOn)?{startedOn:h.startedOn}:{}),...(h.xpHistory?{xpHistory:h.xpHistory.slice(-200).map(p=>{if(!date(p.from))throw Error('Invalid coin history.');return {from:p.from,rule:cleanRule(p.rule)};})}:{}),id:h.id,label:h.label,kind:h.kind,color:'blue',xp:cleanRule(h.xp||defaultRule(h.id)),...(h.archived?{archived:true,...(date(h.archivedFrom)?{archivedFrom:h.archivedFrom}:{})}:{}),...(h.archiveHistory?{archiveHistory:h.archiveHistory.filter(p=>date(p.from)&&date(p.until)&&p.from<=p.until).slice(-200)}:{}),...(h.goal?{goal:goal(h.goal)}:{}),...(h.previousGoals?{previousGoals:h.previousGoals.slice(-200).map(goal)}:{})};
+  return {...(h.kindHistory?{kindHistory:h.kindHistory.slice(-200).map(p=>{if(!date(p.from)||!['check','duration','prayer','sleep','phone'].includes(p.kind))throw Error('Invalid tracker history.');return {from:p.from,kind:p.kind};})}:{}),...(date(h.rulesFrom)?{rulesFrom:h.rulesFrom}:{}),...(date(h.startedOn)?{startedOn:h.startedOn}:{}),...(h.xpHistory?{xpHistory:h.xpHistory.slice(-200).map(p=>{if(!date(p.from))throw Error('Invalid coin history.');return {from:p.from,rule:cleanRule(p.rule)};})}:{}),id:h.id,label:h.label,kind:h.kind,color:'blue',xp:cleanRule(h.xp||defaultRule(h.id)),...(h.archived?{archived:true,...(date(h.archivedFrom)?{archivedFrom:h.archivedFrom}:{})}:{}),...(h.archiveHistory?{archiveHistory:h.archiveHistory.filter(p=>date(p.from)&&date(p.until)&&p.from<=p.until).slice(-200)}:{}),...(h.goal?{goal:goal(h.goal)}:{}),...(h.previousGoals?{previousGoals:h.previousGoals.slice(-200).map(goal)}:{})};
  });
  if(new Set(clean.map(h=>h.id)).size!==clean.length)throw Error('Duplicate tracker.');
  const plans=owner?(data.goalPlans||[{id:'original',from:'2026-10-19',targets:Object.fromEntries(legacyGoals.map(g=>[g[0],g[3]]))}]):[];
@@ -35,9 +35,9 @@ export function coinConfig(data={},owner=false){
  });
  return {habits:clean,goalPlans,coinBonusPlans};
 }
-export function reviewConfig(config,body){
+export function reviewConfig(config,body,amountsOnly=false){
  const adjustments=body.adjustments||{};
- const habits=config.habits.map(h=>{const rule={...h.xp,...(adjustments[h.id]||{})};for(const field of ['weeklyCap','dailyCountCap','threshold','secondary'])if(rule[field]===null)delete rule[field];return {...h,xp:cleanRule(rule)};});
+ const habits=config.habits.map(h=>{const edit=adjustments[h.id]||{};const allowed=amountsOnly?{...(edit.amount!==undefined?{amount:edit.amount}:{}),...(h.xp.secondary&&edit.secondary?.amount!==undefined?{secondary:{...h.xp.secondary,amount:edit.secondary.amount}}:{})}:edit;const rule={...h.xp,...allowed};for(const field of ['weeklyCap','dailyCountCap','threshold','secondary'])if(rule[field]===null)delete rule[field];return {...h,xp:cleanRule(rule)};});
  const bonus=body.bonuses;
  if(bonus&&(!number(bonus.goal,0,1000000)||!number(bonus.record,0,1000000)))throw Error('Invalid bonuses.');
  return {...config,habits,...(bonus?{coinBonusPlans:[{id:'reviewed',from:'1900-01-01',goal:bonus.goal,record:bonus.record}]}:{})};
