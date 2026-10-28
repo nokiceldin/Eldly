@@ -1598,3 +1598,21 @@ input {
 @media(hover:none){.task-drag-handle{opacity:.55;left:-44px;width:44px}.task-draggable{margin-left:32px}.recap-archive{flex-wrap:wrap}.recap-archive input{max-width:150px}}
 @media(prefers-reduced-motion:reduce){.weekly-story *,.reward-celebrate,.app-update{animation:none!important;transition:none!important}}
 @media(max-width:480px){.recap-archive{display:grid;grid-template-columns:44px minmax(0,1fr) 44px;gap:8px}.recap-archive select{grid-column:1/-1;width:100%}.recap-archive input{max-width:none;width:100%}}
+
+.check-toolbar-actions{display:flex;align-items:center;gap:8px}
+.check-add-task{display:grid;place-items:center;width:44px;height:44px;flex-shrink:0;border:1px solid #8e805c;border-radius:50%;background:#302d23;color:#ead7a3;transition:background .15s,transform .15s}
+.check-add-task:hover{background:#403a2a}
+.check-add-task:active{transform:scale(.94)}
+.quick-task-editor{max-width:420px}
+.quick-task-editor .form-grid{grid-template-columns:1fr}
+
+/* Paint the notch/status area and toolbar edges while tasks move underneath. */
+.note-toolbar.week-toolbar{
+  top:0;
+  min-height:calc(64px + env(safe-area-inset-top,0px));
+  padding-top:env(safe-area-inset-top,0px);
+  background:#191919;
+  isolation:isolate;
+  box-shadow:0 -32px 0 32px #191919;
+}
+.note-day{scroll-margin-top:calc(88px + env(safe-area-inset-top,0px))}

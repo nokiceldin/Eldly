@@ -167,6 +167,7 @@ function Checklist({ onHome }: { onHome: () => void }) {
     routine?: Routine;
     date: string;
     deadline?: boolean;
+    quick?: boolean;
   } | null>(null);
   const [notice, setNotice] = useState("");
   const [celebration, setCelebration] = useState<{
@@ -295,6 +296,7 @@ function Checklist({ onHome }: { onHome: () => void }) {
         ],
       };
     });
+    if(editor?.quick&&task)setNotice(`Added for ${format(task.scheduled,{month:'short',day:'numeric'})}`);
     setEditor(null);
   };
   return (
@@ -328,6 +330,8 @@ function Checklist({ onHome }: { onHome: () => void }) {
               <ChevronRight size={20} />
             </button>
           </nav>
+          <div className="check-toolbar-actions">
+          <button type="button" className="check-add-task" aria-label="Add a task" onClick={() => setEditor({date:today,quick:true})}><Plus size={21}/></button>
           <button
             className="toolbar-button toolbar-options"
             aria-label="More options"
@@ -335,6 +339,7 @@ function Checklist({ onHome }: { onHome: () => void }) {
           >
             Options
           </button>
+          </div>
         </header>
         {error && (
           <p className="save-error" role="alert">

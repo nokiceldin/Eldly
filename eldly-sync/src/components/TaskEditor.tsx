@@ -36,7 +36,7 @@ export default function Editor({
   onDelete,
   extraActions,
 }: {
-  editor: { task?: Task; routine?: Routine; date: string; deadline?: boolean };
+  editor: { task?: Task; routine?: Routine; date: string; deadline?: boolean; quick?: boolean };
   categories: string[];
   extraActions?: ReactNode;
   close: () => void;
@@ -112,7 +112,7 @@ export default function Editor({
     <div className="modal-backdrop" onClick={close}>
       <section
         ref={dialog}
-        className="modal editor"
+        className={"modal editor" + (editor.quick ? " quick-task-editor" : "")}
         role="dialog"
         aria-modal="true"
         aria-labelledby="editor-title"
@@ -121,7 +121,7 @@ export default function Editor({
         <ModalClose close={close} />
 
         <h2 id="editor-title">
-          {isExisting ? "Make it yours." : "What’s on your mind?"}
+          {editor.quick ? "New task" : isExisting ? "Make it yours." : "What’s on your mind?"}
         </h2>
         <form
           onSubmit={(e) => {
@@ -181,13 +181,13 @@ export default function Editor({
             <input
               autoFocus
               required
-              placeholder="e.g. A little progress on my project"
+              placeholder={editor.quick ? "Task name" : "e.g. A little progress on my project"}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               maxLength={250}
             />
           </label>
-          {(!source || (editor.task&&!editor.task.routineId&&!editor.task.completed)) && (
+          {!editor.quick && (!source || (editor.task&&!editor.task.routineId&&!editor.task.completed)) && (
             <div className="type-selector">
               {[
                 ["task", "One-time"],
@@ -229,7 +229,7 @@ export default function Editor({
                 }}
               />
             </label>
-            <label>
+            {!editor.quick && <label>
               Category
               <select
                 value={category}
@@ -240,7 +240,7 @@ export default function Editor({
                   <option key={c}>{c}</option>
                 ))}
               </select>
-            </label>
+            </label>}
           </div>
           {type === "routine" && (
             <div className="recurrence-fields">
@@ -312,14 +312,14 @@ export default function Editor({
               )}
             </div>
           )}
-          <button
+          {!editor.quick && <button
             className="advanced-button"
             type="button"
             onClick={() => setAdvanced(!advanced)}
           >
             {advanced ? "Fewer details" : "Add a few details"}
             <ChevronDown size={15} />
-          </button>
+          </button>}
           {advanced && (
             <>
               {type === "routine" && (
