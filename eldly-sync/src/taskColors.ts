@@ -8,6 +8,8 @@ export const TASK_COLORS=[
  {id:'purple',label:'Purple',hex:'#b8a4f0'},{id:'lavender',label:'Lavender',hex:'#d0bde9'},
  {id:'brown',label:'Brown',hex:'#c9ad96'},{id:'gray',label:'Gray',hex:'#b2b7bc'},
 ] as const;
+export const AVAILABLE_TASK_COLORS=TASK_COLORS.filter(c=>['blue','green','yellow','red'].includes(c.id));
+export const taskColorSwatch=(id:TaskColor)=>({blue:'#3285ff',green:'#35c75a',yellow:'#ffdc28',red:'#f34743'} as Record<string,string>)[id]??taskColorHex(id);
 export type TaskColor=typeof TASK_COLORS[number]['id'];
 export type TaskColorSettings={enabled?:TaskColor[];usage?:Partial<Record<TaskColor,number>>};
 export const validTaskColor=(value:unknown):value is TaskColor=>TASK_COLORS.some(c=>c.id===value);
@@ -16,9 +18,9 @@ export function validColorSettings(value:unknown):boolean{
  const s=value as TaskColorSettings;
  return (s.enabled===undefined||Array.isArray(s.enabled)&&s.enabled.every(validTaskColor)&&new Set(s.enabled).size===s.enabled.length)&&(s.usage===undefined||!!s.usage&&typeof s.usage==='object'&&!Array.isArray(s.usage)&&Object.entries(s.usage).every(([id,n])=>validTaskColor(id)&&typeof n==='number'&&Number.isSafeInteger(n)&&n>=0));
 }
-export function enabledTaskColors(settings?:TaskColorSettings):TaskColor[]{return settings?.enabled??TASK_COLORS.map(c=>c.id);}
+export function enabledTaskColors(settings?:TaskColorSettings):TaskColor[]{return AVAILABLE_TASK_COLORS.map(c=>c.id).filter(id=>settings?.enabled===undefined||settings.enabled.includes(id));}
 export function popularTaskColors(settings?:TaskColorSettings):TaskColor[]{
- const defaults:TaskColor[]=['blue','white','green','yellow',...TASK_COLORS.map(c=>c.id)];
+ const defaults:TaskColor[]=['blue','green','yellow','red'];
  return [...new Set(defaults)].filter(id=>enabledTaskColors(settings).includes(id)).sort((a,b)=>(settings?.usage?.[b]||0)-(settings?.usage?.[a]||0)).slice(0,4);
 }
 export const taskColorHex=(color?:TaskColor)=>TASK_COLORS.find(c=>c.id===color)?.hex??TASK_COLORS[0].hex;

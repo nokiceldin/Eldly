@@ -1,14 +1,14 @@
 import {it,expect} from 'vitest';
 import {empty,onDay,saveTask,saveTaskInput,type Task} from './engine';
 import {validate} from './storage';
-import {enabledTaskColors,popularTaskColors,TASK_COLORS,setTaskColor,rememberTaskColor} from './taskColors';
+import {enabledTaskColors,popularTaskColors,setTaskColor,rememberTaskColor} from './taskColors';
 import {flatten,inflate} from './sync/records';
 const task:Task={id:'read',title:'Read (W)',scheduled:'2026-10-29',original:'2026-10-29',category:'School',notes:'Keep this',carry:true,important:false,order:1,color:'blue'};
-it('enables the whole palette for existing data and ranks only enabled colors by actual usage',()=>{
- expect(validate(empty())).toBe(true);expect(enabledTaskColors()).toHaveLength(TASK_COLORS.length);
+it('enables the four colors for existing data and ranks only enabled colors by actual usage',()=>{
+ expect(validate(empty())).toBe(true);expect(enabledTaskColors()).toEqual(['blue','green','yellow','red']);
  const data=rememberTaskColor(rememberTaskColor(empty(),'purple'),'purple');
- expect(popularTaskColors(data.taskColorSettings)[0]).toBe('purple');
- expect(popularTaskColors({...data.taskColorSettings,enabled:['blue','white']})).toEqual(['blue','white']);
+ expect(popularTaskColors(data.taskColorSettings)[0]).toBe('blue');
+ expect(popularTaskColors({...data.taskColorSettings,enabled:['blue','white']})).toEqual(['blue']);
  expect(popularTaskColors({enabled:[]})).toEqual([]);
 });
 it('keeps a weekly color on future, completed and moved occurrences without changing their task data',()=>{
@@ -25,7 +25,7 @@ it('keeps a weekly color on future, completed and moved occurrences without chan
 it('preserves colors and preferences through sync/backup and does not recolor tasks when a palette choice is hidden',()=>{
  const data=rememberTaskColor({...saveTaskInput(empty(),{...task,title:'School'}),taskColorSettings:{enabled:['white' as const]}},'blue');
  const restored=inflate(flatten(data));expect(restored).toEqual(data);expect(validate(restored)).toBe(true);
- expect(data.tasks[0].color).toBe('blue');expect(enabledTaskColors(data.taskColorSettings)).toEqual(['white']);
+ expect(data.tasks[0].color).toBe('blue');expect(enabledTaskColors(data.taskColorSettings)).toEqual([]);
  expect(validate({...data,tasks:[{...task,color:'url(evil)'}]})).toBe(false);
  expect(validate({...data,taskColorSettings:{enabled:['unknown']}})).toBe(false);
 });

@@ -1,4 +1,4 @@
-const CACHE = "myspace-shell-v39-stacked-week-header";
+const CACHE = "myspace-shell-v40-four-vivid-colors";
 const SHELL = [
   "/audio/coin-pickup.wav",
   "/",
