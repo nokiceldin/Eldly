@@ -6,6 +6,7 @@ import {getHabits,emptyMapping,mappingStart} from './mapping';
 import {personalGoalAt} from './personalGoals';
 import {metricStats,humanValue,type Range} from './progress';
 export function personalWeekGoals(data:Data,from:string,today=localDay()){
+ from=monday(from);
  const effective=coinDataForWeek(data,from),mapping=effective.mapping||emptyMapping(),to=add(from,6);
  return (mapping.habits||getHabits(mapping)).flatMap(h=>{
   const g=personalGoalAt(h,from);if(!g||archivedForWeek(h,from)||h.startedOn&&h.startedOn>to)return [];

@@ -1,3 +1,4 @@
+import {useLocalDay} from '../useLocalDay';
 import CoinHistoryPanel from './CoinHistoryPanel';
 import {metricGoalTimeline,metricGoals} from '../metricGoals';
 import PersonalGoalsPanel from "./PersonalGoalsPanel";
@@ -15,13 +16,13 @@ import { EntryEditor } from "./MappingPage";
 const COLORS: Record<Metric, string> = { tennis: "#f3cf6d", fitness: "#f3cf6d", recovery: "#9cdaa8", praying: "#9cdaa8", reading: "#93c9f0", journaling: "#93c9f0", sleep: "#78bd89", "screen-time": "#baa8ed", "no-phone":"#93c9f0", homework:"#edb9d3", coaching:"#edb9d3", porn:"#e5a394", goyslop:"#e5a394" };
 const PERIODS: { id: Period; label: string }[] = [{ id: "week", label: "Week" }, { id: "month", label: "Month" }, { id: "year", label: "Year" }, { id: "all", label: "All time" }, { id: "custom", label: "Custom" }];
 export default function ProgressPage({ onHome }: { onHome: () => void }) {
-  const today = localDay();
+  const today = useLocalDay();
   const { data, error, save } = useMappingData();
   const metrics=getMetrics(data);
   const [metric, setMetric] = useState<Metric | null>(null);
   const [goalsOpen, setGoalsOpen] = useState(false);
   const [historyLimit, setHistoryLimit] = useState(31);
-  const [period, setPeriod] = useState<Period>("all");
+  const [period, setPeriod] = useState<Period>("week");
   const [anchor, setAnchor] = useState(today);
   const [custom, setCustom] = useState<Range>({ from: add(today, -29), to: today });
   const [day, setDay] = useState(today);
@@ -53,7 +54,7 @@ export default function ProgressPage({ onHome }: { onHome: () => void }) {
     <header className="progress-heading progress-heading-minimal">
       <h1 ref={heading} tabIndex={-1}>{metric ? metricLabel(metric,data) : goalsOpen ? "Goals" : "Data"}</h1>
       <div className="progress-header-actions">
-        {!metric && <button className="progress-add-entry" aria-label="Goals and history" title="Goals" onClick={() => {setGoalsOpen(!goalsOpen);window.location.hash=goalsOpen?"progress":"progress/goals";}}><Target size={20} /></button>}
+        {!metric && <button className="progress-add-entry" aria-label="Goals and history" title="Goals" onClick={() => {setGoalsOpen(!goalsOpen);window.location.hash=goalsOpen?"progress":"progress/goals";}}><Target size={20} /><span>Goals</span></button>}
         <button className="progress-add-entry" aria-label="Export backup" onClick={() => {try {download(load());}catch(e){setBackupError(String(e));}}}><Download size={18}/></button>
         <button className="progress-filter-toggle" aria-expanded={filtersOpen} aria-controls="progress-filters" onClick={() => setFiltersOpen(!filtersOpen)}><SlidersHorizontal size={17} /> Filters</button>
       </div>
@@ -72,9 +73,10 @@ export default function ProgressPage({ onHome }: { onHome: () => void }) {
       <button className="progress-filter-done" onClick={() => {if(period==="custom")setCustom({from:customFrom.current?.value||custom.from,to:customTo.current?.value||custom.to});setFiltersOpen(false);}}>Done</button>
     </section>}
     {validRange&&goalsOpen&&<CoinHistoryPanel data={load()} range={range}/>}
-    {validRange && goalsOpen && (isPersonalOwner() ? <GoalsPanel range={range} mapping={data} expanded /> : <PersonalGoalsPanel range={range} mapping={data}/>)}
+    {validRange && goalsOpen && (isPersonalOwner() ? <GoalsPanel range={range} mapping={data} expanded /> : <><PersonalGoalsPanel range={range} mapping={data}/>{!metrics.length&&<a className="empty-action" href="#trackly/new"><Plus size={17}/> Create a tracker with a goal</a>}</>)}
     {validRange && !goalsOpen ? <>
-      {!metrics.length&&<p className="personal-empty">Add a tracker in Track to see your personal graphs here.</p>}
+      {!metrics.length&&<section className="app-empty"><h2>Your progress starts with one habit.</h2><p>Log a habit to see your progress.</p><a className="empty-action" href="#trackly/new"><Plus size={17}/> Create your first tracker</a></section>}
+      {!metric&&metrics.length>0&&<p className="progress-takeaway" role="status"><strong>{loggedDays} {loggedDays===1?'day':'days'} logged</strong><span>{period==='week'?'this week':'in this period'}</span></p>}
       <div className="progress-charts">{(metric ? [metric] : metrics).map(id => <MetricCard key={`${id}:${range.from}:${range.to}`} metric={id} data={data} range={range} onOpen={metric ? undefined : () => openMetric(id)} onSelectDay={date => {setDay(date); if(isCountMetric(id,data))save(date,id,data.entries[date]?.[id]?undefined:{kind:"check"});else setEditor(getHabits(data).find(h=>h.id===id)!);}} />)}</div>
       {metric && <>
         <div className="progress-highlights metric-detail-stats"><div><span>Total</span><strong>{humanValue(stats[metric].total,metric,data)}</strong></div><div><span>{isCountMetric(metric,data)?"Days tracked":"Daily average"}</span><strong>{isCountMetric(metric,data)?stats[metric].total:stats[metric].average===null?"—":humanValue(stats[metric].average!,metric,data)}</strong></div>{targets.length?<div className="metric-goal-stat"><span>{timeline.length>1?'Goal at range end':targets[0].label}</span>{targets.map(g=><strong key={g.id}>{g.value}</strong>)}</div>:<div className="metric-goal-stat"><span>Goal</span><strong className="metric-no-goal">Not set</strong></div>}</div>

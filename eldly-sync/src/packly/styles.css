@@ -40,3 +40,15 @@
 .packly-page .feedback-choices button[aria-pressed="true"]{background:#ece9ff;border-color:#7568ee;color:#5142af;box-shadow:inset 0 0 0 1px #7568ee}
 .packly-page[data-theme=dark] .feedback-choices button[aria-pressed="true"]{background:#494137;border-color:#cbb790;color:#fff0cf;box-shadow:inset 0 0 0 1px #cbb790}
 .packly-page .feedback-choices button[aria-pressed="true"] svg{opacity:1}
+/* Stronger contrast for available actions and readable supporting text. */
+.packly-page{--muted:#62677c}
+.packly-page[data-theme=dark]{--muted:#c0c2b6}
+.packly-page .create-hero{background:#b6a7fa;color:#20183e;opacity:1}
+.packly-page .primary-button{background:#6b52db;color:#fff}
+.packly-page[data-theme=dark] .primary-button{background:#b6a7fa;color:#20183e}
+.packly-page .text-action:not(:disabled),.packly-page .plain-link,.packly-page .default-list-link{color:var(--muted)}
+.packly-page .decision-yes{color:#102e25}.packly-page .decision-no{color:#3d1720}
+.packly-page .header-actions .icon-button:has(span){width:auto;padding:0 12px;display:flex;gap:7px;font-size:13px}
+.packly-page .quick-tools{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.packly-page .quick-tools button{min-height:44px;padding:10px 16px;border:1px solid var(--line);border-radius:16px;background:var(--surface);color:var(--text)}
+.packly-page .trip-tile-bottom .plain-link{display:inline-flex;align-items:center;gap:6px;margin:0;min-height:44px}

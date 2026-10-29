@@ -23,11 +23,12 @@ export default function RecapDialog() {
   const [hour,setHour]=useState(()=>new Date().getHours());
   const [manual, setManual] = useState<RecapWindow[] | null>(null);
   const [error, setError] = useState("");
+  const [emptyOpen,setEmptyOpen]=useState(false);
   const [applied,setApplied] = useState<string[]>([]);
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const refresh = () => { try { const latest = load(); if (isPersonalOwner()&&!latest.goalPlans?.length) { persist({ ...latest, goalPlans: [initialGoalPlan(latest)] }); } setData(load()); setToday(localDay());setHour(new Date().getHours()); } catch { /* Existing save errors are displayed by the app. */ } };
-    const open = () => { refresh(); setManual(recapWindows(localDay()).filter(w=>w.range.to>=mappingStart(load().mapping||emptyMapping()))); };
+    const open = () => { refresh(); const windows=recapWindows(localDay()).filter(w=>w.range.to>=mappingStart(load().mapping||emptyMapping()));setManual(windows);setEmptyOpen(windows.length===0); };
     refresh();
     window.addEventListener(COIN_CONTROL_EVENT,refresh);window.addEventListener(LOCAL_EVENT, refresh);
     window.addEventListener(REMOTE_EVENT, refresh);
@@ -41,8 +42,8 @@ export default function RecapDialog() {
   const current = queue[0];
   const recap = data && current ? buildRecap(data, current, today) : null;
   useLayoutEffect(() => {
-    if (current && !dialog.current?.open) dialog.current?.showModal();
-  }, [current?.id]);
+    if ((current || emptyOpen) && !dialog.current?.open) dialog.current?.showModal();
+  }, [current?.id,emptyOpen]);
   function dismiss() {
     if (!current) return;
     try {
@@ -53,7 +54,7 @@ export default function RecapDialog() {
       setError("");
     } catch { setError("Could not save. Please try again."); }
   }
-  if (!recap) return null;
+  if (!recap) return emptyOpen?<dialog ref={dialog} className="recap-dialog recap-empty" aria-labelledby="empty-recap-title" onCancel={e=>{e.preventDefault();setEmptyOpen(false);setManual(null);}}><header className="recap-heading"><h2 id="empty-recap-title">No recaps yet</h2><button aria-label="Close recap" onClick={()=>{setEmptyOpen(false);setManual(null);}}><X size={22}/></button></header><p>Your first recap will be ready next week.</p><button className="recap-done" onClick={()=>{setEmptyOpen(false);setManual(null);}}>Done</button></dialog>:null;
   const personal=!isPersonalOwner();
   const start=mappingStart(data?.mapping||emptyMapping());
   const range = (r: { from: string; to: string }) => `${format(r.from, { month: "short", day: "numeric", year: "numeric" })} – ${format(r.to, { month: "short", day: "numeric", year: "numeric" })}`;
@@ -68,7 +69,7 @@ export default function RecapDialog() {
     <div className="recap-topline"><strong>{recap.completed}<span>tasks completed</span></strong><strong>{recap.days}<span>days</span></strong></div>
     <div className="recap-insights">
       <section><h2>Positives</h2>{recap.positives.length ? <ul>{recap.positives.map(text => <li key={text}>{text}</li>)}</ul> : <p>No completed activities this period.</p>}</section>
-      <section><h2>Room to improve</h2>{recap.attention.length ? <ul>{recap.attention.map(text => <li key={text}>{text}</li>)}</ul> : <p>{recap.metrics.some(row=>row.previous.days)?`No declines from the previous ${recap.period}.`:"No earlier tracking period to compare."}</p>}</section>
+      <section><h2>Next steps</h2>{recap.attention.length ? <ul>{recap.attention.map(text => <li key={text}>{text}</li>)}</ul> : <p>{recap.metrics.some(row=>row.previous.days)?`No declines from the previous ${recap.period}.`:"No earlier tracking period to compare."}</p>}</section>
     </div>
     {!personal && data && goalHistory(data,recap.range,today).weeks.length > 0 && <section className="recap-data"><h2>Weekly goals</h2><div className="recap-goals">{data && goalHistory(data, recap.range, today).summary.map(goal => <div key={goal.id}><span>{goal.label}</span><strong>{goal.met} / {goal.total}<small>weeks met</small></strong></div>)}</div></section>}
     </>}

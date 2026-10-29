@@ -23,13 +23,13 @@ export default function GoalsPanel({ range, mapping, expanded = false }: { range
     <h2>{dateLabel(from)} – {dateLabel(results[0]?.to||from)}</h2>
     <div className="goal-rows">{results.map(goal=><div key={goal.id} className={`goal-row ${goal.met?'goal-met':''}`}>
       <div><strong>{goal.label}</strong><span>{goal.maximum?'At most':'At least'} {goalValueLabel(goal,goal.target)}</span></div>
-      <div><strong>{goalValueLabel(goal,goal.actual)}</strong><span>{!goal.eligible ? "Partial week" : goal.complete ? goal.met?'Met':'Not met' : goal.met ? goal.maximum?'Within limit':'Reached so far':'In progress'}</span></div>
+      <div><strong>{goalValueLabel(goal,goal.actual)}</strong><span>{!goal.eligible ? "Partial week" : goal.complete ? goal.met?'Met':(goal.maximum?'Above limit':'Below target') : goal.met ? goal.maximum?'Within limit':'Reached so far':'In progress'}</span></div>
     </div>)}</div>
     <h3>Goal history</h3>
     <p className="goal-period-label">{dateLabel(range.from)} – {dateLabel(range.to)} · completed weeks ending in this period</p>
     <div className="recap-goals">{history.summary.map(goal=><div key={goal.id}><span>{goal.label}</span><strong>{goal.met} / {goal.total}<small>weeks met</small></strong></div>)}</div>
     <details className="goal-week-history"><summary>Week by week <ChevronDown size={16}/></summary>
-      {history.weeks.length ? [...history.weeks].reverse().map(week=><details key={week.from}><summary>{dateLabel(week.from)} – {dateLabel(week.to)}</summary><div className="goal-rows">{week.results.map(goal=><div className={`goal-row ${goal.met?'goal-met':''}`} key={goal.id}><div><strong>{goal.label}</strong><span>{goal.maximum?'≤':'≥'} {goalValueLabel(goal,goal.target)}</span></div><div><strong>{goalValueLabel(goal,goal.actual)}</strong><span>{goal.met?'Met':'Not met'}</span></div></div>)}</div></details>) : <p>No completed weeks yet.</p>}
+      {history.weeks.length ? [...history.weeks].reverse().map(week=><details key={week.from}><summary>{dateLabel(week.from)} – {dateLabel(week.to)}</summary><div className="goal-rows">{week.results.map(goal=><div className={`goal-row ${goal.met?'goal-met':''}`} key={goal.id}><div><strong>{goal.label}</strong><span>{goal.maximum?'≤':'≥'} {goalValueLabel(goal,goal.target)}</span></div><div><strong>{goalValueLabel(goal,goal.actual)}</strong><span>{goal.met?'Met':(goal.maximum?'Above limit':'Below target')}</span></div></div>)}</div></details>) : <p>No completed weeks yet.</p>}
     </details>
   </details>;
 }

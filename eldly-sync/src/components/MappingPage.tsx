@@ -1,3 +1,6 @@
+import {useLocalDay} from '../useLocalDay';
+import DailyAppShortcut from './DailyAppShortcut';
+import {readTrackingView,rememberTrackingView,type TrackingView} from '../trackingView';
 import {splitSleepMinutes,sleepEntry} from '../sleepEntry';
 import {canTrack} from '../trackingBounds';
 import NumberInput from './NumberInput';
@@ -5,14 +8,19 @@ import TrackerSettings from './TrackerSettings';
 import RewardsCard from './RewardsCard';
 import TrackerEditor from "./TrackerEditor";
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
-import { ChevronLeft, ChevronRight, Volume2, VolumeX, X } from "lucide-react";
-import { localDay, parse, format } from "../engine";
+import { ChevronLeft, ChevronRight, Volume2, VolumeX, X, Plus, Check } from "lucide-react";
+import { localDay, parse, format, add } from "../engine";
 import { useMappingData } from "../useMappingData";
 import { HABITS, getHabits, entryDescription, type Habit, type MappingEntry } from "../mapping";
 const COLORS = { yellow: "#f3cf6d", green: "#9cdaa8", blue: "#93c9f0", pink: "#efa9ca", red: "#f09898", purple: "#baa8ed" };
 export default function MappingPage({ onHome }: { onHome: () => void }) {
-  const today = localDay();
-  const [manage,setManage]=useState(false);
+  const today = useLocalDay();
+  const [manage,setManage]=useState(() => window.location.hash.endsWith('/new'));
+  const [view,setView]=useState<TrackingView>(readTrackingView);
+  const [day,setDay]=useState(today);
+  const previousToday=useRef(today);
+  useEffect(()=>{const previous=previousToday.current;setDay(selected=>selected===previous?today:selected);previousToday.current=today;},[today]);
+  const closeManage=()=>{setManage(false);if(window.location.hash.endsWith('/new'))window.location.hash='trackly';};
   const [settings,setSettings]=useState<string|null>(null);
   const [month, setMonth] = useState(today.slice(0, 7) + "-01");
   const { data, error, save: write, sound, setSound } = useMappingData();
@@ -24,20 +32,27 @@ export default function MappingPage({ onHome }: { onHome: () => void }) {
   useEffect(() => { heading.current?.focus({ preventScroll: true }); }, []);
   useLayoutEffect(() => {
     if (scroll.current) scroll.current.scrollLeft = month.slice(0, 7) === today.slice(0, 7) ? Math.max(0, Number(today.slice(-2)) - 2) * 44 : 0;
-  }, [month, today]);
+  }, [month, today, view, data.habits?.length]);
   const shift = (amount: number) => setMonth(localDay(new Date(current.getFullYear(), current.getMonth() + amount, 1, 12)));
   return (
     <main className="mapping-page">
+      <DailyAppShortcut to="check"/>
       <button className="eldly-back" onClick={onHome}><ChevronLeft size={20} /> Home</button>
       <header className="mapping-title trackly-title"><div><h1 ref={heading} tabIndex={-1}>Track</h1></div><button className="trackly-sound" aria-label={sound ? "Mute Check and Track sounds" : "Enable Check and Track sounds"} aria-pressed={sound} onClick={() => setSound(!sound)}>{sound ? <Volume2 size={20} /> : <VolumeX size={20} />}</button></header>
-      <button className="track-manage" onClick={()=>setManage(true)}>Customize trackers</button>
-      {!getHabits(data).length&&<p className="personal-empty">Add your first tracker to start your own activity map.</p>}
+      <div className="tracking-toolbar"><div className="tracking-views" role="group" aria-label="Tracking view">{(['monthly','daily'] as const).map(mode=><button key={mode} aria-pressed={view===mode} onClick={()=>{setView(mode);rememberTrackingView(mode);}}>{mode==='monthly'?'Monthly':'Daily'}</button>)}</div>{getHabits(data).length>0&&<button className="track-manage" onClick={()=>setManage(true)}>Customize trackers</button>}</div>
+      {!getHabits(data).length?<section className="app-empty"><h2>Start with one habit.</h2><p>Check off a habit or log your time.</p><button className="empty-action" onClick={()=>setManage(true)}><Plus size={17}/> Add your first tracker</button></section>:view==='daily'?<section className="tracking-daily" aria-label="Daily tracking">
+        <div className="mapping-month-bar"><button aria-label="Previous day" onClick={()=>setDay(add(day,-1))}><ChevronLeft size={21}/></button><button className="mapping-month-title" onClick={()=>setDay(today)} aria-label="Return to today">{day===today?'Today':format(day,{weekday:'long'})}<small>{format(day,{month:'short',day:'numeric',year:'numeric'})}</small></button><button aria-label="Next day" disabled={day>=today} onClick={()=>setDay(add(day,1))}><ChevronRight size={21}/></button></div>
+        <div className="daily-trackers">{getHabits(data).map(habit=>{
+          const entry=data.entries[day]?.[habit.id];
+          const linked=entry?.kind==='check'&&entry.source==='checkly';
+          return <div className="daily-tracker" key={habit.id} style={{'--habit-color':COLORS[habit.color]} as CSSProperties}><i aria-hidden="true"/><div><strong>{habit.label}</strong><span>{entry?entryDescription(entry,habit):'Not recorded'}{linked?' · Managed in Check':''}</span></div><button disabled={!canTrack(data,habit.id,day,today)||linked} aria-label={`${habit.kind==='check'?(entry?'Unmark':'Complete'):(entry?'Edit':'Log')} ${habit.label}`} aria-pressed={habit.kind==='check'?!!entry:undefined} className={entry?'is-recorded':''} onClick={()=>habit.kind==='check'?write(day,habit.id,entry?undefined:{kind:'check'}):setEditor({habit,day})}>{habit.kind==='check'?(entry?<Check size={21}/>:<Plus size={21}/>):entry?'Edit':'Log'}</button></div>;
+        })}</div>
+      </section>:<>
       <div className="mapping-month-bar">
         <button aria-label="Previous month" onClick={() => shift(-1)}><ChevronLeft size={21} /></button>
         <button className="mapping-month-title" aria-label="Return to current month" onClick={() => setMonth(today.slice(0, 7) + "-01")}>{format(month, { month: "long", year: "numeric" })}</button>
         <button aria-label="Next month" onClick={() => shift(1)}><ChevronRight size={21} /></button>
       </div>
-      {error && <p className="mapping-error" role="alert">{error}</p>}
       <div ref={scroll} className="mapping-scroll" role="region" aria-label="Monthly activity grid, scroll for more dates" tabIndex={0}>
         <table className="mapping-grid">
           <caption className="sr-only">{format(month, { month: "long", year: "numeric" })} activity map. Select a square to record or edit an activity.</caption>
@@ -60,9 +75,11 @@ export default function MappingPage({ onHome }: { onHome: () => void }) {
           </tr>)}</tbody>
         </table>
       </div>
+      </>}
+      {error && <p className="mapping-error" role="alert">{error}</p>}
       <RewardsCard/>
       {settings&&<TrackerSettings key={settings} id={settings} close={()=>setSettings(null)}/>}
-      {manage&&<TrackerEditor close={()=>setManage(false)} onEdit={id=>{setManage(false);setSettings(id);}}/>}
+      {manage&&<TrackerEditor close={closeManage} onEdit={id=>{closeManage();setSettings(id);}}/>}
       {editor && <EntryEditor key={`${editor.habit.id}:${editor.day}`} habit={editor.habit} day={editor.day} entry={data.entries[editor.day]?.[editor.habit.id]}
         close={() => setEditor(null)} save={(entry) => write(editor.day, editor.habit.id, entry)} />}
     </main>

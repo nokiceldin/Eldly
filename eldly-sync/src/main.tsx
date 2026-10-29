@@ -1,3 +1,4 @@
+import DailyAppShortcut from './components/DailyAppShortcut';
 import SiteAnalytics from './components/SiteAnalytics';
 import {useContext} from "react";
 import {ProfileContext} from "./profileContext";
@@ -302,6 +303,7 @@ function Checklist({ onHome }: { onHome: () => void }) {
   return (
     <MotionConfig reducedMotion="user">
       <main className={`note-page ${taskDragging?"task-dragging":""}`} {...weekSwipe}>
+      <DailyAppShortcut to="track"/>
         <header className="note-toolbar week-toolbar">
           <button className="toolbar-button eldly-home-button" aria-label={`Back to ${accountHomeName()} home`} onClick={onHome}><Home size={20} /></button>
           <nav className="week-switcher" aria-label="Week navigation">
@@ -316,11 +318,11 @@ function Checklist({ onHome }: { onHome: () => void }) {
               className={
                 "week-label" + (week === monday(today) ? " current-week" : "")
               }
-              aria-label={`Week ${schoolWeek(week)}, ${iso(week).year}${week === monday(today) ? ", current week" : ". Return to current week"}`}
+              aria-label={`Week ${schoolWeek(week)}, ${iso(week).year}, ${format(week,{month:"short",day:"numeric"})} through ${format(add(week,6),{month:"short",day:"numeric"})}${week === monday(today) ? ", current week" : ". Return to current week"}`}
               aria-current={week === monday(today) ? "date" : undefined}
               onClick={returnToToday}
             >
-              Week {schoolWeek(week)}
+              <span>Week {schoolWeek(week)}</span><small className="week-date-range">{format(week,{month:"short",day:"numeric"})}–{format(add(week,6),{month:"short",day:"numeric"})}</small>
             </button>
             <button
               className="week-arrow"
@@ -383,6 +385,7 @@ function Checklist({ onHome }: { onHome: () => void }) {
                     </span>
                   </div>
                 </div>
+                {tasks.length === 0 && <div className="check-empty-day"><p>{date === today ? 'A little space for what matters today.' : 'Nothing planned yet.'}</p><button type="button" className="empty-action" onClick={() => setEditor({date,quick:true})}><Plus size={17}/> Add {data.tasks.length || data.routines.length ? 'a task' : 'your first task'}</button></div>}
                 <TaskDropDay day={date} tasks={tasks}>
                 <div className="note-tasks">
                   {tasks.map((t) => (
@@ -932,9 +935,9 @@ function QuickAdd({
 }
 type Destination = "home" | "checkly" | "progress" | "mapping" | "packly";
 const destinations = [
-  { id: "checkly", emoji: "✅", title: "Check", description: "Your daily checklist" },
+  { id: "checkly", emoji: "✅", title: "Check", description: "Tasks to do" },
+  { id: "mapping", emoji: "🗺️", title: "Track", description: "Habits to log" },
   { id: "progress", emoji: "📈", title: "Data", description: "See how you’re doing" },
-  { id: "mapping", emoji: "🗺️", title: "Track", description: "Your daily habits, tracked" },
   { id: "packly", emoji: "🎒", title: "Pack", description: "Everything for your next trip" },
 ] as const;
 function currentDestination(): Destination {
@@ -966,7 +969,7 @@ function App() {
   return (
     <main className="eldly-page">
           <header className="eldly-heading">
-            <button className="eldly-recap-settings" aria-label="View recaps" onClick={() => window.dispatchEvent(new Event("eldly-open-recaps"))}><History size={20} /></button>
+            <button className="eldly-recap-settings" aria-label="View recaps" onClick={() => window.dispatchEvent(new Event("eldly-open-recaps"))}><History size={20} /><span>Recaps</span></button>
             <button className="eldly-cloud-settings" aria-label="Cloud sync settings" onClick={() => window.dispatchEvent(new Event("eldly-open-cloud-settings"))}><Cloud size={20} /></button>
             <div className="eldly-brand"><ProfileAvatar style={profileAvatar} className="eldly-logo" size={86} label="Your portrait"/><h1 ref={heading} tabIndex={-1}>{accountHomeName()}<span aria-hidden="true">.</span></h1></div>
 
@@ -976,6 +979,7 @@ function App() {
               <a key={d.id} href={d.id === "mapping" ? "#trackly" : `#${d.id}`} className={`eldly-tile eldly-tile-${d.id}`}>
                 <span className="eldly-tile-icon"><AppIcon app={d.id} /></span>
                 <span className="eldly-tile-title">{d.title}</span>
+                {(d.id === "checkly" || d.id === "mapping") && <span className="eldly-tile-hint">{d.description}</span>}
 
               </a>
             ))}
