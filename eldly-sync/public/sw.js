@@ -1,4 +1,4 @@
-const CACHE = "myspace-shell-v37-live-task-color-preview";
+const CACHE = "myspace-shell-v38-monthly-tasks";
 const SHELL = [
   "/audio/coin-pickup.wav",
   "/",

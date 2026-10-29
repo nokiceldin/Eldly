@@ -34,6 +34,7 @@ export default function Editor({
   editor,
   categories,
   colorSettings,
+  routineSource,
   close,
   onSave,
   onDelete,
@@ -42,6 +43,7 @@ export default function Editor({
   editor: { task?: Task; routine?: Routine; date: string; deadline?: boolean; quick?: boolean };
   categories: string[];
   colorSettings?: TaskColorSettings;
+  routineSource?:Routine;
   extraActions?: ReactNode;
   close: () => void;
   onSave: (t?: Task, r?: Routine) => void;
@@ -68,9 +70,11 @@ export default function Editor({
   const [carry, setCarry] = useState(source?.carry ?? true);
   const [important, setImportant] = useState(source?.important || false);
   const [frequency, setFrequency] = useState<Routine["frequency"]>(
-    editor.routine?.frequency || "weekly",
+    editor.routine?.frequency || routineSource?.frequency || "weekly",
   );
   const [interval, setInterval] = useState(editor.routine?.interval || 1);
+  const originalRoutine=editor.routine||routineSource;
+  const monthlyDay=frequency==='monthly'&&originalRoutine?.frequency==='monthly'&&date===(editor.task?.scheduled||editor.routine?.start||editor.date)?originalRoutine.monthDay??parse(originalRoutine.start).getDate():Number(date.slice(-2));
   const [weekdaysSelected, setWeekdays] = useState(
     editor.routine?.weekdays || [(parse(date).getDay() + 6) % 7],
   );
@@ -140,13 +144,14 @@ export default function Editor({
               return;
             if (type === "routine") {
               onSave(undefined, {
-                id: editor.routine?.id || uid(),
+                id: editor.routine?.id || editor.task?.routineId || uid(),
                 title: title.trim(),
                 color,
                 category,
                 notes,
                 start: date,
-                weekdays: weekdaysSelected,
+                weekdays: frequency==='monthly'?[]:weekdaysSelected,
+                monthDay:frequency==='monthly'?monthlyDay:undefined,
                 frequency,
                 interval,
                 schoolWeeks:
@@ -194,20 +199,21 @@ export default function Editor({
               maxLength={250}
             />
           </label>
-          {!editor.quick && (!source || (editor.task&&!editor.task.routineId&&!editor.task.completed)) && (
+          {!editor.quick && (!source || editor.routine || (editor.task&&!editor.task.completed&&!editor.task.deadline)) && (
             <div className="type-selector">
               {[
                 ["task", "One-time"],
                 ["routine", "Weekly"],
+                ["monthly", "Monthly"],
                 ["deadline", "Important date"],
-              ].map(([value, label]) => (
+              ].filter(([value])=>!(editor.routine||editor.task?.routineId)||value==='routine'||value==='monthly').map(([value, label]) => (
                 <button
                   type="button"
-                  className={type === value ? "selected" : ""}
+                  className={(value==='monthly'?(type==='routine'||!!routineSource)&&frequency==='monthly':value==='routine'?type==='routine'&&frequency!=='monthly':type===value&&!routineSource)?"selected":""}
                   key={value}
-                  onClick={() => setType(value)}
+                  onClick={() => {if(value==='monthly'){setType('routine');setFrequency('monthly');}else{setType(value);if(value==='routine')setFrequency('weekly');}}}
                 >
-                  {value === "routine" ? (
+                  {value === "routine" || value === "monthly" ? (
                     <Repeat2 size={14} />
                   ) : value === "deadline" ? (
                     <Flag size={14} />
@@ -219,7 +225,7 @@ export default function Editor({
               ))}
             </div>
           )}
-          <fieldset className="task-editor-colors"><legend>Text color</legend><TaskColorPicker colors={[...new Set([...enabledTaskColors(colorSettings),...(color?[color]:[])])]} value={color} onChange={setColor}/>{editor.task?.routineId&&<small>Applies to this repeating task every week.</small>}</fieldset>
+          <fieldset className="task-editor-colors"><legend>Text color</legend><TaskColorPicker colors={[...new Set([...enabledTaskColors(colorSettings),...(color?[color]:[])])]} value={color} onChange={setColor}/>{editor.task?.routineId&&<small>Applies to every occurrence of this repeating task.</small>}</fieldset>
           <div className="form-grid">
             <label>
               {type === "deadline"
@@ -251,6 +257,7 @@ export default function Editor({
             </label>}
           </div>
           {type === "routine" && (
+
             <div className="recurrence-fields">
               <label>
                 Repeat
@@ -261,6 +268,7 @@ export default function Editor({
                   }
                 >
                   <option value="weekly">Every week</option>
+                  <option value="monthly">Every month · same date</option>
                   <option value="daily">Every day</option>
                   <option value="interval">
                     Every two / custom number of weeks
@@ -270,6 +278,7 @@ export default function Editor({
                   <option value="weeks">Specific school weeks</option>
                 </select>
               </label>
+              {frequency==='monthly'&&<p className="monthly-repeat-note">Repeats on day {monthlyDay} of each month. Shorter months use their last day.</p>}
               {frequency === "weeks" && (
                 <label>
                   School weeks
@@ -295,7 +304,7 @@ export default function Editor({
                   />
                 </label>
               )}
-              {frequency !== "daily" && (
+              {frequency !== "daily" && frequency !== "monthly" && (
                 <div className="weekday-picks">
                   {weekdays.map((day, i) => (
                     <button
@@ -315,7 +324,7 @@ export default function Editor({
                   ))}
                 </div>
               )}
-              {frequency !== "daily" && !weekdaysSelected.length && (
+              {frequency !== "daily" && frequency !== "monthly" && !weekdaysSelected.length && (
                 <p className="late-label">Choose at least one day.</p>
               )}
             </div>
@@ -405,7 +414,7 @@ export default function Editor({
               className="primary"
               disabled={
                 type === "routine" &&
-                ((frequency !== "daily" && !weekdaysSelected.length) ||
+                ((frequency !== "daily" && frequency !== "monthly" && !weekdaysSelected.length) ||
                   (frequency === "weeks" && !selectedSchoolWeeks))
               }
             >

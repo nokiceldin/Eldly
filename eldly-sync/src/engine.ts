@@ -35,8 +35,9 @@ export interface Routine {
   start: Day;
   end?: Day;
   weekdays: number[];
-  frequency: "weekly" | "daily" | "odd" | "even" | "interval" | "weeks";
+  frequency: "weekly" | "daily" | "odd" | "even" | "interval" | "weeks" | "monthly";
   schoolWeeks?: number[];
+  monthDay?: number;
   dueOffsetDays?: number;
   interval: number;
   paused: boolean;
@@ -123,6 +124,7 @@ export function parseSchoolWeeks(raw: string): number[] | null {
     : null;
 }
 export function routineSuffix(r: Routine): string {
+  if(r.frequency === "monthly") return ` (monthly · day ${r.monthDay ?? parse(r.start).getDate()})`;
   if (r.frequency === "daily") return "";
   if (r.frequency === "odd") return " (odd weeks)";
   if (r.frequency === "even") return " (even weeks)";
@@ -156,6 +158,10 @@ export function matches(r: Routine, d: Day) {
   )
     return false;
   const w = Math.abs(schoolWeek(d));
+  if(r.frequency === "monthly"){
+    const date=parse(d),anchor=r.monthDay??parse(r.start).getDate();
+    return date.getDate()===Math.min(anchor,new Date(date.getFullYear(),date.getMonth()+1,0).getDate());
+  }
   if (r.frequency === "daily") return true;
   if (!r.weekdays.includes((parse(d).getDay() + 6) % 7)) return false;
   return r.frequency === "weeks"
@@ -599,4 +605,26 @@ export function syncChecklyHomework(data: Data, today: Day): Data {
     else if (!finished && automatic) mapping = setMappingEntry(mapping, day, "homework");
   }
   return mapping === data.mapping || (!data.mapping && !Object.keys(mapping.entries).length) ? data : { ...data, mapping };
+}
+
+/** Replace only future scheduling; keep completed history and a converted task's identity. */
+export function saveRoutineInput(data:Data,input:Routine,today:Day,source?:Task):Data{
+ const parsed=parseWeeklyTitle(input.title);
+ if(!parsed.title)return data;
+ const updated:Routine={...input,title:parsed.title,...(input.frequency==='monthly'?{monthDay:input.monthDay??parse(input.start).getDate(),weekdays:[]}:parsed.weekly?{frequency:'weekly',interval:1}:{})};
+ const old=data.routines.find(r=>r.id===updated.id);
+ if(old&&Object.keys({...old,...updated}).every(key=>key==='color'||JSON.stringify(old[key as keyof Routine])===JSON.stringify(updated[key as keyof Routine])))return {...data,routines:data.routines.map(r=>r.id===old.id?updated:r)};
+ const cutoff=old?(updated.start>today?updated.start:today):updated.start;
+ const next:Routine={...updated,id:old?uid():updated.id,start:cutoff,end:undefined};
+ const retained=(task:Task)=>!(old&&task.routineId===old.id&&task.original>=cutoff&&!task.completed);
+ let tasks=data.tasks.filter(retained);
+ const overrides=Object.fromEntries(Object.entries(data.overrides).map(([id,t])=>[id,retained(t)?t:{...t,deleted:true}]));
+ const routines=old?[...data.routines.filter(r=>r.id!==old.id),{...old,end:old.end&&old.end<add(cutoff,-1)?old.end:add(cutoff,-1)},next]:[...data.routines,next];
+ if(source&&!source.completed&&(!old||source.original>=cutoff)&&matches(next,cutoff)){
+  const adopted:Task={...source,title:next.title,color:next.color,category:next.category,notes:next.notes,scheduled:cutoff,original:cutoff,due:next.dueOffsetDays===undefined?source.due:add(cutoff,next.dueOffsetDays),routineId:next.id,carry:next.carry,important:next.important,deadline:false,deleted:false};
+  tasks=[...tasks.filter(t=>t.id!==source.id),adopted];
+  if(old)delete overrides[source.id];
+  overrides[`${next.id}:${cutoff}`]={...adopted,id:`${next.id}:${cutoff}`,deleted:true};
+ }
+ return {...data,tasks,routines,overrides};
 }

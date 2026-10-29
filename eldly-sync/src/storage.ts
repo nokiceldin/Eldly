@@ -58,9 +58,10 @@ export function validate(x: unknown): x is Data {
         (!r.end || date(r.end)) &&
         Array.isArray(r.weekdays) &&
         r.weekdays.every((w) => Number.isInteger(w) && w >= 0 && w < 7) &&
-        ["weekly", "daily", "odd", "even", "interval", "weeks"].includes(
+        ["weekly", "daily", "odd", "even", "interval", "weeks", "monthly"].includes(
           r.frequency,
         ) &&
+        (r.monthDay===undefined||(Number.isInteger(r.monthDay)&&r.monthDay>=1&&r.monthDay<=31)) &&
         (r.frequency !== "weeks" ||
           (Array.isArray(r.schoolWeeks) && r.schoolWeeks.length > 0)) &&
         (r.schoolWeeks === undefined ||

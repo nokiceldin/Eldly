@@ -58,6 +58,7 @@ import {
   visibleDate,
   saveTask,
   saveTaskInput,
+  saveRoutineInput,
   normalizeWeeklyMarkers,
   parseWeeklyTitle,
   seed,
@@ -295,21 +296,13 @@ function Checklist({ onHome }: { onHome: () => void }) {
       const updated = {
         ...routine,
         title: parsed.title,
-        ...(parsed.weekly ? { frequency: "weekly" as const, interval: 1 } : {}),
+        ...(parsed.weekly && routine.frequency!=="monthly" ? { frequency: "weekly" as const, interval: 1 } : {}),
       };
       const old = d.routines.find((r) => r.id === updated.id);
       let colored=d;
       if(updated.color&&updated.color!==old?.color)colored=rememberTaskColor(setTaskColor(d,{id:'',routineId:updated.id},updated.color),updated.color);
       if(old&&Object.keys({...old,...updated}).every(key=>key==='color'||JSON.stringify(old[key as keyof Routine])===JSON.stringify(updated[key as keyof Routine])))return {...colored,routines:colored.routines.map(r=>r.id===old.id?updated:r)};
-      if (!old) return { ...colored, tasks: editor?.task&&!editor.task.routineId?colored.tasks.filter(t=>t.id!==editor.task!.id):colored.tasks, routines: [...colored.routines, updated] };
-      return {
-        ...colored,
-        routines: [
-          ...colored.routines.filter((r) => r.id !== old.id),
-          { ...old, color:updated.color, end: add(today, -1) },
-          { ...updated, id: uid(), start: today, end: undefined },
-        ],
-      };
+      return saveRoutineInput(colored,updated,today,editor?.task);
     });
     if(editor?.quick&&task)setNotice(`Added for ${format(task.scheduled,{month:'short',day:'numeric'})}`);
     setEditor(null);
@@ -529,7 +522,7 @@ function Checklist({ onHome }: { onHome: () => void }) {
                   >
                     {r.title}
                     <small>
-                      {r.frequency === "daily"
+                      {r.frequency === "monthly" ? "Monthly" : r.frequency === "daily"
                         ? "Daily"
                         : r.weekdays
                             .map(
@@ -815,6 +808,7 @@ function Checklist({ onHome }: { onHome: () => void }) {
           editor={editor}
           categories={data.categories}
           colorSettings={data.taskColorSettings}
+          routineSource={data.routines.find(r=>r.id===editor.task?.routineId)}
           close={() => setEditor(null)}
           onSave={save}
           extraActions={

@@ -1745,3 +1745,5 @@ input {
 .task-color-options input{margin-left:auto;width:18px;height:18px;accent-color:#d7c8a1}
 .task-color-help{color:#c1bdac;font-size:13px;line-height:1.6}
 @media(max-width:380px){.quick-add{gap:4px}.quick-add input{font-size:16px}.task-color-picker.is-compact button{width:26px}.task-color-picker.is-compact button>span{width:14px;height:14px}}
+.monthly-repeat-note{font-size:13px;line-height:1.6;color:#c7c2b2;margin:10px 0 18px}
+.type-selector{flex-wrap:wrap}
