@@ -1684,3 +1684,30 @@ input {
 .eldly-recap-settings span{font-size:9px;line-height:1}
 .recap-empty .recap-heading h2{font-size:22px;margin:0;font-weight:600}
 .week-gentle-note{font-size:13px;color:#c2c5b7;line-height:1.5}
+/* A gift is a small, warm moment, with a clear amount and no sender cost. */
+.social-notification:has(.friend-gift-action),.social-notification:has(.friend-gift-sent),.social-notification:has(.friend-cheered){flex-wrap:wrap}
+.friend-gift-action{flex:0 0 100%;padding:8px 0 0 52px;display:flex;align-items:flex-start;flex-direction:column;gap:9px}
+.friend-gift-action>small,.friend-gift-preview>small{font-size:11px;line-height:1.6;color:#c7baa1}
+.social-dialog .friend-gift-button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:11px 16px;border-radius:14px;background:#e5cc91;color:#342812;font-size:13px;font-weight:650;border:1px solid #f4dfad;box-shadow:0 3px 0 #78623b;transition:transform .15s,background .15s}
+.social-dialog .friend-gift-button:not(:disabled):active{transform:translateY(2px);box-shadow:0 1px 0 #78623b}
+.social-dialog .friend-cheer-button{display:inline-flex;align-items:center;gap:7px;min-height:44px;color:#d1c5ae;font-size:12px;padding:6px 0}
+.friend-gift-preview{width:100%;box-sizing:border-box;border:1px solid #c8a96d66;border-radius:20px;padding:22px;text-align:center;background:radial-gradient(ellipse at top,#d5af5525,transparent 75%),#29261f}
+.friend-gift-preview h3{font-size:17px;line-height:1.5;margin:14px 0!important;color:#f0dfbc}
+.friend-gift-preview p{font-size:12px!important;color:#d4c9b4!important;margin:12px 0 4px!important}
+.friend-gift-preview .social-actions{justify-content:center;margin-top:20px;gap:20px}
+.friend-gift-seal{display:inline-flex;align-items:center;justify-content:center;width:54px;height:54px;border-radius:18px;flex-shrink:0;color:#f5d88b;background:linear-gradient(145deg,#5a4b2e,#30291e);border:1px solid #d8b66c66;box-shadow:0 5px 18px #0003}
+.friend-gift-amount{display:flex;align-items:center;justify-content:center;gap:9px;font-size:34px;font-weight:650;color:#f2d68f}
+.friend-gift-amount svg{width:32px;height:32px}
+.friend-gift-sent{flex:0 0 100%;display:flex;align-items:center;gap:12px;padding:16px;margin-top:8px;box-sizing:border-box;border:1px solid #96b78055;border-radius:16px;background:#8eae6a0c;color:#c6d9b0}
+.friend-gift-sent>div{flex:1}.friend-gift-sent strong{display:block;font-size:13px;color:#e5d1a1}.friend-gift-sent div>span{display:block;font-size:11px;line-height:1.6;margin-top:4px;color:#c4c3ac}
+.friend-cheered{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#c5d9b4;padding:6px 0 0 52px}
+.friend-gift-received{display:flex;align-items:center;gap:14px;padding:18px;margin:14px 0 4px;background:radial-gradient(ellipse at top left,#c9a04e25,transparent 90%),#2c281f;border:1px solid #c4a35f55;border-radius:18px}
+.friend-gift-kicker{font-size:9px;letter-spacing:.08em;line-height:1.6;color:#deccaa;overflow-wrap:anywhere}
+.friend-gift-received strong{display:flex;align-items:center;gap:7px;font-size:24px!important;font-weight:650!important;margin:7px 0}
+.friend-gift-received strong svg{width:26px;height:26px}.friend-gift-received p{font-size:11px!important;color:#d1c6b0!important;line-height:1.6!important}
+.gift-pop{animation:friend-gift-pop .45s cubic-bezier(.16,1,.3,1)}
+@keyframes friend-gift-pop{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:none}}
+@media(max-width:520px){.friend-gift-action{padding-left:0}.friend-gift-preview{padding:18px 14px}.friend-gift-received{padding:14px;gap:10px}.friend-gift-received .friend-gift-seal{width:44px;height:44px}.friend-gift-received strong{font-size:21px!important}}
+@media(prefers-reduced-motion:reduce){.gift-pop{animation:none}.social-dialog .friend-gift-button{transition:none}}
+.social-notification>.friend-gift-action,.social-notification>.friend-gift-sent{flex:0 0 100%;min-width:0}
+.friend-gift-preview h3{overflow-wrap:anywhere}

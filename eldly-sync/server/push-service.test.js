@@ -93,3 +93,13 @@ it('does not deliver queued achievements after the friendship ends',async()=>{
  await act(b,'friend_remove',{id:friend.id});await push.processMessage({kind:'notification',id});expect(deliver).not.toHaveBeenCalled();
  expect((await q('select sent_at from myspace_push_outbox where notification_id=$1',[id]))[0].sent_at).not.toBeNull();
 });
+it('delivers a gift receipt to the recipient phone once with the actual credited amount',async()=>{
+ await act(a,'friend_request',{username:'bob'});await act(b,'friend_accept',{id:(await social.dashboard(users[b])).friends[0].id});
+ const records=Object.entries(flatten({'checkly-data-v1':{rewards:[{id:'next',title:'PRIVATE REWARD',cost:2501}]}})).map(([record_key,value])=>({record_key,value}));await q('select myspace_account_initialize($1,$2::jsonb)',[a,JSON.stringify(records)]);
+ await q('select myspace_social_action($1,$2,$3::jsonb)',[a,'goal_events',JSON.stringify({events:['gift']})]);await push.subscribe(a,'alice',sub('gift-recipient'));
+ const goal=(await social.dashboard(users[b])).notifications.find(n=>n.kind==='goal');await act(b,'celebrate',{id:goal.id,withCoins:true,expectedGiftAmount:25.01});
+ const gift=(await q("select * from myspace_notifications where recipient=$1 and kind='celebration'",[a]))[0];expect((await q('select * from myspace_push_outbox where notification_id=$1',[gift.id]))).toHaveLength(1);
+ await q('update myspace_notifications set created_at=$2 where id=$1',[gift.id,now.toISOString()]);await push.processMessage({kind:'notification',id:gift.id});await push.processMessage({kind:'notification',id:gift.id});
+ expect(deliver).toHaveBeenCalledTimes(1);expect(deliver.mock.calls[0][1].body).toBe('@bob sent you +25.01 coins toward your next reward!');
+ expect(JSON.stringify(deliver.mock.calls)).not.toContain('PRIVATE REWARD');
+});

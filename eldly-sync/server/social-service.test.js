@@ -228,3 +228,23 @@ it('baselines existing badges without broadcasting historical achievements on ro
  await service.milestones(a);expect((await dash(b)).notifications.filter(n=>n.kind==='badge')).toHaveLength(0);
  expect((await db.query("select level from myspace_badge_levels where user_id=$1 and badge='coins'",[a])).rows[0].level).toBe(3);
 });
+
+it('shows the sender an exact gift receipt and rejects a stale reward quote without spending the weekly gift',async()=>{
+ await friends();await act(a,'visit',{timezone:'UTC'});await act(b,'visit',{timezone:'UTC'});
+ const data={...empty(),rewards:[{id:'main',title:'Private reward',cost:2501}]};await save(a,data);
+ await db.query('select myspace_social_action($1,$2,$3::jsonb)',[a,'goal_events',JSON.stringify({events:['gift-preview']})]);
+ const n=(await dash(b)).notifications.find(n=>n.kind==='goal');expect(n.giftOffer).toBe(25.01);
+ await save(a,{...data,rewards:[{...data.rewards[0],cost:3001}]});
+ await expect(act(b,'celebrate',{id:n.id,withCoins:true,expectedGiftAmount:25.01})).rejects.toThrow('reward changed');expect(await service.gifts(a)).toBe(0);
+ const next=await act(b,'celebrate',{id:n.id,withCoins:true,expectedGiftAmount:30.01});
+ expect(next.notifications.find(item=>item.id===n.id)).toMatchObject({celebrated:true,sentGiftAmount:30.01});
+ expect((await dash(a)).notifications.find(n=>n.kind==='celebration')).toMatchObject({giftAmount:30.01,username:'bob'});
+ expect(JSON.stringify(next)).not.toContain('Private reward');
+});
+it('lets friends gift a badge achievement under the same weekly limit and preserves its name in a cheer',async()=>{
+ await friends();await act(a,'visit',{timezone:'UTC'});await act(b,'visit',{timezone:'UTC'});await save(a,{...empty(),rewards:[{id:'main',title:'Reward',cost:1000}]});
+ await db.query('select myspace_social_action($1,$2,$3::jsonb)',[a,'badge_events',JSON.stringify({badges:[{id:'coins',name:'Coin collector',level:1}]})]);
+ const badge=(await dash(b)).notifications.find(n=>n.kind==='badge');expect(badge.giftOffer).toBe(10);
+ const state=await act(b,'celebrate',{id:badge.id,withCoins:true,expectedGiftAmount:10});expect(state.notifications.find(n=>n.id===badge.id).sentGiftAmount).toBe(10);
+ expect((await dash(a)).notifications.find(n=>n.kind==='celebration')).toMatchObject({giftAmount:10,ruleChanges:['Coin collector']});
+});

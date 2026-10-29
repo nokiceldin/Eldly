@@ -112,17 +112,17 @@ begin
    end if;
   end loop;
  elsif action='celebrate' then
-  select * into notification from myspace_notifications where id=(p->>'id')::uuid and recipient=actor and kind in('goal','streak') and not celebrated;
+  select * into notification from myspace_notifications where id=(p->>'id')::uuid and recipient=actor and kind in('goal','streak','badge') and not celebrated;
   if notification.id is null then raise exception 'SOCIAL: This milestone was already celebrated or is unavailable.';end if;
   other:=notification.actor;
   if not exists(select 1 from myspace_friends where a=least(actor,other) and b=greatest(actor,other) and status='accepted') then raise exception 'SOCIAL: Only current friends can celebrate.';end if;
   if p ? 'giftAmount' then
-   if notification.kind<>'goal' then raise exception 'SOCIAL: Coin gifts are for goal achievements.';end if;
+   if notification.kind not in('goal','badge') then raise exception 'SOCIAL: Coin gifts are for goal and badge achievements.';end if;
    if exists(select 1 from myspace_celebration_coins where sender=actor and recipient=other and week=(p->>'week')::date) then raise exception 'SOCIAL: You already sent this friend a coin gift this week. Send congratulations instead.';end if;
    insert into myspace_celebration_coins(notification_id,sender,recipient,week,amount) values(notification.id,actor,other,(p->>'week')::date,(p->>'giftAmount')::numeric);
   end if;
   update myspace_notifications set celebrated=true,read_at=coalesce(read_at,now()) where id=notification.id;
-  insert into myspace_notifications(id,recipient,actor,kind,source_key,milestone,gift_amount) values((p->>'newId')::uuid,other,actor,'celebration','celebration:'||notification.id,notification.milestone,coalesce((p->>'giftAmount')::numeric,0)) on conflict(recipient,source_key) do nothing;
+  insert into myspace_notifications(id,recipient,actor,kind,source_key,milestone,gift_amount,rule_changes) values((p->>'newId')::uuid,other,actor,'celebration','celebration:'||notification.id,notification.milestone,coalesce((p->>'giftAmount')::numeric,0),case when notification.kind='badge' then notification.rule_changes else '[]'::jsonb end) on conflict(recipient,source_key) do nothing;
  elsif action='notifications_read' then
   update myspace_notifications set read_at=now() where recipient=actor and read_at is null;
  else raise exception 'SOCIAL: Unknown action.';

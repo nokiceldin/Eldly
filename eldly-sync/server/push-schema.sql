@@ -7,7 +7,7 @@ create table if not exists myspace_push_reminders(user_id uuid primary key refer
 alter table myspace_notifications drop constraint if exists myspace_notifications_kind_check;
 alter table myspace_notifications add constraint myspace_notifications_kind_check check(kind in('goal_self','goal','streak','celebration','friend_request','friend_accept','reminder','rules_changed','badge'));
 create or replace function myspace_push_enqueue() returns trigger language plpgsql security definer set search_path=public as $$begin
- if new.kind in('friend_request','friend_accept','reminder','rules_changed','goal','badge') and exists(select 1 from myspace_push_subscriptions p join myspace_sessions s on s.token_hash=p.session_hash where p.user_id=new.recipient and s.expires_at>now()) then
+ if (new.kind in('friend_request','friend_accept','reminder','rules_changed','goal','badge') or (new.kind='celebration' and new.gift_amount>0)) and exists(select 1 from myspace_push_subscriptions p join myspace_sessions s on s.token_hash=p.session_hash where p.user_id=new.recipient and s.expires_at>now()) then
   insert into myspace_push_outbox(notification_id) values(new.id) on conflict do nothing;
  end if;return new;end;$$;
 drop trigger if exists myspace_push_notify on myspace_notifications;
