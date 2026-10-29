@@ -1672,7 +1672,7 @@ input {
 .note-page,.mapping-page{padding-bottom:calc(120px + env(safe-area-inset-bottom))}
 .eldly-tile-hint{display:block;margin-top:5px;font-size:13px;line-height:1.4;color:#bcbfb1;font-weight:400;letter-spacing:0}
 .tracking-daily .mapping-month-title{display:flex;flex-direction:column;align-items:center;gap:2px}
-.week-label{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap}
+.week-label{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;flex-wrap:nowrap}
 .week-date-range{font-size:11px;font-weight:400;color:#b4b29e;letter-spacing:0;white-space:nowrap}
 @media(max-width:600px){.week-label{gap:2px 8px}.week-date-range{font-size:10px}.week-switcher{min-width:0;flex:1}.week-label{min-width:0}.week-label>span{white-space:nowrap}}
 .progress-takeaway{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin:0 0 24px;color:#c0c5b5;font-size:15px}.progress-takeaway strong{font-size:22px;font-weight:600;color:#e8eadf}
