@@ -9,6 +9,7 @@ import {
 } from "./checklist";
 export type Day = string;
 export interface Task {
+  color?: import('./taskColors').TaskColor;
   id: string;
   title: string;
   scheduled: Day;
@@ -26,6 +27,7 @@ export interface Task {
   deleted?: boolean;
 }
 export interface Routine {
+  color?: import('./taskColors').TaskColor;
   id: string;
   title: string;
   category: string;
@@ -45,6 +47,7 @@ export interface Routine {
   sample?: boolean;
 }
 export interface Data {
+  taskColorSettings?: import('./taskColors').TaskColorSettings;
   coinBonusPlans?: import('./coinBonuses').CoinBonusPlan[];
   mainRewardId?:string;
   rewards?: import('./rewards').Reward[];
@@ -172,13 +175,14 @@ export function allTasks(data: Data, through: Day, today: Day): Task[] {
       const id = `${r.id}:${d}`;
       const override = data.overrides[id];
       if (override) {
-        result.push(override);
+        result.push({...override,color:r.color??override.color});
         continue;
       }
       if (!matches(r, d)) continue;
       result.push({
         id,
         title: r.title,
+        color: r.color,
         category: r.category,
         notes: r.notes,
         scheduled: d,
@@ -196,7 +200,7 @@ export function allTasks(data: Data, through: Day, today: Day): Task[] {
   // An occurrence can be dragged before its original recurrence date.
   const seen = new Set(result.map(task => task.id));
   for (const override of Object.values(data.overrides)) {
-    if (!seen.has(override.id) && (override.scheduled <= through || (override.completed && override.completed <= through))) result.push(override);
+    if (!seen.has(override.id) && (override.scheduled <= through || (override.completed && override.completed <= through))) result.push({...override,color:data.routines.find(r=>r.id===override.routineId)?.color??override.color});
   }
   return result.filter((t) => !t.deleted);
 }
@@ -514,6 +518,7 @@ export function saveTaskInput(data: Data, task: Task): Data {
   const routine: Routine = {
     id,
     title: parsed.title,
+    color: task.color,
     category: task.category,
     notes: task.notes,
     start: task.scheduled,

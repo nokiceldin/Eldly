@@ -1,3 +1,4 @@
+import {validTaskColor,validColorSettings} from './taskColors';
 import { validBonusPlans } from './coinBonuses';
 import { validRewards } from './rewards';
 import { scopedKey, isPersonalOwner } from "./accountScope";
@@ -19,6 +20,7 @@ export function validate(x: unknown): x is Data {
     t &&
     typeof t.id === "string" &&
     typeof t.title === "string" &&
+    (t.color===undefined||validTaskColor(t.color)) &&
     date(t.scheduled) &&
     date(t.original) &&
     typeof t.category === "string" &&
@@ -33,7 +35,7 @@ export function validate(x: unknown): x is Data {
     (!t.due || date(t.due)) &&
     (!t.completed || date(t.completed));
   return (
-    d.version === 1 && validBonusPlans(d.coinBonusPlans) && validRewards(d) &&
+    d.version === 1 && validColorSettings(d.taskColorSettings) && validBonusPlans(d.coinBonusPlans) && validRewards(d) &&
     (d.mapping === undefined || validateMapping(d.mapping)) &&
     Array.isArray(d.tasks) &&
     d.tasks.every(task) &&
@@ -49,6 +51,7 @@ export function validate(x: unknown): x is Data {
               (s) => s && date(s.from) && date(s.to) && s.from <= s.to,
             ))) &&
         typeof r.title === "string" &&
+        (r.color===undefined||validTaskColor(r.color)) &&
         typeof r.category === "string" &&
         typeof r.notes === "string" &&
         date(r.start) &&

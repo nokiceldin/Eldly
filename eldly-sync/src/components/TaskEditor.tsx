@@ -1,3 +1,5 @@
+import TaskColorPicker from './TaskColorPicker';
+import {enabledTaskColors,type TaskColorSettings} from '../taskColors';
 import NumberInput from './NumberInput';
 import { useState, useRef, useEffect, type ReactNode } from "react";
 import {
@@ -31,6 +33,7 @@ const weekdays = [
 export default function Editor({
   editor,
   categories,
+  colorSettings,
   close,
   onSave,
   onDelete,
@@ -38,6 +41,7 @@ export default function Editor({
 }: {
   editor: { task?: Task; routine?: Routine; date: string; deadline?: boolean; quick?: boolean };
   categories: string[];
+  colorSettings?: TaskColorSettings;
   extraActions?: ReactNode;
   close: () => void;
   onSave: (t?: Task, r?: Routine) => void;
@@ -46,6 +50,7 @@ export default function Editor({
   const source = editor.task || editor.routine;
   const isExisting = !!source?.title;
   const [title, setTitle] = useState(source?.title || "");
+  const [color,setColor]=useState(source?.color);
   const [type, setType] = useState(
     editor.routine
       ? "routine"
@@ -137,6 +142,7 @@ export default function Editor({
               onSave(undefined, {
                 id: editor.routine?.id || uid(),
                 title: title.trim(),
+                color,
                 category,
                 notes,
                 start: date,
@@ -160,6 +166,7 @@ export default function Editor({
               onSave({
                 id: t?.id || uid(),
                 title: title.trim(),
+                color,
                 category,
                 notes,
                 scheduled: date,
@@ -212,6 +219,7 @@ export default function Editor({
               ))}
             </div>
           )}
+          <fieldset className="task-editor-colors"><legend>Text color</legend><TaskColorPicker colors={[...new Set([...enabledTaskColors(colorSettings),...(color?[color]:[])])]} value={color} onChange={setColor}/>{editor.task?.routineId&&<small>Applies to this repeating task every week.</small>}</fieldset>
           <div className="form-grid">
             <label>
               {type === "deadline"

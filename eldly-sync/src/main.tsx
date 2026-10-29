@@ -1,3 +1,7 @@
+import QuickTaskAdd from './components/QuickTaskAdd';
+import TaskColorPicker from './components/TaskColorPicker';
+import TaskColorSettings from './components/TaskColorSettings';
+import {popularTaskColors,taskColorHex,rememberTaskColor,setTaskColor,type TaskColor} from './taskColors';
 import DailyAppShortcut from './components/DailyAppShortcut';
 import SiteAnalytics from './components/SiteAnalytics';
 import {useContext} from "react";
@@ -171,6 +175,9 @@ function Checklist({ onHome }: { onHome: () => void }) {
     quick?: boolean;
   } | null>(null);
   const [notice, setNotice] = useState("");
+  const [recentColorTask,setRecentColorTask]=useState<{id:string;routineId?:string;until:number}|null>(null);
+  useEffect(()=>{if(!recentColorTask)return;const timer=setTimeout(()=>setRecentColorTask(null),Math.max(0,recentColorTask.until-Date.now()));return()=>clearTimeout(timer);},[recentColorTask]);
+  const pickRecentColor=(color:TaskColor)=>{if(!recentColorTask||Date.now()>recentColorTask.until)return;setData(d=>rememberTaskColor(setTaskColor(d,recentColorTask,color),color));setRecentColorTask(null);};
   const [celebration, setCelebration] = useState<{
     day: string;
     id: string;
@@ -277,7 +284,11 @@ function Checklist({ onHome }: { onHome: () => void }) {
     });
   const save = (task?: Task, routine?: Routine) => {
     setData((d) => {
-      if (task) return saveTaskInput(d, task);
+      if (task) {
+        let next=saveTaskInput(d,task);
+        if(task.color&&task.color!==editor?.task?.color){next=setTaskColor(next,{id:task.id,routineId:next.tasks.find(t=>t.id===task.id)?.routineId||task.routineId},task.color);next=rememberTaskColor(next,task.color);}
+        return next;
+      }
       if (!routine) return d;
       const parsed = parseWeeklyTitle(routine.title);
       if (!parsed.title) return d;
@@ -287,12 +298,15 @@ function Checklist({ onHome }: { onHome: () => void }) {
         ...(parsed.weekly ? { frequency: "weekly" as const, interval: 1 } : {}),
       };
       const old = d.routines.find((r) => r.id === updated.id);
-      if (!old) return { ...d, tasks: editor?.task&&!editor.task.routineId?d.tasks.filter(t=>t.id!==editor.task!.id):d.tasks, routines: [...d.routines, updated] };
+      let colored=d;
+      if(updated.color&&updated.color!==old?.color)colored=rememberTaskColor(setTaskColor(d,{id:'',routineId:updated.id},updated.color),updated.color);
+      if(old&&Object.keys({...old,...updated}).every(key=>key==='color'||JSON.stringify(old[key as keyof Routine])===JSON.stringify(updated[key as keyof Routine])))return {...colored,routines:colored.routines.map(r=>r.id===old.id?updated:r)};
+      if (!old) return { ...colored, tasks: editor?.task&&!editor.task.routineId?colored.tasks.filter(t=>t.id!==editor.task!.id):colored.tasks, routines: [...colored.routines, updated] };
       return {
-        ...d,
+        ...colored,
         routines: [
-          ...d.routines.filter((r) => r.id !== old.id),
-          { ...old, end: add(today, -1) },
+          ...colored.routines.filter((r) => r.id !== old.id),
+          { ...old, color:updated.color, end: add(today, -1) },
           { ...updated, id: uid(), start: today, end: undefined },
         ],
       };
@@ -409,6 +423,7 @@ function Checklist({ onHome }: { onHome: () => void }) {
                         <div className="note-task-content">
                           <button
                             className="note-task-title"
+                            style={{color:taskColorHex(t.color)}}
                             onClick={() =>
                               setEditor({ task: t, date: t.scheduled })
                             }
@@ -421,6 +436,7 @@ function Checklist({ onHome }: { onHome: () => void }) {
                               return routine ? routineSuffix(routine) : "";
                             })()}
                           </button>
+                          {recentColorTask?.id===t.id&&<TaskColorPicker compact colors={popularTaskColors(data.taskColorSettings)} value={t.color} onChange={pickRecentColor} label={`Choose text color for ${t.title}`}/>}
                           {!t.completed &&
                             t.due &&
                             !(date === today && t.scheduled < today) && (
@@ -441,22 +457,12 @@ function Checklist({ onHome }: { onHome: () => void }) {
                   ))}
                 </div>
                 </TaskDropDay>
-                <QuickAdd
-                  date={date}
-                  onAdd={(title) =>
-                    update({
-                      id: uid(),
-                      title,
-                      scheduled: date,
-                      original: date,
-                      category: "",
-                      notes: "",
-                      carry: true,
-                      important: false,
-                      order: Date.now(),
-                    })
-                  }
-                />
+                <QuickTaskAdd date={date} settings={data.taskColorSettings} onAdd={(title,color)=>{
+                  const task:Task={id:uid(),title,color,scheduled:date,original:date,category:'',notes:'',carry:true,important:false,order:Date.now()};
+                  setData(d=>{const next=saveTaskInput(d,task);return color?rememberTaskColor(next,color):next;});
+                  if(!color)setRecentColorTask({id:task.id,...(parseWeeklyTitle(title).weekly?{routineId:`weekly:${task.id}`} : {}),until:Date.now()+5000});else setRecentColorTask(null);
+                }}/>
+
               </section>
             );
           })}
@@ -476,7 +482,7 @@ function Checklist({ onHome }: { onHome: () => void }) {
                 <li key={t.id}>
                   <button className="important-date-text" onClick={() => setEditor({ task: t, date: t.scheduled })}>
                     <time dateTime={t.due}>{format(t.due!, { month: "short", day: "numeric", ...(t.due!.slice(0, 4) !== today.slice(0, 4) ? { year: "numeric" } : {}) })}</time>
-                    <span>{t.title}</span>
+                    <span style={{color:taskColorHex(t.color)}}>{t.title}</span>
                   </button>
                   <button className="important-date-check" role="checkbox" aria-checked={false}
                     aria-label={`Complete ${t.title}`} onClick={() => toggle(t)}>
@@ -505,6 +511,7 @@ function Checklist({ onHome }: { onHome: () => void }) {
             <X size={21} />
           </button>
         </header>
+        <TaskColorSettings settings={data.taskColorSettings} onChange={settings=>setData(d=>({...d,taskColorSettings:{...settings,usage:d.taskColorSettings?.usage}}))}/>
         <details className="option-group">
           <summary>
             Repeating tasks <Repeat2 size={16} />
@@ -807,6 +814,7 @@ function Checklist({ onHome }: { onHome: () => void }) {
           key={editor.task?.id || editor.routine?.id || "new"}
           editor={editor}
           categories={data.categories}
+          colorSettings={data.taskColorSettings}
           close={() => setEditor(null)}
           onSave={save}
           extraActions={
@@ -900,39 +908,6 @@ function Checklist({ onHome }: { onHome: () => void }) {
         </div>
       )}
     </MotionConfig>
-  );
-}
-function QuickAdd({
-  date,
-  onAdd,
-}: {
-  date: string;
-  onAdd: (title: string) => void;
-}) {
-  const [title, setTitle] = useState("");
-  return (
-    <form
-      className="quick-add"
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (!parseWeeklyTitle(title).title) return;
-        onAdd(title.trim());
-        setTitle("");
-      }}
-    >
-      <input
-        aria-label={`Add a task to ${format(date, { weekday: "long" })}`}
-        enterKeyHint="done"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        maxLength={250}
-      />
-      {title.trim() && (
-        <button type="submit" aria-label="Add task">
-          <Plus size={19} />
-        </button>
-      )}
-    </form>
   );
 }
 type Destination = "home" | "checkly" | "progress" | "mapping" | "packly";

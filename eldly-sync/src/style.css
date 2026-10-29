@@ -1722,3 +1722,26 @@ input {
 .social-tabs{display:flex;flex-wrap:wrap}
 .social-tabs button{flex:0 1 auto;min-width:0;width:auto;padding:8px 12px;gap:6px}
 .social-tabs button svg{width:19px;height:19px;flex-shrink:0}
+.task-color-picker{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.task-color-picker button{display:flex;align-items:center;justify-content:center;gap:7px;min-height:40px;padding:6px 9px;border:1px solid transparent;border-radius:12px;font-size:12px}
+.task-color-picker button>span{display:block;width:18px;height:18px;border-radius:50%;border:1px solid #ffffff55;box-shadow:0 1px 3px #0005;flex-shrink:0}
+.task-color-picker button[aria-pressed=true]{border-color:#d7c8a1;background:#d7c8a110}
+.task-color-picker small{font-size:12px;color:#d1d0c5}
+.task-color-picker.is-compact{gap:0;flex-wrap:nowrap;flex-shrink:0}
+.task-color-picker.is-compact button{width:28px;min-height:40px;padding:4px;border-radius:10px;flex-shrink:0}
+.task-color-picker.is-compact button>span{width:16px;height:16px}
+.quick-add>.task-color-picker{margin-left:2px}
+.quick-add>.task-color-picker button{position:static;color:inherit}
+.note-task-content:has(>.task-color-picker){display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.note-task-content:has(>.task-color-picker)>.note-task-title{flex:1;min-width:65px;width:auto}
+.note-task-content:has(>.task-color-picker)>.task-due-note{flex:0 0 100%}
+.checked .note-task-title{opacity:.58;text-decoration-color:currentColor}
+.task-editor-colors{border:0;padding:0;margin:20px 0}
+.task-editor-colors legend{font-size:13px;margin-bottom:10px;color:#cfcebf}
+.task-editor-colors>small{display:block;color:#c0bcaa;font-size:12px;line-height:1.6;margin-top:8px}
+.task-color-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 18px;margin:16px 0}
+.task-color-options label{display:flex;align-items:center;gap:10px;min-height:44px;font-size:14px}
+.task-color-options label>span{width:17px;height:17px;border-radius:50%;flex-shrink:0}
+.task-color-options input{margin-left:auto;width:18px;height:18px;accent-color:#d7c8a1}
+.task-color-help{color:#c1bdac;font-size:13px;line-height:1.6}
+@media(max-width:380px){.quick-add{gap:4px}.quick-add input{font-size:16px}.task-color-picker.is-compact button{width:26px}.task-color-picker.is-compact button>span{width:14px;height:14px}}
