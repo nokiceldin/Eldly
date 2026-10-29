@@ -60,3 +60,8 @@ end;$archive_migration$;
 -- Highest announced level survives retries, corrections, and reconnects.
 create table if not exists myspace_badge_levels(user_id uuid not null references myspace_users(id),badge text not null,level integer not null check(level between 0 and 6),primary key(user_id,badge));
 revoke all on myspace_badge_levels from public;
+
+-- The logo introduction is per account, including across devices.
+alter table myspace_profiles add column if not exists avatar_changed_at timestamptz;
+alter table myspace_profiles add column if not exists avatar_intro_seen_at timestamptz;
+update myspace_profiles set avatar_changed_at=now() where avatar_preset<>'original' and avatar_changed_at is null;

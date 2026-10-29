@@ -82,8 +82,11 @@ begin
   update myspace_coin_proposals set status='superseded' where owner_id=other and status='pending';
   insert into myspace_notifications(id,recipient,actor,kind,source_key,rule_changes) values((p->>'id')::uuid,other,actor,'rules_changed','rules:'||(p->>'id'),p->'changes');
  elsif action='save_avatar' then
-  update myspace_profiles set avatar_preset=p->>'avatarId' where user_id=actor;
+  update myspace_profiles set avatar_changed_at=case when avatar_preset is distinct from p->>'avatarId' then coalesce(avatar_changed_at,now()) else avatar_changed_at end,avatar_preset=p->>'avatarId' where user_id=actor;
   if not found then raise exception 'SOCIAL: Open your profile and try again.';end if;
+ elsif action='claim_avatar_intro' then
+  update myspace_profiles set avatar_intro_seen_at=now() where user_id=actor and avatar_preset='original' and avatar_changed_at is null and avatar_intro_seen_at is null;
+  return jsonb_build_object('avatarIntroClaimed',found);
  elsif action='visit' then
   day:=(p->>'day')::date;
   insert into myspace_profiles(user_id,timezone,timezone_locked) values(actor,p->>'timezone',true) on conflict(user_id) do update set timezone=case when myspace_profiles.timezone_locked then myspace_profiles.timezone else excluded.timezone end,timezone_locked=true;

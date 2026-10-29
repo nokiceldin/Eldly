@@ -1,3 +1,4 @@
+import AvatarIntro from './AvatarIntro';
 import FriendGiftAction,{FriendGiftReceived} from './FriendGiftAction';
 import {readCoinPolicy} from '../coinControl';
 import ProfileSettings from './ProfileSettings';
@@ -16,7 +17,7 @@ import {createPortal} from 'react-dom';
 import {X,Users,UserRound,ShieldCheck,UserPlus,ArrowRight,Check,Pencil,UserMinus,Star} from 'lucide-react';
 import {socialRequest,SOCIAL_EVENT,type SocialState} from '../social';
 import {formatPoints} from '../points';
-export default function FriendsPanel({initial,initialTab,initialError,close,accountActions}:{initial:SocialState|null;initialTab:'profile'|'friends'|'notifications'|'coins';initialError:string;close:()=>void;accountActions?:import('react').ReactNode}){
+export default function FriendsPanel({initial,initialTab,initialError,close,accountActions,showAvatarIntro=false,onDismissAvatarIntro=()=>{}}:{initial:SocialState|null;initialTab:'profile'|'friends'|'notifications'|'coins';initialError:string;close:()=>void;accountActions?:import('react').ReactNode;showAvatarIntro?:boolean;onDismissAvatarIntro?:()=>void}){
  const [state,setState]=useState(initial),[tab,setTab]=useState<'profile'|'friends'|'notifications'|'coins'|'friend'>(initialTab),[username,setUsername]=useState(''),[error,setError]=useState(initialError),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
  const readAchievements=()=>{const data=load();return {earned:coinWallet(data).earned,goals:coinHistory(data).reduce((n,w)=>n+w.goalsMet.length,0),purchases:(data.rewardPurchases||[]).filter(p=>!p.refunded).length};};
  const [{earned,goals,purchases},setAchievements]=useState(readAchievements);
@@ -49,14 +50,15 @@ export default function FriendsPanel({initial,initialTab,initialError,close,acco
  const openProfile=(section:'friends'|'coins')=>window.dispatchEvent(new CustomEvent('myspace-open-profile',{detail:section}));
  return createPortal(<dialog ref={dialog} className="social-dialog" aria-labelledby="social-title" onCancel={e=>{e.preventDefault();close();}}>
   <header className="social-heading"><h2 id="social-title">{inbox?'Inbox':'Profile'}</h2><button onClick={close} aria-label={inbox?'Close inbox':'Close profile'}><X size={21}/></button></header>
-  {!inbox&&<nav className="social-tabs" aria-label="Profile sections">{([['profile','Profile',UserRound],['friends','Friends',Users],['coins',"Friend’s coins",ShieldCheck]] as const).map(([id,label,Icon])=><button key={id} aria-label={label} title={label} aria-pressed={tab===id} onClick={()=>{setTab(id);setConfirm(null);}}><Icon size={19}/><span>{label}</span></button>)}</nav>}
+  {!inbox&&<nav className="social-tabs" aria-label="Profile sections">{([['profile','Profile',UserRound],['friends','Friends',Users],['coins',"Friend’s coins",ShieldCheck]] as const).map(([id,label,Icon])=><button key={id} aria-label={label} title={label} aria-pressed={tab===id} onClick={()=>{onDismissAvatarIntro();setTab(id);setConfirm(null);}}><Icon size={19}/><span>{label}</span></button>)}</nav>}
 
   {error&&<p className="social-error" role="alert">{error}<button disabled={busy} onClick={()=>void act({action:'visit',timezone:Intl.DateTimeFormat().resolvedOptions().timeZone})}>Retry</button></p>}
   {message&&<p className="social-success" role="status">{message}</p>}
   {!state?<p className="social-empty">Loading…</p>:<>
   {confirm&&<section className="social-confirm"><h3>{confirm.title}</h3><p>{confirm.description}</p><div className="social-actions"><button disabled={busy} onClick={()=>setConfirm(null)}>Cancel</button><button className="social-primary" disabled={busy} onClick={()=>void act(confirm.body)}>Confirm</button></div></section>}
   {(tab==='profile'||tab==='friends')&&<>
-   <section className="social-profile"><button className="social-avatar-button" onClick={()=>setEditingAvatar(!editingAvatar)} aria-label="Edit portrait" title="Edit portrait"><ProfileAvatar style={state.profile.avatar} size={64}/><span className="avatar-edit-badge"><Pencil size={12}/></span></button><div><strong>@{state.profile.username}</strong></div><div className="social-streak-total"><StreakFlame size={30}/><strong>{state.profile.streak}</strong></div></section>
+   <section className="social-profile"><button className={`social-avatar-button ${showAvatarIntro?'avatar-intro-target':''}`} aria-describedby={showAvatarIntro?'avatar-intro-title':undefined} onClick={()=>{onDismissAvatarIntro();setEditingAvatar(!editingAvatar);}} aria-label="Edit portrait" title="Edit portrait"><ProfileAvatar style={state.profile.avatar} size={64}/><span className="avatar-edit-badge"><Pencil size={12}/></span></button><div><strong>@{state.profile.username}</strong></div><div className="social-streak-total"><StreakFlame size={30}/><strong>{state.profile.streak}</strong></div></section>
+   {showAvatarIntro&&tab==='profile'&&<AvatarIntro onExplore={()=>{onDismissAvatarIntro();setEditingAvatar(true);}} onDismiss={()=>{onDismissAvatarIntro();close();}}/>}
    {editingAvatar&&<AvatarEditor initial={state.profile.avatarId} busy={busy} close={()=>setEditingAvatar(false)} save={avatarId=>void act({action:'save_avatar',avatarId})}/>}
 
    </>}

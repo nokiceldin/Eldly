@@ -75,18 +75,18 @@ export function createSocialService(sql,{now=()=>new Date()}={}){
    sql.query(`select q.id,q.starts_on::text,u.id as user_id,u.username from myspace_best_members m join myspace_best_pairs q on q.id=m.pair_id join myspace_users u on u.id=case when q.a=$1 then q.b else q.a end where m.user_id=$1 and q.ended_at is null`,[user.id]),
    sql.query(`select p.id,p.owner_id,p.reviewer_id,p.config,p.status,p.reviewed_config,p.effective_from::text,p.created_at,p.reviewed_at,u.username as owner_username from myspace_coin_proposals p join myspace_users u on u.id=p.owner_id join myspace_best_members m on m.pair_id=p.pair_id and m.user_id=$1 where $1 in(p.owner_id,p.reviewer_id) order by p.created_at desc limit 30`,[user.id]),
    sql.query(`select n.id,n.kind,n.milestone,n.gift_amount,g.amount as sent_gift_amount,n.rule_changes,n.celebrated,n.read_at,n.created_at,u.username,p.avatar from myspace_notifications n join myspace_users u on u.id=n.actor left join myspace_profiles p on p.user_id=u.id left join myspace_celebration_coins g on g.notification_id=n.id and g.sender=$1 where n.recipient=$1 order by n.created_at desc,n.id desc limit 100`,[user.id]),
-   sql.query('select avatar_preset,timezone,last_visit::text,streak,longest from myspace_profiles where user_id=$1',[user.id]),
+   sql.query('select avatar_preset,avatar_changed_at,avatar_intro_seen_at,timezone,last_visit::text,streak,longest from myspace_profiles where user_id=$1',[user.id]),
    policy(user.id)
   ]);
   const week=await giftWeek(user.id),used=await sql.query('select recipient from myspace_celebration_coins where sender=$1 and week=$2',[user.id,week]);
   const offers=new Map();
   const gifted=new Set(used.map(g=>g.recipient));
   for(const n of notifications.filter(n=>['goal','badge'].includes(n.kind)&&!n.celebrated&&friends.some(f=>f.username===n.username&&f.status==='accepted'&&!gifted.has(f.user_id)))){if(!offers.has(n.username)){const friend=friends.find(f=>f.username===n.username);offers.set(n.username,celebrationCoins(await accountData(friend.user_id)));}}
-  return {bestFriendRules:await friendRules(user.id),giftBalance:await gifts(user.id),giftedFriends:[...gifted],profile:{homeName:user.app_metadata?.home_name||null,id:user.id,username:user.username,avatarId:profiles[0]?.avatar_preset||'original',avatar:avatarPreset(profiles[0]?.avatar_preset).style,streak:streak(profiles[0],now()),longest:profiles[0]?.longest||0,timezone:profiles[0]?.timezone||null},friends:friends.map(f=>({id:f.id,userId:f.user_id,username:f.username,avatar:avatarPreset(f.avatar_preset||'original').style,status:f.status,incoming:f.requested_by!==user.id,streak:streak(f,now())})),bestRequests:bestRequests.map(r=>({id:r.id,username:r.username,incoming:r.recipient===user.id})),bestFriend:pairs[0]?{id:pairs[0].id,userId:pairs[0].user_id,username:pairs[0].username,startsOn:pairs[0].starts_on}:null,proposals:proposals.map(p=>({id:p.id,ownerId:p.owner_id,ownerUsername:p.owner_username,incoming:p.reviewer_id===user.id,config:p.config,status:p.status,reviewedConfig:p.reviewed_config,effectiveFrom:p.effective_from,createdAt:p.created_at})),notifications:notifications.map(n=>({id:n.id,kind:n.kind,milestone:n.milestone,ruleChanges:n.rule_changes||[],giftAmount:Number(n.gift_amount||0),sentGiftAmount:Number(n.sent_gift_amount||0),giftOffer:offers.get(n.username)||null,celebrated:n.celebrated,read:!!n.read_at,createdAt:n.created_at,username:n.username,avatar:avatarPreset(n.avatar_preset||'original').style})),coinPolicy:control};
+  return {bestFriendRules:await friendRules(user.id),giftBalance:await gifts(user.id),giftedFriends:[...gifted],profile:{homeName:user.app_metadata?.home_name||null,id:user.id,username:user.username,avatarId:profiles[0]?.avatar_preset||'original',avatarIntroEligible:!!profiles[0]&&profiles[0].avatar_preset==='original'&&!profiles[0].avatar_changed_at&&!profiles[0].avatar_intro_seen_at,avatar:avatarPreset(profiles[0]?.avatar_preset).style,streak:streak(profiles[0],now()),longest:profiles[0]?.longest||0,timezone:profiles[0]?.timezone||null},friends:friends.map(f=>({id:f.id,userId:f.user_id,username:f.username,avatar:avatarPreset(f.avatar_preset||'original').style,status:f.status,incoming:f.requested_by!==user.id,streak:streak(f,now())})),bestRequests:bestRequests.map(r=>({id:r.id,username:r.username,incoming:r.recipient===user.id})),bestFriend:pairs[0]?{id:pairs[0].id,userId:pairs[0].user_id,username:pairs[0].username,startsOn:pairs[0].starts_on}:null,proposals:proposals.map(p=>({id:p.id,ownerId:p.owner_id,ownerUsername:p.owner_username,incoming:p.reviewer_id===user.id,config:p.config,status:p.status,reviewedConfig:p.reviewed_config,effectiveFrom:p.effective_from,createdAt:p.created_at})),notifications:notifications.map(n=>({id:n.id,kind:n.kind,milestone:n.milestone,ruleChanges:n.rule_changes||[],giftAmount:Number(n.gift_amount||0),sentGiftAmount:Number(n.sent_gift_amount||0),giftOffer:offers.get(n.username)||null,celebrated:n.celebrated,read:!!n.read_at,createdAt:n.created_at,username:n.username,avatar:avatarPreset(n.avatar_preset||'original').style})),coinPolicy:control};
  }
  async function mutate(user,body,ip){
   await ensure();const action=body.action;
-  const allowed=['friend_request','friend_accept','friend_decline','friend_cancel','friend_remove','best_request','best_accept','best_decline','best_cancel','best_leave','propose_rules','review_rules','visit','celebrate','notifications_read','save_avatar','set_friend_rules'];
+  const allowed=['friend_request','friend_accept','friend_decline','friend_cancel','friend_remove','best_request','best_accept','best_decline','best_cancel','best_leave','propose_rules','review_rules','visit','celebrate','notifications_read','save_avatar','set_friend_rules','claim_avatar_intro'];
   if(!allowed.includes(action))throw Error('SOCIAL: Unknown action.');
   const p={};
   if(['friend_request','best_request','propose_rules'].includes(action)){
@@ -97,7 +97,7 @@ export function createSocialService(sql,{now=()=>new Date()}={}){
   if(action==='save_avatar'){try{if(typeof body.avatarId!=='string')throw Error('Choose one of the available portraits.');p.avatarId=avatarPreset(body.avatarId).id;}catch(e){throw Error('SOCIAL: '+e.message);}}
   if(action==='friend_request'){if(typeof body.username!=='string'||!/^[a-z0-9_]{3,32}$/.test(body.username.trim().toLowerCase()))throw Error('SOCIAL: Enter a valid username.');p.username=body.username;p.id=randomUUID();}
   else if(action==='best_request'){if(!uuid(body.userId))throw Error('SOCIAL: Choose a friend.');p.userId=body.userId;p.id=randomUUID();}
-  else if(!['best_leave','visit','propose_rules','notifications_read','save_avatar','set_friend_rules'].includes(action)){if(!uuid(body.id))throw Error('SOCIAL: Choose an available request.');p.id=body.id;}
+  else if(!['best_leave','visit','propose_rules','notifications_read','save_avatar','set_friend_rules','claim_avatar_intro'].includes(action)){if(!uuid(body.id))throw Error('SOCIAL: Choose an available request.');p.id=body.id;}
   if(action==='best_accept'){
    const r=await sql.query("select requester from myspace_best_requests where id=$1 and recipient=$2 and status='pending'",[p.id,user.id]);
    if(!r[0])throw Error('SOCIAL: Best-friend request no longer available.');
@@ -135,8 +135,9 @@ export function createSocialService(sql,{now=()=>new Date()}={}){
    }
   }
   if(action==='notifications_read')await milestones(user.id);
-  await run(user.id,action,p);
-  return dashboard(user);
+  const result=await run(user.id,action,p);
+  const state=await dashboard(user);
+  return action==='claim_avatar_intro'?{...state,avatarIntroClaimed:result[0]?.data?.avatarIntroClaimed===true}:state;
  }
  return {ensure,policy,milestones,dashboard,mutate,gifts};
 }

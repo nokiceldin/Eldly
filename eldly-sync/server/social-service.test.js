@@ -248,3 +248,30 @@ it('lets friends gift a badge achievement under the same weekly limit and preser
  const state=await act(b,'celebrate',{id:badge.id,withCoins:true,expectedGiftAmount:10});expect(state.notifications.find(n=>n.id===badge.id).sentGiftAmount).toBe(10);
  expect((await dash(a)).notifications.find(n=>n.kind==='celebration')).toMatchObject({giftAmount:10,ruleChanges:['Coin collector']});
 });
+
+it('offers the logo introduction once per unchanged account, including simultaneous devices',async()=>{
+ await act(a,'visit',{timezone:'UTC'});await act(b,'visit',{timezone:'UTC'});
+ expect((await dash(a)).profile.avatarIntroEligible).toBe(true);
+ const responses=await Promise.all([act(a,'claim_avatar_intro'),act(a,'claim_avatar_intro')]);
+ expect(responses.filter(r=>r.avatarIntroClaimed)).toHaveLength(1);
+ expect((await dash(a)).profile.avatarIntroEligible).toBe(false);
+ expect((await dash(b)).profile.avatarIntroEligible).toBe(true);
+ expect((await act(a,'claim_avatar_intro')).avatarIntroClaimed).toBe(false);
+ expect((await dash(a)).profile.avatarId).toBe('original');
+});
+it('does not offer the logo introduction after a portrait change, even after returning to original',async()=>{
+ await act(a,'visit',{timezone:'UTC'});await act(a,'save_avatar',{avatarId:'cedar'});
+ expect((await dash(a)).profile.avatarIntroEligible).toBe(false);
+ await act(a,'save_avatar',{avatarId:'original'});
+ expect((await dash(a)).profile.avatarIntroEligible).toBe(false);
+ expect((await act(a,'claim_avatar_intro')).avatarIntroClaimed).toBe(false);
+});
+it('backfills existing customized portraits and scopes introduction claims to the signed-in user',async()=>{
+ await act(a,'visit',{timezone:'UTC'});await act(b,'visit',{timezone:'UTC'});
+ await db.query("update myspace_profiles set avatar_preset='cedar',avatar_changed_at=null where user_id=$1",[a]);
+ const fresh=createSocialService({query:async(q,p)=>(await db.query(q,p)).rows},{now:()=>now});await fresh.ensure();
+ expect((await db.query('select avatar_changed_at from myspace_profiles where user_id=$1',[a])).rows[0].avatar_changed_at).not.toBeNull();
+ expect((await act(a,'claim_avatar_intro',{userId:b})).avatarIntroClaimed).toBe(false);
+ expect((await dash(b)).profile.avatarIntroEligible).toBe(true);
+ await act(a,'save_avatar',{avatarId:'original'});expect((await dash(a)).profile.avatarIntroEligible).toBe(false);
+});

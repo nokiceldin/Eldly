@@ -1711,3 +1711,14 @@ input {
 @media(prefers-reduced-motion:reduce){.gift-pop{animation:none}.social-dialog .friend-gift-button{transition:none}}
 .social-notification>.friend-gift-action,.social-notification>.friend-gift-sent{flex:0 0 100%;min-width:0}
 .friend-gift-preview h3{overflow-wrap:anywhere}
+.avatar-intro{position:relative;border:1px solid #d3b67188;border-radius:17px;padding:20px;margin:4px 0 22px;background:radial-gradient(ellipse at top left,#dab6631c,transparent 85%),#2b281f;color:#efe4ce}
+.avatar-intro:before{content:"";position:absolute;top:-7px;left:25px;width:12px;height:12px;transform:rotate(45deg);background:#302b21;border-left:1px solid #d3b67188;border-top:1px solid #d3b67188}
+.avatar-intro h3{font-size:18px!important;line-height:1.4;margin:0 0 6px!important;font-weight:600!important}
+.avatar-intro p{font-size:13px;line-height:1.6;color:#d2c6af;margin:0 0 16px}
+.avatar-intro .social-actions{gap:12px}.avatar-intro-arrow{color:#e6c67f;margin-bottom:10px}
+.social-dialog .avatar-intro-target{outline:3px solid #e4c47f;outline-offset:6px;box-shadow:0 0 0 12px #d8b35e15;animation:avatar-intro-pulse 1.8s ease-in-out 3}
+@keyframes avatar-intro-pulse{50%{box-shadow:0 0 0 17px #d8b35e08;outline-color:#ffdfa0}}
+@media(prefers-reduced-motion:reduce){.social-dialog .avatar-intro-target{animation:none}}
+.social-tabs{display:flex;flex-wrap:wrap}
+.social-tabs button{flex:0 1 auto;min-width:0;width:auto;padding:8px 12px;gap:6px}
+.social-tabs button svg{width:19px;height:19px;flex-shrink:0}
