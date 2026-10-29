@@ -9,7 +9,7 @@ export const TASK_COLORS=[
  {id:'brown',label:'Brown',hex:'#c9ad96'},{id:'gray',label:'Gray',hex:'#b2b7bc'},
 ] as const;
 export const AVAILABLE_TASK_COLORS=TASK_COLORS.filter(c=>['blue','green','yellow','red'].includes(c.id));
-export const taskColorSwatch=(id:TaskColor)=>({blue:'#3285ff',green:'#35c75a',yellow:'#ffdc28',red:'#f34743'} as Record<string,string>)[id]??taskColorHex(id);
+export const taskColorSwatch=(id:TaskColor)=>({blue:'#6a9fdf',green:'#79b885',yellow:'#d8bf68',red:'#d47f7a'} as Record<string,string>)[id]??taskColorHex(id);
 export type TaskColor=typeof TASK_COLORS[number]['id'];
 export type TaskColorSettings={enabled?:TaskColor[];usage?:Partial<Record<TaskColor,number>>};
 export const validTaskColor=(value:unknown):value is TaskColor=>TASK_COLORS.some(c=>c.id===value);
