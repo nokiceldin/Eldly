@@ -302,9 +302,8 @@ function Checklist({ onHome }: { onHome: () => void }) {
   };
   return (
     <MotionConfig reducedMotion="user">
-      <main className={`note-page ${taskDragging?"task-dragging":""}`} {...weekSwipe}>
-      <DailyAppShortcut to="track"/>
         <header className="note-toolbar week-toolbar">
+          <div className="check-toolbar-inner">
           <button className="toolbar-button eldly-home-button" aria-label={`Back to ${accountHomeName()} home`} onClick={onHome}><Home size={20} /></button>
           <nav className="week-switcher" aria-label="Week navigation">
             <button
@@ -342,7 +341,10 @@ function Checklist({ onHome }: { onHome: () => void }) {
             Options
           </button>
           </div>
+          </div>
         </header>
+      <main className={`note-page ${taskDragging?"task-dragging":""}`} {...weekSwipe}>
+      <DailyAppShortcut to="track"/>
         {error && (
           <p className="save-error" role="alert">
             {error}

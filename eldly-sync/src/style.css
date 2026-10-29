@@ -1606,16 +1606,43 @@ input {
 .quick-task-editor{max-width:420px}
 .quick-task-editor .form-grid{grid-template-columns:1fr}
 
-/* Paint the notch/status area and toolbar edges while tasks move underneath. */
+/* Keep the status area and toolbar on one opaque viewport layer.
+   The header is outside .note-page so clipping and animated weeks cannot expose tasks. */
 .note-toolbar.week-toolbar{
-  top:0;
-  min-height:calc(64px + env(safe-area-inset-top,0px));
-  padding-top:env(safe-area-inset-top,0px);
+  position:fixed;
+  inset:0 0 auto;
+  z-index:100;
+  min-height:calc(72px + env(safe-area-inset-top,0px));
+  padding:env(safe-area-inset-top,0px) max(24px,env(safe-area-inset-right,0px)) 8px max(24px,env(safe-area-inset-left,0px));
+  margin:0;
+  display:block;
   background:#191919;
   isolation:isolate;
-  box-shadow:0 -32px 0 32px #191919;
+  box-shadow:none;
 }
+.check-toolbar-inner{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  min-height:64px;
+  max-width:676px;
+  margin:0 auto;
+  gap:4px;
+}
+.note-page{padding-top:calc(88px + env(safe-area-inset-top,0px))}
+.note-page .days{margin-top:0}
 .note-day{scroll-margin-top:calc(88px + env(safe-area-inset-top,0px))}
+@media(max-width:600px){
+  .note-toolbar.week-toolbar{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+  .check-toolbar-inner .week-switcher{margin-left:0}
+}
+@media(max-width:380px){
+  .check-toolbar-inner .week-arrow{width:28px}
+  .check-toolbar-inner .week-label{font-size:18px;padding-left:2px;padding-right:2px}
+  .check-toolbar-inner .eldly-home-button{width:32px;flex-shrink:0}
+  .check-toolbar-inner .toolbar-options{width:auto;font-size:12px;padding:0 5px}
+  .check-toolbar-inner .check-toolbar-actions{gap:4px}
+}
 
 /* Clear first steps and a compact daily alternative to the monthly map. */
 .app-empty{padding:32px 24px;margin:24px 0;border:1px solid #3a3b32;border-radius:22px;background:#22231e}

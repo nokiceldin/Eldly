@@ -1,4 +1,4 @@
-const CACHE = "myspace-shell-v31-sleep-minutes";
+const CACHE = "myspace-shell-v32-opaque-check-header";
 const SHELL = [
   "/audio/coin-pickup.wav",
   "/",
