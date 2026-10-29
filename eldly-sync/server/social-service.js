@@ -1,3 +1,5 @@
+import {profileBadges} from '../shared/badges.js';
+import {ledgerWeeks} from '../shared/coin-ledger.js';
 import {effectiveData} from '../shared/effective-goals.js';
 import {currentFriendConfig,coinChanges} from './friend-rules.js';
 import {celebrationCoins} from './celebration-coins.js';
@@ -31,11 +33,14 @@ export function createSocialService(sql,{now=()=>new Date()}={}){
   await ensure();const profiles=await sql.query('select timezone from myspace_profiles where user_id=$1',[id]);
   if(!profiles[0])return;
   const day=dayAt(profiles[0].timezone,now()),from=monday(day),data=await accountData(id);
-  await run(id,'track_streak',{...trackingStreak(data.mapping,day),day});
+  const tracking=trackingStreak(data.mapping,day);
+  await run(id,'track_streak',{...tracking,day});
   const previous=addDay(from,-7),control=await policy(id);
   const events=[...achievedGoals(effectiveData(data,from,control),from,day).map(goal=>`${from}:${goal}`),...(data.mapping&&(data.mapping.startedOn||'2026-10-15')<=previous?achievedGoals(effectiveData(data,previous,control),previous,addDay(from,-1),true).map(goal=>`${previous}:${goal}`):[])];
   // Friends receive only generic milestones. Goal names stay in the owner’s private inbox.
   if(events.length){const ownGoals=Object.fromEntries(events.map(event=>{const goal=event.slice(11),legacy=legacyGoals.find(g=>g[0]===goal);return [event,data.mapping?.habits?.find(h=>h.id===goal)?.label||(legacy?defaults.find(d=>d[0]===legacy[1])?.[1]||'Weekly goal':'Weekly goal')];}));await run(id,'goal_events',{events,ownGoals});}
+  const weeks=ledgerWeeks(data,day,control),earned=weeks.reduce((total,week)=>total+week.total,0),goals=weeks.reduce((total,week)=>total+week.goalsMet.length,0),purchases=(data.rewardPurchases||[]).filter(p=>!p.refunded).length;
+  await run(id,'badge_events',{badges:profileBadges(tracking.longest,earned,goals,purchases).filter(badge=>badge.id!=='welcome').map(({id,name,level})=>({id,name,level}))});
  }
  async function gifts(id){await ensure();return Number((await sql.query('select coalesce(sum(amount),0) as total from myspace_celebration_coins where recipient=$1',[id]))[0]?.total||0);}
  async function giftWeek(id){const profile=(await sql.query('select timezone from myspace_profiles where user_id=$1',[id]))[0];return monday(dayAt(profile?.timezone||'UTC',now()));}

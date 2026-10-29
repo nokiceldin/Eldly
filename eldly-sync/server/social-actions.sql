@@ -1,7 +1,7 @@
 create or replace function myspace_social_action(actor uuid,action text,p jsonb) returns jsonb
 language plpgsql security definer set search_path=public as $$
 #variable_conflict use_variable
-declare other uuid; req myspace_friends%rowtype; br myspace_best_requests%rowtype; pair myspace_best_pairs%rowtype; proposal myspace_coin_proposals%rowtype; notification myspace_notifications%rowtype; starts date; n integer; day date; result jsonb;
+declare other uuid; req myspace_friends%rowtype; br myspace_best_requests%rowtype; pair myspace_best_pairs%rowtype; proposal myspace_coin_proposals%rowtype; notification myspace_notifications%rowtype; starts date; n integer; day date; result jsonb; badge jsonb; previous_level integer;
 begin
  -- Social mutations are small and serialized to enforce singleton pairs and replay protection.
  perform pg_advisory_xact_lock(782631);
@@ -99,6 +99,18 @@ begin
   select gen_random_uuid(),actor,actor,'goal_self','own-goal:'||e.key,jsonb_build_array(e.value) from jsonb_each_text(coalesce(p->'ownGoals','{}'::jsonb)) e on conflict(recipient,source_key) do nothing;
   insert into myspace_notifications(id,recipient,actor,kind,source_key)
   select gen_random_uuid(),case when f.a=actor then f.b else f.a end,actor,'goal','goal:'||actor||':'||e from jsonb_array_elements_text(p->'events') e cross join myspace_friends f where actor in(f.a,f.b) and f.status='accepted' on conflict(recipient,source_key) do nothing;
+ elsif action='badge_events' then
+  for badge in select value from jsonb_array_elements(p->'badges') loop
+   select level into previous_level from myspace_badge_levels where user_id=actor and myspace_badge_levels.badge=badge->>'id';
+   if previous_level is null then
+    -- Establish a baseline on rollout; do not alert friends about old badges.
+    insert into myspace_badge_levels(user_id,badge,level) values(actor,badge->>'id',(badge->>'level')::integer);
+   elsif (badge->>'level')::integer>previous_level then
+    update myspace_badge_levels set level=(badge->>'level')::integer where user_id=actor and myspace_badge_levels.badge=badge->>'id';
+    insert into myspace_notifications(id,recipient,actor,kind,source_key,milestone,rule_changes)
+    select gen_random_uuid(),case when f.a=actor then f.b else f.a end,actor,'badge','badge:'||actor||':'||(badge->>'id')||':'||(badge->>'level'),(badge->>'level')::integer,jsonb_build_array(badge->>'name') from myspace_friends f where actor in(f.a,f.b) and f.status='accepted' on conflict(recipient,source_key) do nothing;
+   end if;
+  end loop;
  elsif action='celebrate' then
   select * into notification from myspace_notifications where id=(p->>'id')::uuid and recipient=actor and kind in('goal','streak') and not celebrated;
   if notification.id is null then raise exception 'SOCIAL: This milestone was already celebrated or is unavailable.';end if;

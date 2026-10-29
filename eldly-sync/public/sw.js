@@ -1,4 +1,4 @@
-const CACHE = "myspace-shell-v32-opaque-check-header";
+const CACHE = "myspace-shell-v33-friend-achievements";
 const SHELL = [
   "/audio/coin-pickup.wav",
   "/",

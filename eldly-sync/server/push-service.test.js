@@ -70,3 +70,26 @@ it('queues an opt-in phone notification with the actual best-friend coin changes
  await act(a,'friend_request',{username:'bob'});await act(b,'friend_accept',{id:(await social.dashboard(users[b])).friends[0].id});await act(a,'best_request',{userId:b});await act(b,'best_accept',{id:(await social.dashboard(users[b])).bestRequests[0].id});await push.subscribe(a,'alice',sub());const rules=(await social.dashboard(users[b])).bestFriendRules;await act(b,'set_friend_rules',{userId:a,version:rules.version,adjustments:{practice:{amount:9}}});
  const n=(await q("select * from myspace_notifications where kind='rules_changed' and recipient=$1",[a]))[0];expect(n.rule_changes[0]).toContain('5 coins');expect((await q('select * from myspace_push_outbox where notification_id=$1',[n.id]))).toHaveLength(1);await q('update myspace_notifications set created_at=$2 where id=$1',[n.id,now.toISOString()]);await push.processMessage({kind:'notification',id:n.id});expect(deliver.mock.calls.at(-1)[1].body).toContain('@bob updated your coin rules. Practice: 5 coins');
 });
+
+it('pushes weekly goals and new badge levels to opted-in friends once, without private goal details',async()=>{
+ await act(a,'friend_request',{username:'bob'});await act(b,'friend_accept',{id:(await social.dashboard(users[b])).friends[0].id});
+ await push.subscribe(b,'bob',sub('friend'));
+ const data={mapping:{version:1,startedOn:'2026-10-19',habits:[{id:'private-goal',label:'PRIVATE GOAL',kind:'check',color:'blue',xp:{amount:100,basis:'entry'},goal:{from:'2026-10-19',target:1,maximum:false}}],entries:{'2026-10-22':{'private-goal':{kind:'check'}}}}};
+ const records=Object.entries(flatten({'checkly-data-v1':data})).map(([record_key,value])=>({record_key,value}));await q('select myspace_account_initialize($1,$2::jsonb)',[a,JSON.stringify(records)]);
+ await social.milestones(a);await social.milestones(a);
+ const notifications=await q("select * from myspace_notifications where recipient=$1 and kind in('goal','badge')",[b]);
+ expect(notifications.map(n=>n.kind).sort()).toEqual(['badge','goal']);
+ expect(await q('select * from myspace_push_outbox')).toHaveLength(2);
+ await push.publishPending();
+ for(const n of notifications){await q('update myspace_notifications set created_at=$2 where id=$1',[n.id,now.toISOString()]);await push.processMessage({kind:'notification',id:n.id});await push.processMessage({kind:'notification',id:n.id});}
+ expect(deliver).toHaveBeenCalledTimes(2);
+ expect(deliver.mock.calls.map(([,payload])=>payload.body).sort()).toEqual(['@alice achieved a weekly goal!','@alice earned the Coin collector badge!']);
+ expect(JSON.stringify(deliver.mock.calls)).not.toContain('PRIVATE GOAL');
+ expect((await social.dashboard(users[a])).notifications.some(n=>n.kind==='goal_self')).toBe(true);
+});
+it('does not deliver queued achievements after the friendship ends',async()=>{
+ await act(a,'friend_request',{username:'bob'});const friend=(await social.dashboard(users[b])).friends[0];await act(b,'friend_accept',{id:friend.id});await push.subscribe(b,'bob',sub('former-friend'));
+ const id='99999999-9999-4999-8999-999999999999';await q("insert into myspace_notifications(id,recipient,actor,kind,source_key,created_at) values($1,$2,$3,'goal','removed-goal',$4)",[id,b,a,now.toISOString()]);
+ await act(b,'friend_remove',{id:friend.id});await push.processMessage({kind:'notification',id});expect(deliver).not.toHaveBeenCalled();
+ expect((await q('select sent_at from myspace_push_outbox where notification_id=$1',[id]))[0].sent_at).not.toBeNull();
+});

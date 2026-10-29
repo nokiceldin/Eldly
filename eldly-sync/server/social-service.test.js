@@ -209,3 +209,22 @@ it('syncs owner-controlled hourly rules and goals while a partner can edit only 
  expect((await dash(a)).notifications.filter(n=>n.kind==='rules_changed')[0].ruleChanges).toEqual(['Tennis: 10 coins → -20 coins']);
  expect(policy.legacy.habits[0]).toMatchObject({kind:'check',goal:{target:5},xp:{amount:10,basis:'entry'}});
 });
+
+it('announces new badge levels only to accepted friends and never repeats a regained level',async()=>{
+ await friends();await act(a,'friend_request',{username:'carol'});await act(a,'visit',{timezone:'UTC'});
+ const data={...empty(),mapping:{version:1,startedOn:'2026-10-19',habits:[{id:'read',label:'Private reading',kind:'check',color:'blue',xp:{amount:100,basis:'entry'}}],entries:{'2026-10-23':{read:{kind:'check'}}}}};
+ await save(a,data);await service.milestones(a);await service.milestones(a);
+ expect((await dash(b)).notifications.filter(n=>n.kind==='badge')).toMatchObject([{username:'alice',ruleChanges:['Coin collector'],milestone:1}]);
+ expect((await dash(c)).notifications.filter(n=>n.kind==='badge')).toHaveLength(0);
+ await save(a,{...data,mapping:{...data.mapping,entries:{}}});await service.milestones(a);await save(a,data);await service.milestones(a);
+ expect((await dash(b)).notifications.filter(n=>n.kind==='badge')).toHaveLength(1);
+ await save(a,{...data,mapping:{...data.mapping,habits:[{...data.mapping.habits[0],xp:{amount:500,basis:'entry'}}]}});await service.milestones(a);
+ expect((await dash(b)).notifications.filter(n=>n.kind==='badge').map(n=>n.milestone).sort()).toEqual([1,2]);
+ await expect(act(a,'badge_events',{badges:[{id:'coins',name:'Forged',level:6}]})).rejects.toThrow('Unknown action');
+});
+it('baselines existing badges without broadcasting historical achievements on rollout',async()=>{
+ await friends();await act(a,'visit',{timezone:'UTC'});await db.query('delete from myspace_badge_levels where user_id=$1',[a]);
+ await save(a,{...empty(),mapping:{version:1,startedOn:'2026-10-19',habits:[{id:'read',label:'Read',kind:'check',color:'blue',xp:{amount:1000,basis:'entry'}}],entries:{'2026-10-23':{read:{kind:'check'}}}}});
+ await service.milestones(a);expect((await dash(b)).notifications.filter(n=>n.kind==='badge')).toHaveLength(0);
+ expect((await db.query("select level from myspace_badge_levels where user_id=$1 and badge='coins'",[a])).rows[0].level).toBe(3);
+});

@@ -56,3 +56,7 @@ begin
   insert into myspace_app_migrations(name) values('dated-tracker-archives-v1');
  end if;
 end;$archive_migration$;
+
+-- Highest announced level survives retries, corrections, and reconnects.
+create table if not exists myspace_badge_levels(user_id uuid not null references myspace_users(id),badge text not null,level integer not null check(level between 0 and 6),primary key(user_id,badge));
+revoke all on myspace_badge_levels from public;

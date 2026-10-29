@@ -100,14 +100,22 @@ export function createAccountHandler(sql){
     }
     return res.status(400).json({error:'Unknown profile change.'});
    }
-   if(action==='rewards'&&req.method==='POST')return res.status(200).json(await rewards.mutate(user.id,body));
+   if(action==='rewards'&&req.method==='POST'){
+    const result=await rewards.mutate(user.id,body);
+    try{await social.milestones(user.id);await push.publishPending();}catch{console.error('Reward milestone delivery will retry on the next visit.');}
+    return res.status(200).json(result);
+   }
    if(action==='push'&&req.method==='GET')return res.status(200).json(await push.status(user.id,tokenHash));
    if(action==='push'&&req.method==='POST'){
     if(body.action==='subscribe'){await social.mutate(user,{action:'visit',timezone:body.timezone||'UTC'},'push');return res.status(200).json(await push.subscribe(user.id,tokenHash,body.subscription));}
     if(body.action==='unsubscribe')return res.status(200).json(await push.unsubscribe(user.id,tokenHash));
     return res.status(400).json({error:'Unknown notification action.'});
    }
-   if(action==='social'&&req.method==='GET')return res.status(200).json(await social.dashboard(user));
+   if(action==='social'&&req.method==='GET'){
+    const state=await social.dashboard(user);
+    try{await push.publishPending();}catch{console.error('Notification delivery will retry on the next visit.');}
+    return res.status(200).json(state);
+   }
    if(action==='social'&&req.method==='POST'){
     const state=await social.mutate(user,body,String(req.headers['x-forwarded-for']||'unknown').split(',')[0]);
     try{await push.publishPending();if(body.action==='visit')await push.schedule(user.id);}catch{console.error('Notification scheduling will retry on the next visit.');}
@@ -125,7 +133,7 @@ export function createAccountHandler(sql){
     case 'eldinos_account_apply':case 'eldly_shared_apply':
      if(!Array.isArray(args.changes))return res.status(400).json({error:'Invalid changes'});
      result=touchesReceipts(args.changes)?[{data:await rewards.apply(user.id,args.changes)}]:await sql.query('select myspace_account_apply($1::uuid,$2::jsonb) as data',[user.id,JSON.stringify(args.changes)]);
-     try{await social.milestones(user.id);}catch{console.error('Milestone notification could not be updated. It will retry on the next visit.');}break;
+     try{await social.milestones(user.id);await push.publishPending();}catch{console.error('Milestone notification could not be updated. It will retry on the next visit.');}break;
     case 'eldinos_account_initialize':case 'eldly_shared_initialize':
      if(!Array.isArray(args.records))return res.status(400).json({error:'Invalid records'});
      result=await sql.query('select myspace_account_initialize($1::uuid,$2::jsonb) as data',[user.id,JSON.stringify(args.records)]);break;
