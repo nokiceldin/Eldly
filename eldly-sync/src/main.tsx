@@ -70,6 +70,7 @@ import { load, persist, download, validate } from "./storage";
 import PacklyPage from "./packly/App";
 import { playFeedback } from "./sounds";
 import AppIcon from "./components/AppIcon";
+import JournalPage from "./components/JournalPage";
 import ProgressPage from "./components/ProgressPage";
 import RecapDialog from "./components/RecapDialog";
 import MappingPage from "./components/MappingPage";
@@ -904,12 +905,13 @@ function Checklist({ onHome }: { onHome: () => void }) {
     </MotionConfig>
   );
 }
-type Destination = "home" | "checkly" | "progress" | "mapping" | "packly";
+type Destination = "home" | "checkly" | "progress" | "mapping" | "packly" | "journal";
 const destinations = [
   { id: "checkly", emoji: "✅", title: "Check", description: "Tasks to do" },
   { id: "mapping", emoji: "🗺️", title: "Track", description: "Habits to log" },
   { id: "progress", emoji: "📈", title: "Data", description: "See how you’re doing" },
   { id: "packly", emoji: "🎒", title: "Pack", description: "Everything for your next trip" },
+  { id: "journal", emoji: "📖", title: "Journal", description: "A little room for yourself" },
 ] as const;
 function currentDestination(): Destination {
   const section = window.location.hash.slice(1).split("/")[0];
@@ -936,6 +938,7 @@ function App() {
   if (destination === "checkly") return <Checklist onHome={goHome} />;
   if (destination === "mapping") return <MappingPage onHome={goHome} />;
   if (destination === "progress") return <ProgressPage onHome={goHome} />;
+  if (destination === "journal") return <JournalPage onHome={goHome} />;
   if (destination === "packly") return <PacklyPage onHome={goHome} />;
   return (
     <main className="eldly-page">

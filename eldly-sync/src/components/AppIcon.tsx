@@ -1,7 +1,7 @@
-type AppName = "checkly" | "progress" | "mapping" | "packly";
+type AppName = "checkly" | "progress" | "mapping" | "packly" | "journal";
 /** Shared dimensional app tiles; Pack keeps its original bag-and-check mark. */
 export default function AppIcon({ app }: { app: AppName }) {
-  const palette = { checkly: ["#89d68c", "#3a9b60", "#39965a"], progress: ["#7eaffb", "#4672d6", "#4a77d9"], mapping: ["#f1cf76", "#d89745", "#cc8d3c"], packly: ["#8970ff", "#6349ed", "#7054ef"] }[app];
+  const palette = { journal: ["#c2a38c", "#92715e", "#89654e"], checkly: ["#89d68c", "#3a9b60", "#39965a"], progress: ["#7eaffb", "#4672d6", "#4a77d9"], mapping: ["#f1cf76", "#d89745", "#cc8d3c"], packly: ["#8970ff", "#6349ed", "#7054ef"] }[app];
   const id = `app-icon-${app}`;
   return <svg className="eldly-app-icon" viewBox="0 0 96 96" fill="none" aria-hidden="true" focusable="false">
     <defs>
@@ -14,6 +14,10 @@ export default function AppIcon({ app }: { app: AppName }) {
     <rect x="4" y="3" width="88" height="88" rx="26" fill={`url(#${id}-bg)`} />
     <rect x="4.8" y="3.8" width="86.4" height="86.4" rx="25.2" stroke={`url(#${id}-rim)`} strokeWidth="1.6" />
     <g filter={`url(#${id}-shadow)`}>
+      {app === "journal" && <>
+        <path d="M48 33c-8-7-18-8-25-5v39c8-3 17-2 25 4 8-6 17-7 25-4V28c-7-3-17-2-25 5Z" fill="#fff9e8" />
+        <path d="M48 34v36M30 39l11 3m-11 7 11 3m14-10 11-3m-11 13 11-3" stroke={palette[2]} strokeWidth="2.4" strokeLinecap="round" />
+      </>}
       {app === "packly" && <>
         <path d="M39 32v-2a9 9 0 0 1 18 0v2" stroke="#fff" strokeWidth="4.8" />
         <rect x="25" y="34" width="46" height="43" rx="12" fill={`url(#${id}-white)`} />

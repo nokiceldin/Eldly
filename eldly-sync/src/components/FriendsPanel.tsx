@@ -3,6 +3,7 @@ import AvatarIntro from './AvatarIntro';
 import FriendGiftAction,{FriendGiftReceived} from './FriendGiftAction';
 import {readCoinPolicy} from '../coinControl';
 import ProfileSettings from './ProfileSettings';
+import BookDesigner from './BookDesigner';
 import FriendCoinEditor from './FriendCoinEditor';
 import ProfileBadges from './ProfileBadges';
 import StreakFlame from './StreakFlame';
@@ -63,7 +64,7 @@ export default function FriendsPanel({initial,initialTab,initialError,close,acco
    {editingAvatar&&<AvatarEditor initial={state.profile.avatarId} busy={busy} close={()=>setEditingAvatar(false)} save={avatarId=>void act({action:'save_avatar',avatarId})}/>}
 
    </>}
-  {tab==='profile'&&<><div className="profile-stats"><div><strong>{state.profile.streak}</strong><span>Day streak</span></div><div><strong>{state.profile.longest}</strong><span>Best streak</span></div><div><strong>{formatPoints(earned)}</strong><span>Coins earned</span></div></div>{state.bestFriend&&<button className="profile-best-friend" onClick={()=>showFriend(state.bestFriend!.userId)} aria-label={`Edit ${state.bestFriend.username}'s coins`}><ProfileAvatar style={bestPerson?.avatar} size={38}/><span><strong>@{state.bestFriend.username}</strong><small>Best friend · Edit coins</small></span><ArrowRight size={18}/></button>}<ProfileBadges longest={state.profile.longest} earned={earned} goals={goals} purchases={purchases}/><ProfileSettings/></>}
+  {tab==='profile'&&<><div className="profile-stats"><div><strong>{state.profile.streak}</strong><span>Day streak</span></div><div><strong>{state.profile.longest}</strong><span>Best streak</span></div><div><strong>{formatPoints(earned)}</strong><span>Coins earned</span></div></div>{state.bestFriend&&<button className="profile-best-friend" onClick={()=>showFriend(state.bestFriend!.userId)} aria-label={`Edit ${state.bestFriend.username}'s coins`}><ProfileAvatar style={bestPerson?.avatar} size={38}/><span><strong>@{state.bestFriend.username}</strong><small>Best friend · Edit coins</small></span><ArrowRight size={18}/></button>}<ProfileBadges longest={state.profile.longest} earned={earned} goals={goals} purchases={purchases}/><BookDesigner/><ProfileSettings/></>}
   {tab==='ranking'&&<WeeklyRankingPanel ranking={state.weeklyRanking} userId={state.profile.id}/>}
   {tab==='friends'&&<>
    <section className="social-section"><form className="social-add" onSubmit={e=>{e.preventDefault();void act({action:'friend_request',username});}}><label className="sr-only" htmlFor="friend-username">Friend username</label><input id="friend-username" autoCapitalize="none" autoComplete="off" spellCheck={false} required minLength={3} maxLength={32} pattern="[a-zA-Z0-9_]{3,32}" placeholder="Their username" value={username} onChange={e=>setUsername(e.target.value)}/><button className="social-primary" disabled={busy} aria-label="Send friend request" title="Add friend"><UserPlus size={18}/></button></form></section>

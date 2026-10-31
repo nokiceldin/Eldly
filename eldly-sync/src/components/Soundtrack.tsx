@@ -8,9 +8,11 @@ const SoundtrackContext=createContext({enabled:false,toggle:()=>{}});
 export function SoundtrackButton(){const {enabled,toggle}=useContext(SoundtrackContext);return <button type="button" className="soundtrack-toggle" aria-label={enabled?'Turn background music off':'Turn background music on'} aria-pressed={enabled} onClick={toggle}>{enabled?<Music2 size={18}/>:<VolumeX size={18}/>}</button>;}
 export default function Soundtrack({children}:{children:ReactNode}) {
  const [enabled,setEnabled]=useState(()=>{try{return localStorage.getItem(scopedKey('soundtrack-enabled'))==='true';}catch{return false;}});
+ const [quiet,setQuiet]=useState(()=>window.location.hash.split('/')[0]==='#journal');
+ useEffect(()=>{const update=()=>setQuiet(window.location.hash.split('/')[0]==='#journal');window.addEventListener('hashchange',update);return()=>window.removeEventListener('hashchange',update);},[]);
  const player=useRef<HTMLAudioElement|null>(null);
  useEffect(()=>{
-  if(!enabled)return;
+  if(!enabled||quiet)return;
   const audio=player.current;
   if(!audio)return;
   // The playback asset already omits the intro, including when looping.
@@ -36,7 +38,7 @@ export default function Soundtrack({children}:{children:ReactNode}) {
    window.removeEventListener('keydown',play);
    audio.pause();audio.removeAttribute('src');audio.load();
   };
- },[enabled]);
+ },[enabled,quiet]);
  function toggle(){
   const next=!enabled;
   if(!next)player.current?.pause();
