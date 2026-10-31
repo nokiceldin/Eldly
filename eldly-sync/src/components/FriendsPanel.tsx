@@ -39,7 +39,7 @@ export default function FriendsPanel({initial,initialTab,initialError,close,acco
  },[tab,unreadIds]);
  async function act(body:Record<string,unknown>){
   if(busy)return;setBusy(true);setError('');setMessage('');
-  try{const next=await socialRequest(body);if(alive.current){setState(next);if(body.action==='set_friend_rules')setEditorEpoch(n=>n+1);if(body.action==='celebrate'&&body.withCoins)setGiftMoment(String(body.id));setMessage(body.action==='set_friend_rules'?'Changes sent. Their coins are updated.' :body.action==='celebrate'?(body.withCoins?'':'A little encouragement sent ✨'):'Saved.');setConfirm(null);if(body.action==='friend_request')setUsername('');if(body.action==='save_avatar')setEditingAvatar(false);}}
+  try{const next=await socialRequest(body);if(alive.current){setState(next);if(body.action==='set_friend_rules')setEditorEpoch(n=>n+1);if(body.action==='celebrate')setGiftMoment(String(body.id));setMessage(body.action==='set_friend_rules'?'Changes sent. Their coins are updated.' :body.action==='celebrate'?(body.withCoins?'':'A little encouragement sent ✨'):'Saved.');setConfirm(null);if(body.action==='friend_request')setUsername('');if(body.action==='save_avatar')setEditingAvatar(false);}}
   catch(e){if(body.withCoins)try{const fresh=await socialRequest();if(alive.current){setState(fresh);if(fresh.notifications.some(n=>n.id===body.id&&(n.sentGiftAmount||0)>0)){setGiftMoment(String(body.id));setError('');setConfirm(null);return;}}}catch{/* Keep the existing inbox if refresh is unavailable. */}if(alive.current)setError(e instanceof Error?e.message:'Could not save. Please retry.');}finally{if(alive.current)setBusy(false);}
  }
  const ask=(body:Record<string,unknown>,title:string,description:string)=>setConfirm({body,title,description});

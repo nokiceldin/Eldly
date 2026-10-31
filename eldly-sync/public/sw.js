@@ -1,4 +1,4 @@
-const CACHE = "myspace-shell-v43-mix-background-audio";
+const CACHE = "myspace-shell-v44-clear-celebration-choice";
 const SHELL = [
   "/audio/coin-pickup.wav",
   "/",
