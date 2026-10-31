@@ -29,7 +29,10 @@ export default function MappingPage({ onHome }: { onHome: () => void }) {
   const heading = useRef<HTMLHeadingElement>(null);
   const current = parse(month);
   const days = Array.from({ length: new Date(current.getFullYear(), current.getMonth() + 1, 0).getDate() }, (_, i) => month.slice(0, 8) + String(i + 1).padStart(2, "0"));
-  useEffect(() => { heading.current?.focus({ preventScroll: true }); }, []);
+  useLayoutEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    heading.current?.focus({ preventScroll: true });
+  }, []);
   useLayoutEffect(() => {
     if (scroll.current) scroll.current.scrollLeft = month.slice(0, 7) === today.slice(0, 7) ? Math.max(0, Number(today.slice(-2)) - 2) * 44 : 0;
   }, [month, today, view, data.habits?.length]);
