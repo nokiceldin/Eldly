@@ -275,3 +275,19 @@ it('backfills existing customized portraits and scopes introduction claims to th
  expect((await dash(b)).profile.avatarIntroEligible).toBe(true);
  await act(a,'save_avatar',{avatarId:'original'});expect((await dash(a)).profile.avatarIntroEligible).toBe(false);
 });
+
+it('shares only aggregate weekly rankings with accepted friends and removes inactive participants',async()=>{
+ await friends();await act(a,'friend_request',{username:'carol'});
+ await db.query("update eldinos_account_records set deleted=true where user_id=$1 and record_key like '%tennis-test%'",[a]);
+ const habits=Array.from({length:10},(_,i)=>({id:`private-${i}`,label:'PRIVATE-RANKING-GOAL',kind:'check',goal:{from:'2026-10-19',target:1,maximum:false}}));
+ await save(a,{...empty(),mapping:{version:1,startedOn:'2026-10-19',habits,entries:{'2026-10-23':{'private-0':{kind:'check'},'private-1':{kind:'check'}}}}});
+ let ranking=(await dash(a)).weeklyRanking;
+ expect(ranking).toMatchObject({from:'2026-10-19',to:'2026-10-25'});
+ expect(ranking.participants.map(p=>[p.userId,p.percentage,p.rank])).toEqual([[a,20,1],[b,0,2]]);
+ expect(JSON.stringify(ranking)).not.toMatch(/PRIVATE-RANKING-GOAL|private-0|entries/);
+ await db.query("update eldinos_account_records set deleted=true where user_id=$1 and record_key like '%tennis-test%'",[b]);
+ await save(b,{...empty(),mapping:{version:1,startedOn:'2026-10-19',habits:[],entries:{}}});
+ ranking=(await dash(a)).weeklyRanking;expect(ranking.participants.map(p=>p.userId)).toEqual([a]);
+ await act(a,'friend_remove',{id:(await dash(a)).friends.find(f=>f.userId===b).id});
+ expect((await dash(b)).weeklyRanking.participants).toEqual([]);
+});

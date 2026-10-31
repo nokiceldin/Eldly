@@ -1,3 +1,4 @@
+import WeeklyRankingPanel from './WeeklyRankingPanel';
 import AvatarIntro from './AvatarIntro';
 import FriendGiftAction,{FriendGiftReceived} from './FriendGiftAction';
 import {readCoinPolicy} from '../coinControl';
@@ -14,11 +15,11 @@ import AvatarEditor from './AvatarEditor';
 
 import {useEffect,useRef,useState} from 'react';
 import {createPortal} from 'react-dom';
-import {X,Users,UserRound,ShieldCheck,UserPlus,ArrowRight,Check,Pencil,UserMinus,Star} from 'lucide-react';
+import {X,Users,UserRound,ShieldCheck,UserPlus,ArrowRight,Check,Pencil,UserMinus,Star,Trophy} from 'lucide-react';
 import {socialRequest,SOCIAL_EVENT,type SocialState} from '../social';
 import {formatPoints} from '../points';
 export default function FriendsPanel({initial,initialTab,initialError,close,accountActions,showAvatarIntro=false,onDismissAvatarIntro=()=>{}}:{initial:SocialState|null;initialTab:'profile'|'friends'|'notifications'|'coins';initialError:string;close:()=>void;accountActions?:import('react').ReactNode;showAvatarIntro?:boolean;onDismissAvatarIntro?:()=>void}){
- const [state,setState]=useState(initial),[tab,setTab]=useState<'profile'|'friends'|'notifications'|'coins'|'friend'>(initialTab),[username,setUsername]=useState(''),[error,setError]=useState(initialError),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
+ const [state,setState]=useState(initial),[tab,setTab]=useState<'profile'|'friends'|'notifications'|'coins'|'ranking'|'friend'>(initialTab),[username,setUsername]=useState(''),[error,setError]=useState(initialError),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
  const readAchievements=()=>{const data=load();return {earned:coinWallet(data).earned,goals:coinHistory(data).reduce((n,w)=>n+w.goalsMet.length,0),purchases:(data.rewardPurchases||[]).filter(p=>!p.refunded).length};};
  const [{earned,goals,purchases},setAchievements]=useState(readAchievements);
  useEffect(()=>{const refresh=()=>setAchievements(readAchievements());window.addEventListener(LOCAL_EVENT,refresh);window.addEventListener(REMOTE_EVENT,refresh);return()=>{window.removeEventListener(LOCAL_EVENT,refresh);window.removeEventListener(REMOTE_EVENT,refresh);};},[]);
@@ -50,7 +51,7 @@ export default function FriendsPanel({initial,initialTab,initialError,close,acco
  const openProfile=(section:'friends'|'coins')=>window.dispatchEvent(new CustomEvent('myspace-open-profile',{detail:section}));
  return createPortal(<dialog ref={dialog} className="social-dialog" aria-labelledby="social-title" onCancel={e=>{e.preventDefault();close();}}>
   <header className="social-heading"><h2 id="social-title">{inbox?'Inbox':'Profile'}</h2><button onClick={close} aria-label={inbox?'Close inbox':'Close profile'}><X size={21}/></button></header>
-  {!inbox&&<nav className="social-tabs" aria-label="Profile sections">{([['profile','Profile',UserRound],['friends','Friends',Users],['coins',"Friend’s coins",ShieldCheck]] as const).map(([id,label,Icon])=><button key={id} aria-label={label} title={label} aria-pressed={tab===id} onClick={()=>{onDismissAvatarIntro();setTab(id);setConfirm(null);}}><Icon size={19}/><span>{label}</span></button>)}</nav>}
+  {!inbox&&<nav className="social-tabs" aria-label="Profile sections">{([['profile','Profile',UserRound],['friends','Friends',Users],['coins',"Friend’s coins",ShieldCheck],['ranking','Ranking',Trophy]] as const).map(([id,label,Icon])=><button key={id} aria-label={label} title={label} aria-pressed={tab===id} onClick={()=>{onDismissAvatarIntro();setTab(id);setConfirm(null);}}><Icon size={19}/><span>{label}</span></button>)}</nav>}
 
   {error&&<p className="social-error" role="alert">{error}<button disabled={busy} onClick={()=>void act({action:'visit',timezone:Intl.DateTimeFormat().resolvedOptions().timeZone})}>Retry</button></p>}
   {message&&<p className="social-success" role="status">{message}</p>}
@@ -63,6 +64,7 @@ export default function FriendsPanel({initial,initialTab,initialError,close,acco
 
    </>}
   {tab==='profile'&&<><div className="profile-stats"><div><strong>{state.profile.streak}</strong><span>Day streak</span></div><div><strong>{state.profile.longest}</strong><span>Best streak</span></div><div><strong>{formatPoints(earned)}</strong><span>Coins earned</span></div></div>{state.bestFriend&&<button className="profile-best-friend" onClick={()=>showFriend(state.bestFriend!.userId)} aria-label={`Edit ${state.bestFriend.username}'s coins`}><ProfileAvatar style={bestPerson?.avatar} size={38}/><span><strong>@{state.bestFriend.username}</strong><small>Best friend · Edit coins</small></span><ArrowRight size={18}/></button>}<ProfileBadges longest={state.profile.longest} earned={earned} goals={goals} purchases={purchases}/><ProfileSettings/></>}
+  {tab==='ranking'&&<WeeklyRankingPanel ranking={state.weeklyRanking} userId={state.profile.id}/>}
   {tab==='friends'&&<>
    <section className="social-section"><form className="social-add" onSubmit={e=>{e.preventDefault();void act({action:'friend_request',username});}}><label className="sr-only" htmlFor="friend-username">Friend username</label><input id="friend-username" autoCapitalize="none" autoComplete="off" spellCheck={false} required minLength={3} maxLength={32} pattern="[a-zA-Z0-9_]{3,32}" placeholder="Their username" value={username} onChange={e=>setUsername(e.target.value)}/><button className="social-primary" disabled={busy} aria-label="Send friend request" title="Add friend"><UserPlus size={18}/></button></form></section>
    {requests.length>0&&<section className="social-section"><h3>Friend requests</h3>{requests.map(f=><div className="social-person" key={f.id}><button className="friend-portrait-link" onClick={()=>showFriend(f.userId)} aria-label={`Open ${f.username}'s profile`}><ProfileAvatar style={f.avatar} size={40}/></button><span><button className="friend-profile-link" onClick={()=>showFriend(f.userId)}>@{f.username}</button><small>{f.incoming?'Wants to be friends':'Request sent'}</small></span><div className="social-actions">{f.incoming?<><button disabled={busy} className="social-primary" onClick={()=>void act({action:'friend_accept',id:f.id})}>Accept</button><button disabled={busy} onClick={()=>void act({action:'friend_decline',id:f.id})}>Decline</button></>:<button disabled={busy} onClick={()=>void act({action:'friend_cancel',id:f.id})}>Cancel</button>}</div></div>)}</section>}
