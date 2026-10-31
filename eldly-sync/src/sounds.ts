@@ -31,18 +31,18 @@ export function tracklySound(id: HabitId, mapping?:MappingData): FeedbackSound {
   const color = getHabits(mapping).find(habit => habit.id === id)?.color;
   return color === "red" ? "track-red" : color === "green" ? "track-green" : "track";
 }
-/** Use media volume rather than the iPhone ring/silent switch where supported. */
-export function configurePlaybackAudio() {
+/** Mix app audio with music/video from other apps instead of taking exclusive audio focus. */
+export function configureMixingAudio() {
   try {
     const session = (navigator as Navigator & { audioSession?: { type: string } }).audioSession;
-    if (session) session.type = "playback";
+    if (session) session.type = "ambient";
   } catch { /* Older browsers keep their normal audio behavior. */ }
 }
 let context: AudioContext | undefined;
 /** Synthesized locally, unlocked by a click/tap; no audio downloads or new contexts per task. */
 export function playFeedback(sound: FeedbackSound, enabled: boolean) {
   if (!enabled) return;
-  configurePlaybackAudio();
+  configureMixingAudio();
   try {
     const AudioContextClass = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!AudioContextClass) return;
@@ -82,7 +82,7 @@ export async function playXPCollection(count:number,enabled:boolean,firstArrival
  stopCoinFeedback();
  if(!enabled||count<=0)return;
  const generation=coinGeneration;
- configurePlaybackAudio();
+ configureMixingAudio();
  try{
   const AudioContextClass=window.AudioContext||(window as Window & {webkitAudioContext?:typeof AudioContext}).webkitAudioContext;
   if(!AudioContextClass)return;

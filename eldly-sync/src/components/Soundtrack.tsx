@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Music2, VolumeX } from 'lucide-react';
 import { scopedKey } from '../accountScope';
-import { configurePlaybackAudio } from '../sounds';
+import { configureMixingAudio } from '../sounds';
 
 /** One player lives above all app pages; the preference belongs to this account/device. */
 const SoundtrackContext=createContext({enabled:false,toggle:()=>{}});
@@ -19,7 +19,7 @@ export default function Soundtrack({children}:{children:ReactNode}) {
   let pending=false,disposed=false;
   const play=()=>{
    if(disposed||pending||!audio.paused)return;
-   configurePlaybackAudio();
+   configureMixingAudio();
    pending=true;
    void audio.play().catch(()=>{/* Browser waits for a tap before allowing music. */}).finally(()=>{pending=false;if(disposed)audio.pause();});
   };

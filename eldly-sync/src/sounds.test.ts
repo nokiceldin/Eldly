@@ -37,21 +37,21 @@ describe("completion feedback", () => {
 });
 
 
-describe("media-volume playback", () => {
+describe("background audio mixing", () => {
   afterEach(() => vi.unstubAllGlobals());
-  it("uses playback audio when supported without changing device volume", async () => {
+  it("requests mixable ambient audio without changing device volume", async () => {
     const session = { type: "auto" };
     vi.stubGlobal("navigator", { audioSession: session });
-    const { configurePlaybackAudio } = await import("./sounds");
-    configurePlaybackAudio();
-    expect(session.type).toBe("playback");
+    const { configureMixingAudio } = await import("./sounds");
+    configureMixingAudio();
+    expect(session.type).toBe("ambient");
   });
   it("tolerates browsers without audio sessions and rejected session changes", async () => {
-    const { configurePlaybackAudio } = await import("./sounds");
+    const { configureMixingAudio } = await import("./sounds");
     vi.stubGlobal("navigator", {});
-    expect(() => configurePlaybackAudio()).not.toThrow();
+    expect(() => configureMixingAudio()).not.toThrow();
     vi.stubGlobal("navigator", { get audioSession() { throw Error("unavailable"); } });
-    expect(() => configurePlaybackAudio()).not.toThrow();
+    expect(() => configureMixingAudio()).not.toThrow();
   });
 });
 
