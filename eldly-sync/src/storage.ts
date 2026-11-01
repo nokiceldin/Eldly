@@ -1,3 +1,4 @@
+import {validJournal} from './journalSync';
 import {validTaskColor,validColorSettings} from './taskColors';
 import { validBonusPlans } from './coinBonuses';
 import { validRewards } from './rewards';
@@ -35,7 +36,7 @@ export function validate(x: unknown): x is Data {
     (!t.due || date(t.due)) &&
     (!t.completed || date(t.completed));
   return (
-    d.version === 1 && validColorSettings(d.taskColorSettings) && validBonusPlans(d.coinBonusPlans) && validRewards(d) &&
+    d.version === 1 && (d.journal === undefined || validJournal(d.journal)) && validColorSettings(d.taskColorSettings) && validBonusPlans(d.coinBonusPlans) && validRewards(d) &&
     (d.mapping === undefined || validateMapping(d.mapping)) &&
     Array.isArray(d.tasks) &&
     d.tasks.every(task) &&

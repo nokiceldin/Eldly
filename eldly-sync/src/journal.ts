@@ -1,6 +1,6 @@
 import { scopedKey } from './accountScope';
-export type JournalPageData = { text: string; title?: string; date: string };
-export const newJournalPage = (): JournalPageData => ({ text: '', title: '', date: new Date().toISOString() });
+export type JournalPageData = { id?: string; text: string; title?: string; date: string };
+export const newJournalPage = (): JournalPageData => ({ id: crypto.randomUUID(), text: '', title: '', date: new Date().toISOString() });
 export const bookColors = { sage: '#747e66', midnight: '#394958', rose: '#a07770', clay: '#a47e58', plum: '#6c5b72' };
 export type BookDesign = { title: string; subtitle: string; color: keyof typeof bookColors; paper: 'cream' | 'white'; ruled: boolean };
 export const defaultBook: BookDesign = { title: 'My journal', subtitle: '', color: 'sage', paper: 'cream', ruled: true };

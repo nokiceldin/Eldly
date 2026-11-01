@@ -3,15 +3,15 @@ import { ArrowLeft, ChevronLeft, ChevronRight, Feather, X, Maximize2, Minimize2,
 import { scopedKey } from '../accountScope';
 import { bookColors, withJournalBuffer, newJournalPage, readBook, readJournalPages, readJournalPosition, type JournalPageData } from '../journal';
 import './journal.css';
+import { useJournalPages } from '../useJournalPages';
 import { pageBreak } from '../journalFlow';
 
 type Turn = { from:number; to:number; direction:number };
 export default function JournalPage({ onHome }: { onHome: () => void }) {
-  const key=scopedKey('journal:v1');
-  const [pages,setPages]=useState(()=>withJournalBuffer(readJournalPages(key)));
+  const {pages,setPages,saveError}=useJournalPages();
   const [index,setIndex]=useState(0),[opened,setOpened]=useState(false);
   const [design,setDesign]=useState(readBook);
-  const [saveError,setSaveError]=useState(false),[turn,setTurn]=useState<Turn|null>(null),[returning,setReturning]=useState(false);
+  const [turn,setTurn]=useState<Turn|null>(null),[returning,setReturning]=useState(false);
   const [mobile,setMobile]=useState(()=>window.matchMedia('(max-width:600px)').matches);
   const [onePage,setOnePage]=useState(()=>{try{return localStorage.getItem(scopedKey('journal:one-page'))==='true';}catch{return false;}});
   const [fullscreen,setFullscreen]=useState(false);
@@ -52,7 +52,6 @@ export default function JournalPage({ onHome }: { onHome: () => void }) {
     if(next)setIndex(position.current>=index&&position.current<index+2?position.current:index);
     try{localStorage.setItem(scopedKey('journal:one-page'),String(next));}catch{/* The view still changes for this session. */}
   }
-  useEffect(()=>{try{localStorage.setItem(key,JSON.stringify(pages));setSaveError(false);}catch{setSaveError(true);}},[key,pages]);
   useLayoutEffect(()=>{const target=pendingCaret.current;if(!target)return;const field=fields.current.get(target.page);if(field){field.focus({preventScroll:true});field.setSelectionRange(target.offset,target.offset);field.scrollTop=0;pendingCaret.current=null;}},[pages,index]);
   useEffect(()=>{if(index>=pages.length)setIndex(single?pages.length-1:pages.length-2);},[pages.length,index,single]);
   function jumpTo(value:string,field:HTMLInputElement,current:number){
@@ -66,7 +65,7 @@ export default function JournalPage({ onHome }: { onHome: () => void }) {
     
     animateTo(index,next,undefined,distant);
   }
-  function remember(n:number){position.current=n;try{localStorage.setItem(scopedKey('journal:position:v1'),String(n));}catch{setSaveError(true);}}
+  function remember(n:number){position.current=n;try{localStorage.setItem(scopedKey('journal:position:v1'),String(n));}catch{/* Bookmark preference is optional. */}}
   function animateTo(from:number,to:number,done?:()=>void,fast=false){
     locked.current=true;setTurn({from,to,direction:to>from?1:-1});
     timer.current=setTimeout(()=>{setIndex(to);setTurn(null);locked.current=false;done?.();},reduced()?0:fast?380:760);
