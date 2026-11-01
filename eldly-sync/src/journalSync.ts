@@ -13,10 +13,12 @@ export function mergeJournal(latest:JournalPageData[],before:JournalPageData[],a
   const result=latest.map(page=>changed.get(page.id)??page);
   const known=new Set(result.map(p=>p.id));
   for(const page of after)if(page.id&&!known.has(page.id)){result.push(page);known.add(page.id);}
-  return result;
+  const byId=new Map(result.map(p=>[p.id,p]));
+  return [...after.map(p=>byId.get(p.id)??p),...result.filter(p=>!after.some(a=>a.id===p.id))];
 }
 export function validJournal(value:unknown):boolean{
   if(!value||typeof value!=='object')return false;
-  const pages=(value as {pages?:unknown}).pages;
+  const {pages,lastWrittenPageId}=(value as {pages?:unknown;lastWrittenPageId?:unknown});
+  if(lastWrittenPageId!==undefined&&typeof lastWrittenPageId!=='string')return false;
   return Array.isArray(pages)&&pages.every(p=>p&&typeof p.id==='string'&&p.id.length>0&&typeof p.text==='string'&&(p.title===undefined||typeof p.title==='string')&&typeof p.date==='string'&&Number.isFinite(Date.parse(p.date)))&&new Set(pages.map(p=>p.id)).size===pages.length;
 }

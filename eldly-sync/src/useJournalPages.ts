@@ -15,7 +15,7 @@ function migrate(){
   const pages=importJournal(existing,legacy,device);
   if(pages.length!==existing.length){
     // Keep the old journal:v1 intact as a recovery copy; imports are idempotent.
-    persist({...data,journal:{pages}});
+    persist({...data,journal:{...data.journal,pages}});
   }
   return withJournalBuffer(pages);
 }
@@ -23,10 +23,12 @@ export function useJournalPages(){
   const [initial]=useState(()=>{try{return {pages:withJournalBuffer(load().journal?.pages??[]),error:false};}catch{return {pages:withJournalBuffer(readJournalPages(scopedKey('journal:v1'))),error:true};}});
   const [pages,setState]=useState(initial.pages),[saveError,setSaveError]=useState(initial.error);
   const current=useRef(pages);
+  const [lastWrittenPageId,setLastWrittenPageId]=useState(()=>load().journal?.lastWrittenPageId);
   useEffect(()=>{
     try{current.current=migrate();setState(current.current);setSaveError(false);}catch{setSaveError(true);}
     const refresh=()=>{try{
-      const remote=load().journal?.pages??[];
+      const journal=load().journal;setLastWrittenPageId(journal?.lastWrittenPageId);
+      const remote=journal?.pages??[];
       const blanks=current.current.filter(p=>!p.text.length&&!(p.title??'').length&&!remote.some(r=>r.id===p.id));
       const next=withJournalBuffer([...remote,...blanks]);
       if(JSON.stringify(next)!==JSON.stringify(current.current)){current.current=next;setState(next);}
@@ -34,7 +36,7 @@ export function useJournalPages(){
     window.addEventListener(LOCAL_EVENT,refresh);window.addEventListener(REMOTE_EVENT,refresh);window.addEventListener('storage',refresh);
     return()=>{window.removeEventListener(LOCAL_EVENT,refresh);window.removeEventListener(REMOTE_EVENT,refresh);window.removeEventListener('storage',refresh);};
   },[]);
-  function setPages(action:SetStateAction<JournalPageData[]>){
+  function setPages(action:SetStateAction<JournalPageData[]>,writtenId?:string){
     const before=current.current,next=typeof action==='function'?action(before):action;
     current.current=next;setState(next);
     try{
@@ -42,9 +44,10 @@ export function useJournalPages(){
       const merged=mergeJournal(data.journal?.pages??[],before,next);
       // Keep an independent local recovery copy before the shared sync engine runs.
       localStorage.setItem(scopedKey('journal:recovery:v2'),JSON.stringify(next));
-      persist({...data,journal:{pages:merged}});
+      persist({...data,journal:{...data.journal,pages:merged,...(writtenId?{lastWrittenPageId:writtenId}:{})}});
+      if(writtenId)setLastWrittenPageId(writtenId);
       setSaveError(false);
     }catch{setSaveError(true);}
   }
-  return {pages,setPages,saveError};
+  return {pages,setPages,saveError,lastWrittenPageId};
 }

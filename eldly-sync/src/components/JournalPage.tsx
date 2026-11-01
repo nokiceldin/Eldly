@@ -4,11 +4,14 @@ import { scopedKey } from '../accountScope';
 import { bookColors, withJournalBuffer, newJournalPage, readBook, readJournalPages, readJournalPosition, type JournalPageData } from '../journal';
 import './journal.css';
 import { useJournalPages } from '../useJournalPages';
-import { pageBreak } from '../journalFlow';
+import { journalMeasure, paginateJournal, JOURNAL_PAPER } from '../journalFlow';
 
 type Turn = { from:number; to:number; direction:number };
 export default function JournalPage({ onHome }: { onHome: () => void }) {
-  const {pages,setPages,saveError}=useJournalPages();
+  const {pages,setPages,saveError,lastWrittenPageId}=useJournalPages();
+  const [fontReady,setFontReady]=useState(false);
+  const [scale,setScale]=useState(1);
+  const stage=useRef<HTMLDivElement>(null);
   const [index,setIndex]=useState(0),[opened,setOpened]=useState(false);
   const [design,setDesign]=useState(readBook);
   const [turn,setTurn]=useState<Turn|null>(null),[returning,setReturning]=useState(false);
@@ -33,6 +36,27 @@ export default function JournalPage({ onHome }: { onHome: () => void }) {
     const update=()=>setDesign(readBook());window.addEventListener('journal-design',update);
     return()=>{mq.removeEventListener('change',resize);window.removeEventListener('journal-design',update);clearTimeout(timer.current);};
   },[]);
+  useEffect(()=>{let alive=true;void document.fonts.load("22px 'Journal Hand'").then(()=>{if(alive)setFontReady(true);});return()=>{alive=false;};},[]);
+  useEffect(()=>{
+    if(!fontReady)return;
+    const measure=journalMeasure();
+    try{const next=paginateJournal(pages,measure.fits);if(next.length!==pages.length){
+      const backup=scopedKey('journal:before-fixed-pages:v1');if(!localStorage.getItem(backup))localStorage.setItem(backup,JSON.stringify(pages));
+      const continuation=lastWrittenPageId?next.filter(p=>p.id===lastWrittenPageId||p.id?.startsWith(lastWrittenPageId+':continuation:')).at(-1)?.id:undefined;
+      setPages(withJournalBuffer(next),continuation);
+    }}finally{measure.remove();}
+  },[pages,fontReady]);
+  useLayoutEffect(()=>{
+    const area=stage.current?.parentElement;if(!area)return;
+    const resize=()=>setScale(Math.min(1,area.clientWidth/(single?420:840),fullscreen?(window.innerHeight-110)/600:mobile?1:Math.max(.5,(window.innerHeight-area.getBoundingClientRect().top-82)/600)));
+    const observer=new ResizeObserver(resize);observer.observe(area);window.addEventListener('resize',resize);resize();
+    return()=>{observer.disconnect();window.removeEventListener('resize',resize);};
+  },[single,fullscreen,opened]);
+  useEffect(()=>{
+    if(!opened||!lastWrittenPageId||document.activeElement?.tagName==='TEXTAREA'||document.activeElement?.classList.contains('journal-page-title'))return;
+    const n=pages.findIndex(p=>p.id===lastWrittenPageId);
+    if(n>=0){clearTimeout(timer.current);locked.current=false;setTurn(null);setReturning(false);setIndex(single?n:n-n%2);}
+  },[lastWrittenPageId]);
   useEffect(()=>{if(!single)setIndex(i=>i-i%2);},[single]);
   useEffect(()=>{
     const change=()=>{if(nativeFullscreen.current&&!document.fullscreenElement){nativeFullscreen.current=false;setFullscreen(false);}};
@@ -71,7 +95,10 @@ export default function JournalPage({ onHome }: { onHome: () => void }) {
     timer.current=setTimeout(()=>{setIndex(to);setTurn(null);locked.current=false;done?.();},reduced()?0:fast?380:760);
   }
   function openBook(){
-    const target=single?position.current:position.current-position.current%2;
+    const synced=pages.findIndex(p=>p.id===lastWrittenPageId);
+    const last=pages.reduce((found,p,i)=>p.text.length||(p.title??'').length?i:found,0);
+    const written=synced>=0?synced:last;
+    const target=single?written:written-written%2;
     setIndex(0);setOpened(true);
     if(!target||reduced()){setIndex(target);return;}
     setReturning(true);locked.current=true;
@@ -85,41 +112,28 @@ export default function JournalPage({ onHome }: { onHome: () => void }) {
     const next=index+direction*step;if(next<0||next>=pages.length)return;
     remember(next);animateTo(index,next);
   }
-  function edit(n:number,patch:Partial<JournalPageData>){setPages(p=>withJournalBuffer(p.map((page,i)=>i===n?{...page,...patch}:page)));remember(n);}
+  function edit(n:number,patch:Partial<JournalPageData>){setPages(p=>withJournalBuffer(p.map((page,i)=>i===n?{...page,...patch}:page)),pages[n].id);remember(n);}
   function write(n:number,field:HTMLTextAreaElement){
     const text=field.value;
-    if(field.scrollHeight<=field.clientHeight+1){edit(n,{text});return;}
-    // Measure with the actual font and page geometry, including fullscreen and one-page layouts.
-    const measure=field.cloneNode() as HTMLTextAreaElement;
-    measure.removeAttribute('id');measure.removeAttribute('aria-label');measure.tabIndex=-1;measure.setAttribute('aria-hidden','true');
-    const style=getComputedStyle(field);
-    measure.style.cssText=`position:fixed;left:-10000px;top:0;visibility:hidden;box-sizing:${style.boxSizing};width:${field.getBoundingClientRect().width}px;height:${field.clientHeight}px;min-height:0;max-height:none;padding:${style.padding};border:0;font:${style.font};letter-spacing:${style.letterSpacing};white-space:pre-wrap;overflow-wrap:break-word;resize:none;`;
-    document.body.appendChild(measure);
-    const fits=(value:string)=>{measure.value=value;return measure.scrollHeight<=measure.clientHeight+1;};
-    const updated=pages.map(p=>({...p}));updated[n].text=text;
-    let current=n,caretPage=n,caretOffset=field.selectionStart;
+    const measure=journalMeasure();
     try{
-      while(!fits(updated[current].text)){
-        const content=updated[current].text,cut=pageBreak(content,fits);
-        if(cut>=content.length)break;
-        const overflow=content.slice(cut);updated[current].text=content.slice(0,cut);
-        if(!updated[current+1])updated.push(newJournalPage(),newJournalPage());
-        const existing=updated[current+1].text;
-        updated[current+1].text=overflow+(existing&& !/\s$/.test(overflow)?'\n':'')+existing;
-        if(caretPage===current&&caretOffset>=cut){caretPage++;caretOffset-=cut;}
-        current++;
-      }
+      const updated=pages.map((page,i)=>i===n?{...page,text}:page);
+      const before=updated.slice(0,n),source=updated[n];
+      const split=paginateJournal([source],measure.fits,updated);
+      let offset=field.selectionStart,part=0;
+      while(part<split.length-1&&offset>=split[part].text.length){offset-=split[part].text.length;part++;}
+      const caretPage=n+part;
+      pendingCaret.current={page:caretPage,offset};
+      setPages(withJournalBuffer([...before,...split,...updated.slice(n+1)]),split[part].id);remember(caretPage);
+      if(caretPage!==n)setIndex(single?caretPage:caretPage-caretPage%2);
     }finally{measure.remove();}
-    pendingCaret.current={page:caretPage,offset:caretOffset};
-    setPages(withJournalBuffer(updated));remember(caretPage);
-    if(caretPage!==n){setIndex(single?caretPage:caretPage-caretPage%2);}
   }
   function paper(n:number,side:number,copy=false){
     const page=pages[n]??newJournalPage();
     return <div className={`journal-paper journal-paper-${side}${copy?' journal-paper-copy':''}`}>
       <div className="journal-paper-heading">{new Date(page.date).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})}</div>
-      {copy?<><div className="journal-title-copy">{page.title}</div><div className="journal-text-copy">{page.text}</div></>:<><input className="journal-page-title" aria-label={`Title for page ${n+1}`} placeholder="Title" value={page.title??''} maxLength={100} disabled={!!turn||returning} onChange={e=>edit(n,{title:e.target.value})}/><textarea ref={field=>{if(field)fields.current.set(n,field);else fields.current.delete(n);}} aria-label={`Journal page ${n+1}`} spellCheck={false} placeholder="" value={page.text} onChange={e=>{if((e.nativeEvent as InputEvent).isComposing){edit(n,{text:e.target.value});return;}write(n,e.currentTarget);}} onCompositionEnd={e=>write(n,e.currentTarget)} disabled={!!turn||returning}/></>}
-      {copy?<span className="journal-page-number">{n+1}</span>:<input key={`number-${n}`} className="journal-page-number journal-page-jump" aria-label={`Page ${n+1}, enter page number, 1 to ${pages.length}`} title={`Go to page (1–${pages.length})`} type="text" inputMode="numeric" pattern="[0-9]*" defaultValue={n+1} disabled={!!turn||returning} onFocus={e=>e.currentTarget.select()} onBlur={e=>jumpTo(e.currentTarget.value,e.currentTarget,n)} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();e.currentTarget.blur();}if(e.key==='Escape'){e.currentTarget.value=String(n+1);e.currentTarget.blur();e.stopPropagation();}}}/> }
+      {copy?<><div className="journal-title-copy">{page.title}</div><div className="journal-text-copy">{page.text}</div></>:<><input className="journal-page-title" aria-label={`Title for page ${n+1}`} placeholder="Title" value={page.title??''} maxLength={100} disabled={!fontReady||!!turn||returning} onChange={e=>edit(n,{title:e.target.value})}/><textarea ref={field=>{if(field)fields.current.set(n,field);else fields.current.delete(n);}} aria-label={`Journal page ${n+1}`} spellCheck={false} placeholder="" value={page.text} onChange={e=>{if((e.nativeEvent as InputEvent).isComposing){edit(n,{text:e.target.value});return;}write(n,e.currentTarget);}} onCompositionEnd={e=>write(n,e.currentTarget)} onScroll={e=>{e.currentTarget.scrollTop=0;e.currentTarget.scrollLeft=0;}} disabled={!fontReady||!!turn||returning}/></>}
+      {copy?<span className="journal-page-number">{n+1}</span>:<input key={`number-${n}`} className="journal-page-number journal-page-jump" aria-label={`Page ${n+1}, enter page number, 1 to ${pages.length}`} title={`Go to page (1–${pages.length})`} type="text" inputMode="numeric" pattern="[0-9]*" defaultValue={n+1} disabled={!fontReady||!!turn||returning} onFocus={e=>e.currentTarget.select()} onBlur={e=>jumpTo(e.currentTarget.value,e.currentTarget,n)} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();e.currentTarget.blur();}if(e.key==='Escape'){e.currentTarget.value=String(n+1);e.currentTarget.blur();e.stopPropagation();}}}/> }
     </div>;
   }
   // Reveal the destination underneath a two-sided leaf rotating around the binding.
@@ -128,12 +142,12 @@ export default function JournalPage({ onHome }: { onHome: () => void }) {
     <header className="journal-nav"><button onClick={onHome} aria-label="My space"><ArrowLeft size={18}/></button></header>
     <section className="journal-intro"><h1 ref={heading} tabIndex={-1}>Let your mind wander.</h1></section>
     {!opened?<button className="journal-cover" onClick={openBook} aria-label="Open your journal"><span className="journal-cover-border"><Feather size={30} strokeWidth={1}/><span className="journal-cover-title">{design.title}</span>{design.subtitle&&<span className="journal-cover-subtitle">{design.subtitle}</span>}</span><i className="journal-ribbon"/></button>:<section className="journal-book-area" aria-label="Your open journal" aria-busy={returning}>
-      <div className={`journal-book ${turn?'is-turning':''} ${returning?'is-returning':''}`} onTouchStart={e=>{const t=e.touches[0];touch.current={x:t.clientX,y:t.clientY};}} onTouchCancel={()=>{touch.current=null;}} onTouchEnd={e=>{if(!touch.current)return;const t=e.changedTouches[0],dx=t.clientX-touch.current.x,dy=t.clientY-touch.current.y;if(Math.abs(dx)>55&&Math.abs(dx)>Math.abs(dy)*1.8)flip(dx<0?1:-1);touch.current=null;}}>
+      <div ref={stage} className="journal-stage" style={{width:(single?JOURNAL_PAPER.width:JOURNAL_PAPER.width*2)*scale,height:JOURNAL_PAPER.height*scale}}><div style={{width:single?420:840,transform:`scale(${scale})`}} className={`journal-book ${turn?'is-turning':''} ${returning?'is-returning':''}`} onTouchStart={e=>{const t=e.touches[0];touch.current={x:t.clientX,y:t.clientY};}} onTouchCancel={()=>{touch.current=null;}} onTouchEnd={e=>{if(!touch.current)return;const t=e.changedTouches[0],dx=t.clientX-touch.current.x,dy=t.clientY-touch.current.y;if(Math.abs(dx)>55&&Math.abs(dx)>Math.abs(dy)*1.8)flip(dx<0?1:-1);touch.current=null;}}>
         {paper(shown,0)}{!single&&paper(shown+1,1)}
         {turn&&<><div className={`journal-stationary journal-stationary-${turn.direction>0?'left':'right'}`} aria-hidden="true">{paper(turn.from+(turn.direction>0?0:single?0:1),turn.direction>0?0:1,true)}</div><div className={`journal-leaf journal-leaf-${turn.direction>0?'next':'previous'}`} aria-hidden="true"><div className="journal-leaf-front">{paper(turn.from+(turn.direction>0&&!single?1:0),turn.direction>0?1:0,true)}</div><div className="journal-leaf-back">{paper(turn.to+(turn.direction<0&&!single?1:0),turn.direction>0?0:1,true)}</div></div></>}
         <div className="journal-spine" aria-hidden="true"/><i className="journal-ribbon" aria-hidden="true"/>
       </div>
-      <nav className="journal-pagination" aria-label="Journal pages"><button aria-label={fullscreen?'Exit fullscreen':'Enter fullscreen'} title={fullscreen?'Exit fullscreen (Esc)':'Fullscreen'} aria-pressed={fullscreen} onClick={()=>void toggleFullscreen()}>{fullscreen?<Minimize2 size={16}/>:<Maximize2 size={16}/>}</button><button aria-label={single?'Show two-page spread':'Show one page'} title={single?'Two pages':'One page'} aria-pressed={single} disabled={mobile||!!turn||returning} onClick={togglePages}>{single?<BookOpen size={17}/>:<FileText size={17}/>}</button><button aria-label="Previous pages" disabled={index===0||!!turn||returning} onClick={()=>flip(-1)}><ChevronLeft size={18}/></button><button aria-label="Close journal" disabled={!!turn||returning} onClick={()=>{setOpened(false);if(fullscreen)void toggleFullscreen();}}><X size={15}/></button><button aria-label="Next pages" disabled={index+step>=pages.length||!!turn||returning} onClick={()=>flip(1)}><ChevronRight size={18}/></button></nav>
+      </div><nav className="journal-pagination" aria-label="Journal pages"><button aria-label={fullscreen?'Exit fullscreen':'Enter fullscreen'} title={fullscreen?'Exit fullscreen (Esc)':'Fullscreen'} aria-pressed={fullscreen} onClick={()=>void toggleFullscreen()}>{fullscreen?<Minimize2 size={16}/>:<Maximize2 size={16}/>}</button><button aria-label={single?'Show two-page spread':'Show one page'} title={single?'Two pages':'One page'} aria-pressed={single} disabled={mobile||!!turn||returning} onClick={togglePages}>{single?<BookOpen size={17}/>:<FileText size={17}/>}</button><button aria-label="Previous pages" disabled={index===0||!!turn||returning} onClick={()=>flip(-1)}><ChevronLeft size={18}/></button><button aria-label="Close journal" disabled={!fontReady||!!turn||returning} onClick={()=>{setOpened(false);if(fullscreen)void toggleFullscreen();}}><X size={15}/></button><button aria-label="Next pages" disabled={index+step>=pages.length||!!turn||returning} onClick={()=>flip(1)}><ChevronRight size={18}/></button></nav>
       <span className="sr-only" role="status">{returning?'Returning to your bookmark':`Page ${index+1}`}</span>
     </section>}
     {saveError&&<p className="journal-save-error" role="alert">Couldn’t save. Keep this page open and copy your writing.</p>}

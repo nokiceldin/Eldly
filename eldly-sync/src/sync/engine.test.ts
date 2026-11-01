@@ -73,8 +73,8 @@ it('uploads journal writing from a phone and refreshes an already enrolled lapto
  await seed();use(localB);start(await pull());
  use(localA);const a=snapshot()['checkly-data-v1'] as Data;
  const phone={id:'phone-entry',text:'Written on my phone',title:'Today',date:'2026-11-01T12:00:00Z'};
- writeLocal('checkly-data-v1',{...a,journal:{pages:[phone]}});capture();await synchronize();
- use(localB);await synchronize();expect((snapshot()['checkly-data-v1'] as Data).journal?.pages).toEqual([phone]);
+ writeLocal('checkly-data-v1',{...a,journal:{pages:[phone],lastWrittenPageId:phone.id}});capture();await synchronize();
+ use(localB);await synchronize();expect((snapshot()['checkly-data-v1'] as Data).journal?.pages).toEqual([phone]);expect((snapshot()['checkly-data-v1'] as Data).journal?.lastWrittenPageId).toBe(phone.id);
  const b=snapshot()['checkly-data-v1'] as Data;
  writeLocal('checkly-data-v1',{...b,journal:{pages:[{...phone,text:phone.text+' and continued on my laptop'}]}});capture();await synchronize();
  use(localA);await synchronize();expect((snapshot()['checkly-data-v1'] as Data).journal?.pages[0].text).toBe('Written on my phone and continued on my laptop');

@@ -48,7 +48,7 @@ export interface Routine {
   sample?: boolean;
 }
 export interface Data {
-  journal?: { pages: import('./journal').JournalPageData[] };
+  journal?: { pages: import('./journal').JournalPageData[]; lastWrittenPageId?: string };
   taskColorSettings?: import('./taskColors').TaskColorSettings;
   coinBonusPlans?: import('./coinBonuses').CoinBonusPlan[];
   mainRewardId?:string;
