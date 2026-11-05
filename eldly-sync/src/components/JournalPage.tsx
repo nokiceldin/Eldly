@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { ArrowLeft, ChevronLeft, ChevronRight, Feather, X, Maximize2, Minimize2, BookOpen, FileText } from 'lucide-react';
 import { scopedKey } from '../accountScope';
-import { bookColors, withJournalBuffer, newJournalPage, readBook, readJournalPages, readJournalPosition, type JournalPageData } from '../journal';
+import { bookColors, editJournalPage, hasJournalDate, withJournalBuffer, newJournalPage, readBook, readJournalPosition, type JournalPageData } from '../journal';
 import './journal.css';
 import { useJournalPages } from '../useJournalPages';
 import { journalMeasure, paginateJournal, JOURNAL_PAPER } from '../journalFlow';
@@ -112,14 +112,15 @@ export default function JournalPage({ onHome }: { onHome: () => void }) {
     const next=index+direction*step;if(next<0||next>=pages.length)return;
     remember(next);animateTo(index,next);
   }
-  function edit(n:number,patch:Partial<JournalPageData>){setPages(p=>withJournalBuffer(p.map((page,i)=>i===n?{...page,...patch}:page)),pages[n].id);remember(n);}
+  function edit(n:number,patch:Pick<Partial<JournalPageData>,'title'|'text'>){setPages(p=>withJournalBuffer(p.map((page,i)=>i===n?editJournalPage(page,patch):page)),pages[n].id);remember(n);}
   function write(n:number,field:HTMLTextAreaElement){
     const text=field.value;
     const measure=journalMeasure();
     try{
-      const updated=pages.map((page,i)=>i===n?{...page,text}:page);
+      const date=new Date().toISOString();
+      const updated=pages.map((page,i)=>i===n?editJournalPage(page,{text},date):page);
       const before=updated.slice(0,n),source=updated[n];
-      const split=paginateJournal([source],measure.fits,updated);
+      const split=paginateJournal([source],measure.fits,updated,date);
       let offset=field.selectionStart,part=0;
       while(part<split.length-1&&offset>=split[part].text.length){offset-=split[part].text.length;part++;}
       const caretPage=n+part;
@@ -131,7 +132,7 @@ export default function JournalPage({ onHome }: { onHome: () => void }) {
   function paper(n:number,side:number,copy=false){
     const page=pages[n]??newJournalPage();
     return <div className={`journal-paper journal-paper-${side}${copy?' journal-paper-copy':''}`}>
-      <div className="journal-paper-heading">{new Date(page.date).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})}</div>
+      <div className="journal-paper-heading">{hasJournalDate(page) && new Date(page.date).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})}</div>
       {copy?<><div className="journal-title-copy">{page.title}</div><div className="journal-text-copy">{page.text}</div></>:<><input className="journal-page-title" aria-label={`Title for page ${n+1}`} placeholder="Title" value={page.title??''} maxLength={100} disabled={!fontReady||!!turn||returning} onChange={e=>edit(n,{title:e.target.value})}/><textarea ref={field=>{if(field)fields.current.set(n,field);else fields.current.delete(n);}} aria-label={`Journal page ${n+1}`} spellCheck={false} placeholder="" value={page.text} onChange={e=>{if((e.nativeEvent as InputEvent).isComposing){edit(n,{text:e.target.value});return;}write(n,e.currentTarget);}} onCompositionEnd={e=>write(n,e.currentTarget)} onScroll={e=>{e.currentTarget.scrollTop=0;e.currentTarget.scrollLeft=0;}} disabled={!fontReady||!!turn||returning}/></>}
       {copy?<span className="journal-page-number">{n+1}</span>:<input key={`number-${n}`} className="journal-page-number journal-page-jump" aria-label={`Page ${n+1}, enter page number, 1 to ${pages.length}`} title={`Go to page (1–${pages.length})`} type="text" inputMode="numeric" pattern="[0-9]*" defaultValue={n+1} disabled={!fontReady||!!turn||returning} onFocus={e=>e.currentTarget.select()} onBlur={e=>jumpTo(e.currentTarget.value,e.currentTarget,n)} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();e.currentTarget.blur();}if(e.key==='Escape'){e.currentTarget.value=String(n+1);e.currentTarget.blur();e.stopPropagation();}}}/> }
     </div>;

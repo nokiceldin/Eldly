@@ -1,6 +1,22 @@
 import { scopedKey } from './accountScope';
-export type JournalPageData = { id?: string; text: string; title?: string; date: string };
+export type JournalPageData = { id?: string; text: string; title?: string; date: string; dateRecorded?: boolean };
 export const newJournalPage = (): JournalPageData => ({ id: crypto.randomUUID(), text: '', title: '', date: new Date().toISOString() });
+
+function hasWords(page: JournalPageData): boolean {
+  return Boolean(page.text.trim() || page.title?.trim());
+}
+
+export function hasJournalDate(page: JournalPageData): boolean {
+  return page.dateRecorded === true || hasWords(page);
+}
+
+export function editJournalPage(page: JournalPageData, patch: Pick<Partial<JournalPageData>, 'text' | 'title'>, date = new Date().toISOString()): JournalPageData {
+  const next = { ...page, ...patch };
+  if (page.dateRecorded) return next;
+  if (hasWords(page)) return { ...next, dateRecorded: true };
+  if (hasWords(next)) return { ...next, date, dateRecorded: true };
+  return next;
+}
 export const bookColors = { sage: '#747e66', midnight: '#394958', rose: '#a07770', clay: '#a47e58', plum: '#6c5b72' };
 export type BookDesign = { title: string; subtitle: string; color: keyof typeof bookColors; paper: 'cream' | 'white'; ruled: boolean };
 export const defaultBook: BookDesign = { title: 'My journal', subtitle: '', color: 'sage', paper: 'cream', ruled: true };
@@ -22,7 +38,7 @@ export function readJournalPosition(length: number): number {
 /** Keep five or six spare pages, rounding up for a complete two-page spread. */
 export function withJournalBuffer(pages:JournalPageData[]):JournalPageData[]{
   let last=-1;
-  for(let i=pages.length-1;i>=0;i--)if(pages[i].text.length||(pages[i].title??'').length){last=i;break;}
+  for(let i=pages.length-1;i>=0;i--)if(pages[i].dateRecorded||pages[i].text.length||(pages[i].title??'').length){last=i;break;}
   const count=Math.ceil((last+1+5)/2)*2;
   const result=pages.slice(0,count);
   while(result.length<count)result.push(newJournalPage());

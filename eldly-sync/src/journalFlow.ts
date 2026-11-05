@@ -11,7 +11,7 @@ export function pageBreak(text:string,fits:(value:string)=>boolean):number {
 import {newJournalPage,type JournalPageData} from './journal';
 export const JOURNAL_PAPER={width:420,height:600,textWidth:344,textHeight:448,fontSize:22,lineHeight:28};
 /** Split each original page independently: titles and following entries stay attached to their writing. */
-export function paginateJournal(pages:JournalPageData[],fits:(text:string)=>boolean,reserved:JournalPageData[]=pages){
+export function paginateJournal(pages:JournalPageData[],fits:(text:string)=>boolean,reserved:JournalPageData[]=pages,continuationDate?:string){
   const ids=new Set(reserved.map(p=>p.id));const result:JournalPageData[]=[];
   for(const page of pages){let text=page.text,part=0;
     let current=page;
@@ -19,7 +19,7 @@ export function paginateJournal(pages:JournalPageData[],fits:(text:string)=>bool
       const cut=pageBreak(text,fits);if(cut>=text.length)break;
       result.push({...current,text:text.slice(0,cut)});text=text.slice(cut);
       let id:string;do{id=`${page.id}:continuation:${++part}`;}while(ids.has(id));ids.add(id);
-      current={...newJournalPage(),id,date:page.date};
+      current={...newJournalPage(),id,date:continuationDate??page.date};
     }
     result.push({...current,text});
   }
