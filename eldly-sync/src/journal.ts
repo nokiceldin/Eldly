@@ -7,12 +7,12 @@ function hasWords(page: JournalPageData): boolean {
 }
 
 export function hasJournalDate(page: JournalPageData): boolean {
-  return page.dateRecorded === true || hasWords(page);
+  return hasWords(page);
 }
 
 export function editJournalPage(page: JournalPageData, patch: Pick<Partial<JournalPageData>, 'text' | 'title'>, date = new Date().toISOString()): JournalPageData {
   const next = { ...page, ...patch };
-  if (page.dateRecorded) return next;
+  // Keep previously written pages in the buffer so clearing them is saved.
   if (hasWords(page)) return { ...next, dateRecorded: true };
   if (hasWords(next)) return { ...next, date, dateRecorded: true };
   return next;

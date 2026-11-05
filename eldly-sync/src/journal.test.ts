@@ -20,6 +20,7 @@ it.each([{title:'My entry'}, {text:'My entry'}])('records the first writing date
   expect(hasJournalDate(written)).toBe(true);
   expect(written.date).toBe(first);
   const cleared=editJournalPage(written,{title:'',text:''},later);
-  expect(editJournalPage(cleared,patch,later).date).toBe(first);
+  expect(hasJournalDate(cleared)).toBe(false);
+  expect(editJournalPage(cleared,patch,later).date).toBe(later);
   expect(editJournalPage({...blank,text:'Older entry'},patch,later).date).toBe(blank.date);
 });
