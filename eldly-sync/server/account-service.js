@@ -8,6 +8,12 @@ const COOKIE='__Host-myspace-session';
 const hash=value=>createHash('sha256').update(value).digest('hex');
 const cookie=(value,maxAge)=>`${COOKIE}=${value}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAge}`;
 const publicUser=row=>({id:row.id,email:`${row.username}@accounts.eldinos.invalid`,app_metadata:{...row.app_metadata,username:row.username}});
+const accessibleRecords=(records,owner)=>records.filter(record=>{
+ try{
+  const [app,section]=JSON.parse(record.record_key);
+  return app!=='packly-v1'&&(owner||app!=='checkly-data-v1'||section!=='journal');
+ }catch{return true;}
+});
 export function createAccountHandler(sql){
  const social=createSocialService(sql),push=createPushService(sql,{ensure:social.ensure}),rewards=createRewardService(sql,{ensure:social.ensure});
  return async function handler(req,res){
@@ -123,20 +129,37 @@ export function createAccountHandler(sql){
    }
    if(action!=='rpc'||req.method!=='POST')return res.status(404).json({error:'Not found'});
    const args=body.args||{};let result;
+   const owner=user.app_metadata?.legacy_owner===true;
    // Account identity comes exclusively from the server-verified session.
    switch(body.name){
     case 'eldinos_account_pull':case 'eldly_shared_pull':{
      const revision=args.after_revision??0;if(!Number.isSafeInteger(revision)||revision<0)return res.status(400).json({error:'Invalid revision'});
-     result=await sql.query('select myspace_account_pull($1::uuid,$2::bigint) as data',[user.id,revision]);
+     await social.ensure();
+     result=await sql.query('select myspace_current_pull($1::uuid,$2::bigint,$3::boolean) as data',[user.id,revision,owner]);
      result[0].data.coinPolicy=await social.policy(user.id);result[0].data.giftBalance=await social.gifts(user.id);break;
     }
     case 'eldinos_account_apply':case 'eldly_shared_apply':
      if(!Array.isArray(args.changes))return res.status(400).json({error:'Invalid changes'});
-     result=touchesReceipts(args.changes)?[{data:await rewards.apply(user.id,args.changes)}]:await sql.query('select myspace_account_apply($1::uuid,$2::jsonb) as data',[user.id,JSON.stringify(args.changes)]);
+     {
+      const changes=accessibleRecords(args.changes,owner);
+      const cursor=args.base_revision??null;
+      if(cursor!==null&&(!Number.isSafeInteger(cursor)||cursor<0))return res.status(400).json({error:'Invalid revision'});
+      await social.ensure();
+      if(touchesReceipts(changes)){
+       result=[{data:await rewards.apply(user.id,changes)}];
+       await sql.query('select myspace_prune_history($1::uuid)',[user.id]);
+      }else{
+       result=await sql.query('select myspace_current_apply($1::uuid,$2::jsonb,$3::bigint) as data',[user.id,JSON.stringify(changes),cursor]);
+       if(result[0].data===null)return res.status(409).json({error:'The cloud has newer task history. Retry sync to refresh it.'});
+      }
+     }
      try{await social.milestones(user.id);await push.publishPending();}catch{console.error('Milestone notification could not be updated. It will retry on the next visit.');}break;
     case 'eldinos_account_initialize':case 'eldly_shared_initialize':
      if(!Array.isArray(args.records))return res.status(400).json({error:'Invalid records'});
-     result=await sql.query('select myspace_account_initialize($1::uuid,$2::jsonb) as data',[user.id,JSON.stringify(args.records)]);break;
+     await social.ensure();
+     result=await sql.query('select myspace_account_initialize($1::uuid,$2::jsonb) as data',[user.id,JSON.stringify(accessibleRecords(args.records,owner))]);
+     await sql.query('select myspace_prune_history($1::uuid)',[user.id]);
+     break;
     default:return res.status(400).json({error:'Unknown operation'});
    }
    return res.status(200).json({data:result[0].data});

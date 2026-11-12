@@ -7,7 +7,7 @@ import { addRequestedRoutines } from "./personalRoutines";
 import { GOALS } from "./goals";
 import { writeLocal } from "./sync/local";
 import { normalizeDailyChecks, validateMapping } from "./mapping";
-import { empty, localDay, monday, syncChecklyHomework, type Data } from "./engine";
+import { empty, localDay, monday, retainCurrentTasks, syncChecklyHomework, type Data } from "./engine";
 const KEY = "checkly-data-v1";
 const date = (x: unknown) =>
   typeof x === "string" &&
@@ -36,7 +36,7 @@ export function validate(x: unknown): x is Data {
     (!t.due || date(t.due)) &&
     (!t.completed || date(t.completed));
   return (
-    d.version === 1 && (d.journal === undefined || validJournal(d.journal)) && validColorSettings(d.taskColorSettings) && validBonusPlans(d.coinBonusPlans) && validRewards(d) &&
+    d.version === 1 && (d.taskHistoryFrom === undefined || date(d.taskHistoryFrom)) && (d.journal === undefined || validJournal(d.journal)) && validColorSettings(d.taskColorSettings) && validBonusPlans(d.coinBonusPlans) && validRewards(d) &&
     (d.mapping === undefined || validateMapping(d.mapping)) &&
     Array.isArray(d.tasks) &&
     d.tasks.every(task) &&
@@ -107,17 +107,24 @@ export function load(): Data {
         "Saved data is not compatible. Export or restore a valid backup.",
       );
     if (d.mapping) d.mapping = normalizeDailyChecks(d.mapping);
-    return addRequestedRoutines(syncChecklyHomework(d.soundDesignVersion === 1 ? d : { ...d, sound: true, soundDesignVersion: 1 }, localDay()));
+    const current = retainChecklist(d);
+    return addRequestedRoutines(syncChecklyHomework(current.soundDesignVersion === 1 ? current : { ...current, sound: true, soundDesignVersion: 1 }, localDay()));
   } catch (e) {
     throw e;
   }
 }
+export function retainChecklist(data: Data, advance = true): Data {
+  const retained = retainCurrentTasks(data, undefined, advance);
+  if (isPersonalOwner() || retained.journal === undefined) return retained;
+  const { journal, ...checklist } = retained;
+  return checklist;
+}
 export const persist = (d: Data) =>
-  writeLocal(KEY, syncChecklyHomework(d.mapping ? { ...d, mapping: normalizeDailyChecks(d.mapping) } : d, localDay()));
+  writeLocal(KEY, syncChecklyHomework(retainChecklist(d.mapping ? { ...d, mapping: normalizeDailyChecks(d.mapping) } : d), localDay()));
 export function download(d: Data) {
   const a = document.createElement("a");
   a.href = URL.createObjectURL(
-    new Blob([JSON.stringify(syncChecklyHomework(d, localDay()), null, 2)], { type: "application/json" }),
+    new Blob([JSON.stringify(syncChecklyHomework(retainChecklist(d), localDay()), null, 2)], { type: "application/json" }),
   );
   a.download = "eldly-backup.json";
   a.click();

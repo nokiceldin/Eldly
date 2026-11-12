@@ -1,7 +1,7 @@
 import {it,expect} from 'vitest';
 import {analyticsPath,publicPageview} from './siteAnalytics';
 it('counts public hash sections while omitting private detail identifiers',()=>{
- expect(['','#checkly','#trackly','#progress/sleep/private-range','#packly/private-trip','#mapping'].map(analyticsPath)).toEqual(['/','/check','/track','/data','/pack','/track']);
+ expect(['','#checkly','#trackly','#progress/sleep/private-range','#packly/private-trip','#mapping'].map(analyticsPath)).toEqual(['/','/check','/track','/data','/','/track']);
  expect(analyticsPath('#nokiceldin/private')).toBe('/');
 });
 it('strips query strings, unknown paths and fragments before sending analytics',()=>{

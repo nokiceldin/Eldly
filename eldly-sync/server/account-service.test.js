@@ -20,6 +20,49 @@ beforeAll(async()=>{
  }
 },20000);
 afterAll(async()=>{await db?.close();});
+it('limits journal reads and writes to the owner',async()=>{
+ const key='["checkly-data-v1","journal"]';
+ await db.query('select myspace_account_apply($1,$2::jsonb)',[friend,JSON.stringify([{record_key:key,value:{node:'object'}}])]);
+ for(const [username,id,allowed] of [['friend',friend,false],['owner',owner,true]]){
+  const login=await call('login',{body:{email:username,password:'testing-password'}});
+  const cookie=login.headers['Set-Cookie'].split(';')[0];
+  const rpc=(name,args)=>call('rpc',{cookie,body:{name,args}});
+  const change={record_key:key,value:{node:'list',order:[]}};
+  expect((await rpc('eldinos_account_apply',{changes:[change]})).statusCode).toBe(200);
+  const {records}=(await rpc('eldinos_account_pull',{after_revision:0})).body.data;
+  expect(records.some(row=>row.record_key===key)).toBe(allowed);
+  const [stored]=(await db.query('select value from eldinos_account_records where user_id=$1 and record_key=$2',[id,key])).rows;
+  expect(stored.value.node).toBe(allowed?'list':'object');
+ }
+});
+it('hard deletes expired finished tasks and orders a fresh sync snapshot while preserving overdue work',async()=>{
+ const account=await call('register',{body:{username:'retention_test',password:'retention-test-password',avatarId:'cedar'}});
+ const cookie=account.headers['Set-Cookie'].split(';')[0];
+ const rpc=(name,args)=>call('rpc',{cookie,body:{name,args}});
+ const [{week}]=(await db.query("select date_trunc('week',now() at time zone 'UTC')::date::text as week")).rows;
+ const record=(path,value)=>({record_key:JSON.stringify(path),value});
+ const check=['checkly-data-v1'],tasks=[...check,'tasks'];
+ const node=value=>({node:'value',value});
+ const rows=[
+  record([],{node:'object'}),record(check,{node:'object'}),
+  record(tasks,{node:'list',order:['finished','unfinished','future']}),
+  ...['finished','unfinished','future'].flatMap(id=>[
+   record([...tasks,id],{node:'object'}),
+   record([...tasks,id,'scheduled'],node(id==='future'?week:'2001-01-01')),
+  ]),
+  record([...tasks,'finished','completed'],node('2001-01-01')),
+  record(['packly-v1'],{node:'object'}),
+ ];
+ expect((await rpc('eldinos_account_initialize',{records:rows})).statusCode).toBe(200);
+ const before=(await rpc('eldinos_account_pull',{after_revision:0})).body.data;
+ expect(before.records.some(row=>JSON.parse(row.record_key)[0]==='packly-v1')).toBe(false);
+ expect((await rpc('eldinos_account_apply',{base_revision:before.revision,changes:[record([...check,'taskHistoryFrom'],node(week))]})).statusCode).toBe(200);
+ const after=(await rpc('eldinos_account_pull',{after_revision:before.revision})).body.data;
+ expect(after.reset).toBe(true);
+ expect(after.records.find(row=>row.record_key===JSON.stringify(tasks)).value.order).toEqual(['unfinished','future']);
+ expect(after.records.some(row=>JSON.parse(row.record_key)[2]==='finished')).toBe(false);
+ expect((await rpc('eldinos_account_apply',{base_revision:before.revision,changes:[]})).statusCode).toBe(409);
+});
 it('signs in with private secure cookies and separates the accounts even when a caller supplies another user ID',async()=>{
  const login=await call('login',{body:{email:'friend@accounts.eldinos.invalid',password:'testing-password'}});
  expect(login.statusCode).toBe(200);expect(login.headers['Set-Cookie']).toContain('HttpOnly; Secure; SameSite=Lax');expect(login.body.user).not.toHaveProperty('password_hash');

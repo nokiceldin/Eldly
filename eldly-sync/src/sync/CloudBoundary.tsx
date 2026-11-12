@@ -11,9 +11,13 @@ export function CloudBoundary({children}:{children:ReactNode}) {
  const [message,setMessage]=useState(''),[settings,setSettings]=useState(false),[status,setStatus]=useState('Opening your account…');
  useEffect(()=>{
   const open=()=>setSettings(true);window.addEventListener('eldly-open-cloud-settings',open);
-  if(isGuest())return()=>window.removeEventListener('eldly-open-cloud-settings',open);
+  if(isGuest()){
+   try{capture();}catch(e){setMessage(String(e));}
+   return()=>window.removeEventListener('eldly-open-cloud-settings',open);
+  }
   let alive=true,running=false,repeat=false,failures=0,nextAttempt=0,lastInteraction=Date.now();const epoch=scopeEpoch();
   const sync=async(force=false)=>{if(!alive||epoch!==scopeEpoch())return;if(running){if(force)repeat=true;return;}if(!force&&Date.now()<nextAttempt)return;running=true;try{
+   capture();
    if(!configured)throw Error('Cloud service is not configured.');
    if(!navigator.onLine){setStatus('Offline · saved on this device');if(!enrolled()||!hasLocalData())setMessage('Connect once to download this account.');return;}
    if(!enrolled()){

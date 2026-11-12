@@ -12,7 +12,8 @@ import {coinConfig,reviewConfig,inflateRecords,achievedGoals,legacyGoals,default
 const schema=readFileSync(new URL('./social-schema.sql',import.meta.url),'utf8');
 const pushSchema=readFileSync(new URL('./push-schema.sql',import.meta.url),'utf8');
 const actions=readFileSync(new URL('./social-actions.sql',import.meta.url),'utf8');
-export const socialMigration=`DO $migration$ BEGIN PERFORM pg_advisory_xact_lock(782630); EXECUTE $schema$${schema}\n${pushSchema}$schema$; EXECUTE $actions$${actions}$actions$; END $migration$;`;
+const retention=readFileSync(new URL('./task-retention.sql',import.meta.url),'utf8');
+export const socialMigration=`DO $migration$ BEGIN PERFORM pg_advisory_xact_lock(782630); EXECUTE $schema$${schema}\n${pushSchema}$schema$; EXECUTE $actions$${actions}\n${retention}$actions$; END $migration$;`;
 const uuid=v=>typeof v==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
 export function dayAt(timezone,now=new Date()){
  return new Intl.DateTimeFormat('en-CA',{timeZone:timezone,year:'numeric',month:'2-digit',day:'2-digit'}).format(now);

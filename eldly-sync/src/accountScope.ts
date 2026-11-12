@@ -7,6 +7,7 @@ export function setAccountScope(id:string,isOwner=false,username="",displayName?
 export function accountScope(){return scope;}
 export function scopeEpoch(){return epoch;}
 export function isPersonalOwner(){return scope===null||owner;}
+export function canUseJournal(){return scope!==null&&owner;}
 export function scopedKey(key:string){return scope===null?key:`eldinos:${scope}:${key}`;}
 export function isGuest(){return scope==='guest';}
 

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const rpc=vi.hoisted(()=>vi.fn());vi.mock('./client',()=>({supabase:{rpc},cloudNamespace:'test'}));
 import {capture,enrolled,pull,start,synchronize,initialize} from './engine';
 import {apply,flatten,type Records} from './records';
@@ -19,6 +19,7 @@ beforeEach(()=>{
   duringPush?.();duringPush=null;return {data:revision};
  });
 });
+afterEach(()=>vi.useRealTimers());
 async function seed(){writeLocal('checkly-data-v1',empty());await initialize(true);while(await synchronize()){}await synchronize();}
 describe('durable cloud sync',()=>{
  it('starts from existing data without deleting it and restores a second device',async()=>{
@@ -51,14 +52,20 @@ describe('durable cloud sync',()=>{
   await expect(synchronize()).rejects.toThrow('Conflicting data');expect(snapshot()).toEqual(before);
  });
  it('shares one Sunday carryover and its later completion without duplicate tasks',async()=>{
+  vi.useFakeTimers({toFake:['Date']});
+  vi.setSystemTime(new Date('2026-10-18T12:00:00'));
   await seed();const d=empty();d.tasks=[{id:'sunday-task',title:'Homework',scheduled:'2026-10-18',original:'2026-10-18',category:'',notes:'',carry:true,important:false,order:0}];
   writeLocal('checkly-data-v1',d);capture();await synchronize();
+  vi.setSystemTime(new Date('2026-10-19T12:00:00'));
   use(localB);start(await pull());
   const b=snapshot()['checkly-data-v1'] as Data;
   expect(onDay(b,'2026-10-19','2026-10-19').map(t=>t.id)).toEqual(['sunday-task']);
   writeLocal('checkly-data-v1',{...b,tasks:b.tasks.map(t=>({...t,completed:'2026-10-19'}))});capture();await synchronize();
   use(localA);await synchronize();const a=snapshot()['checkly-data-v1'] as Data;
   expect(a.tasks).toHaveLength(1);expect(onDay(a,'2026-10-18','2026-10-19')[0].completed).toBe('2026-10-19');expect(onDay(a,'2026-10-19','2026-10-19')[0].completed).toBe('2026-10-19');
+  vi.setSystemTime(new Date('2026-10-26T12:00:00'));
+  capture();
+  expect((snapshot()['checkly-data-v1'] as Data).tasks).toHaveLength(0);
  });
  it('merges different fields from two devices without resetting either',async()=>{
   await seed();use(localB);start(await pull());
@@ -67,6 +74,27 @@ describe('durable cloud sync',()=>{
   use(localB);await synchronize();await synchronize();
   expect((snapshot()['checkly-data-v1'] as any).sound).toBe(false);expect((snapshot()['checkly-data-v1'] as any).categories).toEqual(['Custom']);
   use(localA);await synchronize();expect((snapshot()['checkly-data-v1'] as any).categories).toEqual(['Custom']);
+ });
+ it('preserves missed repeating tasks across Monday and removes completed occurrences',async()=>{
+  vi.useFakeTimers({toFake:['Date']});
+  vi.setSystemTime(new Date('2026-10-18T12:00:00'));
+  const data=empty();
+  const routine={id:'weekly',title:'Weekly task',start:'2026-10-17',category:'',notes:'',
+   weekdays:[5,6],frequency:'weekly' as const,interval:1,paused:false,carry:true,important:false};
+  data.routines=[routine];
+  data.overrides['weekly:2026-10-17']={id:'weekly:2026-10-17',title:routine.title,routineId:'weekly',
+   scheduled:'2026-10-17',original:'2026-10-17',completed:'2026-10-17',category:'',notes:'',
+   carry:true,important:false,order:0};
+  writeLocal('checkly-data-v1',data);
+  await initialize(true);
+  vi.setSystemTime(new Date('2026-10-19T12:00:00'));
+  await synchronize();
+  use(localB);
+  start(await pull());
+  const synced=snapshot()['checkly-data-v1'] as Data;
+  expect(Object.keys(synced.overrides)).toEqual(['weekly:2026-10-18']);
+  expect(onDay(synced,'2026-10-19','2026-10-19').map(task=>task.id)).toEqual(['weekly:2026-10-18']);
+  expect(onDay(synced,'2026-10-24','2026-10-19').map(task=>task.id)).toEqual(['weekly:2026-10-24']);
  });
 });
 it('uploads journal writing from a phone and refreshes an already enrolled laptop',async()=>{

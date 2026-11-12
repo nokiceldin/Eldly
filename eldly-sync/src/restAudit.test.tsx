@@ -8,7 +8,6 @@ import {activeRewards,validRewards} from './rewards';
 import PersonalWeeklyStory from './components/PersonalWeeklyStory';
 import {personalGoalAt} from './personalGoals';
 import {setAccountScope} from './accountScope';
-import {matchItems,makeConfiguredTrip} from './packly/data';
 import {celebrationCoins} from '../server/celebration-coins';
 const habit={id:'running',label:'Running',kind:'duration' as const,color:'blue' as const,xp:{amount:5,basis:'entry' as const},goal:{target:240,maximum:false,from:'2026-10-19'}};
 const data=()=>({...empty(),mapping:{version:1 as const,startedOn:'2026-10-19',habits:[habit],entries:{'2026-10-19':{running:{kind:'duration' as const,minutes:60}},'2026-10-20':{running:{kind:'duration' as const,minutes:60}}}}});
@@ -36,9 +35,6 @@ it('restores archived rewards and uses the explicit main reward for gift calcula
  expect(activeRewards(d).map(r=>r.id)).toEqual(['two','one']);expect(celebrationCoins(d)).toBe(30);expect(validRewards(d)).toBe(true);
  const archived={...d,rewards:d.rewards.map(r=>r.id==='two'?{...r,archived:true}:r)};expect(celebrationCoins(archived)).toBe(10);
  const restored={...archived,rewards:archived.rewards.map(r=>r.id==='two'?{...r,archived:false}:r)};expect(activeRewards(restored)[0].id).toBe('two');
-});
-it('categorizes match keys as essentials in both languages',()=>{
- expect(matchItems.find(i=>i.id==='tennis-01')?.categoryId).toBe('travel');setAccountScope('guest');const t=makeConfiguredTrip('Match','match',{type:'match',startDate:'2026-10-26',returnDate:'2026-10-26',departure:'',destination:'',climate:'unknown',laundry:false,reminderMinutes:[]});expect(t.items.find(i=>i.name==='Keys')?.categoryId).toBe('travel');
 });
 it('treats phone use below a personal maximum as a win rather than a warning',()=>{
  setAccountScope('guest');const d={...empty(),mapping:{version:1 as const,startedOn:'2026-10-19',habits:[{id:'mobile',label:'Mobile',kind:'phone' as const,color:'red' as const,goal:{target:180,maximum:true,from:'2026-10-19'}}],entries:{'2026-10-19':{mobile:{kind:'phone' as const,minutes:120}}}}};const recap=buildRecap(d,recapFor('week','2026-10-19'),'2026-10-26');expect(recap.positives.some(s=>s.startsWith('Mobile:'))).toBe(true);expect(recap.attention.some(s=>s.startsWith('Mobile:'))).toBe(false);

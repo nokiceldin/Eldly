@@ -7,7 +7,7 @@ import SiteAnalytics from './components/SiteAnalytics';
 import {useContext} from "react";
 import {ProfileContext} from "./profileContext";
 import ProfileAvatar from "./components/ProfileAvatar";
-import { isPersonalOwner, accountHomeName } from "./accountScope";
+import { isPersonalOwner, canUseJournal, accountHomeName } from "./accountScope";
 import AccountBoundary from "./components/AccountBoundary";
 import { TaskDragArea, TaskDropDay, DraggableTask } from "./components/TaskDrag";
 import { moveTaskOccurrence } from "./taskMoves";
@@ -60,14 +60,14 @@ import {
   saveTaskInput,
   saveRoutineInput,
   normalizeWeeklyMarkers,
+  retainCurrentTasks,
   parseWeeklyTitle,
   seed,
   replaceStarterChecklist,
   routineSuffix,
   setPaused,
 } from "./engine";
-import { load, persist, download, validate } from "./storage";
-import PacklyPage from "./packly/App";
+import { load, persist, download, retainChecklist, validate } from "./storage";
 import { playFeedback } from "./sounds";
 import AppIcon from "./components/AppIcon";
 import JournalPage from "./components/JournalPage";
@@ -106,7 +106,7 @@ function Checklist({ onHome }: { onHome: () => void }) {
   const [initial] = useState(() => {
     try {
       return {
-        data: normalizeWeeklyMarkers(seed(load(), localDay())),
+        data: retainCurrentTasks(normalizeWeeklyMarkers(seed(load(), localDay()))),
         error: "",
       };
     } catch (e) {
@@ -119,6 +119,21 @@ function Checklist({ onHome }: { onHome: () => void }) {
   const [error, setError] = useState(initial.error);
   const [today, setToday] = useState(localDay());
   const [week, setWeek] = useState(monday(today));
+  useEffect(() => {
+    const refreshDay = () => {
+      const current = localDay();
+      if (current === today) return;
+      setToday(current);
+      setWeek(week => week < monday(current) ? monday(current) : week);
+      setData(data => retainCurrentTasks(data, current));
+    };
+    const timer = window.setInterval(refreshDay, 60_000);
+    window.addEventListener('focus', refreshDay);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('focus', refreshDay);
+    };
+  }, [today]);
   const weekX = useMotionValue(0);
   const weekChanging = useRef(false);
   const [taskDragging,setTaskDragging] = useState(false);
@@ -149,7 +164,7 @@ function Checklist({ onHome }: { onHome: () => void }) {
     };
   }, []);
   const changeWeek = async (direction: number) => {
-    if (weekChanging.current || taskDragging) return;
+    if (weekChanging.current || taskDragging || add(week, direction * 7) < monday(localDay())) return;
     weekChanging.current = true;
     const width = Math.min(window.innerWidth, 680);
     if (!reduce) await animate(weekX, -direction * width, { duration: .18, ease: [.32, 0, .67, 0] });
@@ -317,6 +332,7 @@ function Checklist({ onHome }: { onHome: () => void }) {
             <button
               className="week-arrow"
               aria-label="Previous week"
+              disabled={week <= monday(today)}
               onClick={() => changeWeek(-1)}
             >
               <ChevronLeft size={20} />
@@ -655,7 +671,7 @@ function Checklist({ onHome }: { onHome: () => void }) {
                     confirm("Replace your current checklist with this backup?")
                   ) {
                     setBlocked(false);
-                    setData(normalizeWeeklyMarkers(d));
+                    setData(retainChecklist(normalizeWeeklyMarkers(d)));
                     setNotice("Backup restored");
                   }
                 } catch (err) {
@@ -905,17 +921,17 @@ function Checklist({ onHome }: { onHome: () => void }) {
     </MotionConfig>
   );
 }
-type Destination = "home" | "checkly" | "progress" | "mapping" | "packly" | "journal";
+type Destination = "home" | "checkly" | "progress" | "mapping" | "journal";
 const destinations = [
   { id: "checkly", emoji: "✅", title: "Check", description: "Tasks to do" },
   { id: "mapping", emoji: "🗺️", title: "Track", description: "Habits to log" },
   { id: "progress", emoji: "📈", title: "Data", description: "See how you’re doing" },
-  { id: "packly", emoji: "🎒", title: "Pack", description: "Everything for your next trip" },
   { id: "journal", emoji: "📖", title: "Journal", description: "A little room for yourself" },
 ] as const;
 function currentDestination(): Destination {
   const section = window.location.hash.slice(1).split("/")[0];
   const hash = section === "trackly" ? "mapping" : section;
+  if (hash === "journal" && !canUseJournal()) return "home";
   return destinations.some((d) => d.id === hash) ? hash as Destination : "home";
 }
 function App() {
@@ -939,7 +955,6 @@ function App() {
   if (destination === "mapping") return <MappingPage onHome={goHome} />;
   if (destination === "progress") return <ProgressPage onHome={goHome} />;
   if (destination === "journal") return <JournalPage onHome={goHome} />;
-  if (destination === "packly") return <PacklyPage onHome={goHome} />;
   return (
     <main className="eldly-page">
           <header className="eldly-heading">
@@ -949,7 +964,7 @@ function App() {
 
           </header>
           <nav className="eldly-grid" aria-label="Your apps">
-            {destinations.map((d) => (
+            {destinations.filter(d => d.id !== "journal" || canUseJournal()).map((d) => (
               <a key={d.id} href={d.id === "mapping" ? "#trackly" : `#${d.id}`} className={`eldly-tile eldly-tile-${d.id}`}>
                 <span className="eldly-tile-icon"><AppIcon app={d.id} /></span>
                 <span className="eldly-tile-title">{d.title}</span>

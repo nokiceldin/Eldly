@@ -25,6 +25,7 @@ export interface Task {
   sample?: boolean;
   order: number;
   deleted?: boolean;
+  carriedFromHistory?: boolean;
 }
 export interface Routine {
   color?: import('./taskColors').TaskColor;
@@ -48,6 +49,7 @@ export interface Routine {
   sample?: boolean;
 }
 export interface Data {
+  taskHistoryFrom?: Day;
   journal?: { pages: import('./journal').JournalPageData[]; lastWrittenPageId?: string };
   taskColorSettings?: import('./taskColors').TaskColorSettings;
   coinBonusPlans?: import('./coinBonuses').CoinBonusPlan[];
@@ -92,6 +94,34 @@ export const diff = (a: Day, b: Day) =>
       86400000,
   );
 export const monday = (s: Day) => add(s, -((parse(s).getDay() + 6) % 7));
+export function retainCurrentTasks(data: Data, today = localDay(), advance = true): Data {
+  const week = monday(today);
+  const from = data.taskHistoryFrom && data.taskHistoryFrom > week ? data.taskHistoryFrom : week;
+  const historyFrom = advance ? from : data.taskHistoryFrom;
+  const current = (date?: Day) => !!date && date >= from;
+  const unfinished = (task: Task) => !task.completed && !task.deleted;
+  const retained = (task: Task) => unfinished(task) || current(task.scheduled) || current(task.completed);
+  const carry = (task: Task) => advance && unfinished(task) && !task.carry && task.scheduled < from ? { ...task, carry: true } : task;
+  const tasks = data.tasks.filter(retained).map(carry);
+  const overrides = Object.fromEntries(Object.entries(data.overrides)
+    .filter(([, task]) => retained(task) || current(task.original))
+    .map(([id, task]) => [id, carry(task)]));
+  const routines = data.routines.filter(routine => !routine.end || current(routine.end));
+  if (advance && data.taskHistoryFrom !== from && data.routines.some(routine => routine.carry && routine.start < from)) {
+    const saved = new Set(data.tasks.map(task => task.id));
+    const overdue = allTasks({ ...data, routines: data.routines.filter(routine => routine.carry) }, add(from, -1), today);
+    for (const task of overdue) {
+      if (task.routineId && task.carry && task.scheduled < from && unfinished(task) && !saved.has(task.id) && !overrides[task.id]) {
+        overrides[task.id] = { ...task, carriedFromHistory: true };
+      }
+    }
+  }
+  if (historyFrom === data.taskHistoryFrom && tasks.length === data.tasks.length &&
+    tasks.every((task, index) => task === data.tasks[index]) && routines.length === data.routines.length &&
+    Object.keys(overrides).length === Object.keys(data.overrides).length &&
+    Object.entries(overrides).every(([id, task]) => data.overrides[id] === task)) return data;
+  return { ...data, taskHistoryFrom: historyFrom, tasks, routines, overrides };
+}
 export function iso(s: Day) {
   const t = add(monday(s), 3);
   const y = parse(t).getFullYear();
@@ -178,7 +208,8 @@ export function matches(r: Routine, d: Day) {
 export function allTasks(data: Data, through: Day, today: Day): Task[] {
   const result = [...data.tasks];
   for (const r of data.routines) {
-    for (let d = r.start; d <= through; d = add(d, 1)) {
+    const start = data.taskHistoryFrom && r.start < data.taskHistoryFrom ? data.taskHistoryFrom : r.start;
+    for (let d = start; d <= through; d = add(d, 1)) {
       const id = `${r.id}:${d}`;
       const override = data.overrides[id];
       if (override) {
@@ -598,6 +629,7 @@ export function syncChecklyHomework(data: Data, today: Day): Data {
   let mapping = data.mapping || emptyMapping();
   const days = new Set([...groups.keys(), ...Object.keys(mapping.entries)]);
   for (const day of days) {
+    if (data.taskHistoryFrom && day < data.taskHistoryFrom) continue;
     const current = mapping.entries[day]?.homework;
     const automatic = current?.kind === "check" && current.source === "checkly";
     const tasks = groups.get(day) || [];

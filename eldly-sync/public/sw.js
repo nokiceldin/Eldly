@@ -1,9 +1,8 @@
-const CACHE = "myspace-shell-v44-clear-celebration-choice";
+const CACHE = "myspace-shell-v45-current-checklist";
 const SHELL = [
   "/audio/coin-pickup.wav",
   "/",
   "/index.html",
-  "/packly/icon.svg",
   "/icon.svg",
   "/eldly-logo.png",
   "/eldly-logo-beige.png",
