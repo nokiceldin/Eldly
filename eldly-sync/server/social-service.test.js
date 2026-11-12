@@ -9,16 +9,20 @@ import {flatten} from '../src/sync/records';
 import {HABITS} from '../src/mapping';
 import {originalCoinRule} from '../src/points';
 const a='11111111-1111-4111-8111-111111111111',b='22222222-2222-4222-8222-222222222222',c='33333333-3333-4333-8333-333333333333';
-let db,service,now;
+let db,service,now,summaryReads;
 const users={};
 async function save(id,data){const records=Object.entries(flatten({'checkly-data-v1':data})).map(([record_key,value])=>({record_key,value}));const initialized=(await db.query('select initialized from eldinos_account_state where user_id=$1',[id])).rows[0]?.initialized;await db.query(`select ${initialized?'myspace_account_apply':'myspace_account_initialize'}($1,$2::jsonb)`,[id,JSON.stringify(records)]);}
 const act=(id,action,body={})=>service.mutate(users[id],{action,...body},'127.0.0.1');
 const dash=id=>service.dashboard(users[id]);
 async function friends(x=a,y=b){await act(x,'friend_request',{username:users[y].username});const req=(await dash(y)).friends.find(f=>f.userId===x);await act(y,'friend_accept',{id:req.id});return req.id;}
 async function pair(){await friends();await act(a,'best_request',{userId:b});await act(b,'best_accept',{id:(await dash(b)).bestRequests[0].id});}
-beforeAll(async()=>{db=new PGlite();await db.exec(readFileSync(new URL('./schema.sql',import.meta.url),'utf8'));service=createSocialService({query:async(q,p)=>(await db.query(q,p)).rows},{now:()=>now});await service.ensure();},20000);
+beforeAll(async()=>{db=new PGlite();await db.exec(readFileSync(new URL('./schema.sql',import.meta.url),'utf8'));service=createSocialService({query:async(q,p)=>{
+ const {rows}=await db.query(q,p);
+ if(q.includes('select * from myspace_social_summary'))summaryReads.push({kind:p[1],...rows[0]});
+ return rows;
+}},{now:()=>now});await service.ensure();},20000);
 beforeEach(async()=>{
- now=new Date('2026-10-23T16:00:00Z');await db.exec('truncate myspace_login_attempts');await db.exec('truncate myspace_notifications,myspace_coin_proposals,myspace_coin_controls,myspace_best_members,myspace_best_pairs,myspace_best_requests,myspace_friends,myspace_profiles,myspace_users cascade');
+ summaryReads=[];now=new Date('2026-10-23T16:00:00Z');await db.exec('truncate myspace_login_attempts');await db.exec('truncate myspace_notifications,myspace_coin_proposals,myspace_coin_controls,myspace_best_members,myspace_best_pairs,myspace_best_requests,myspace_friends,myspace_profiles,myspace_users cascade');
  for(const [id,username] of [[a,'alice'],[b,'bob'],[c,'carol']]){users[id]={id,username,app_metadata:{}};await db.query('insert into myspace_users(id,username,password_hash,app_metadata) values($1,$2,$3,$4)',[id,username,'hash','{}']);await db.query('insert into eldinos_accounts(user_id,username) values($1,$2)',[id,username]);await save(id,{...empty(),mapping:{version:1,startedOn:'2026-10-19',habits:[{id:'tennis-test',label:'Tennis',kind:'check',color:'blue',xp:{amount:10,basis:'entry',weeklyCap:50},goal:{target:5,maximum:false,from:'2026-10-19'}}],entries:{}},tasks:[{id:'private',title:'Private task title',notes:'PRIVATE-NOTE',scheduled:'2026-10-23',original:'2026-10-23',category:'',carry:true,important:false,order:0}]});}
 });
 afterAll(async()=>{await db?.close();});
@@ -290,4 +294,30 @@ it('shares only aggregate weekly rankings with accepted friends and removes inac
  ranking=(await dash(a)).weeklyRanking;expect(ranking.participants.map(p=>p.userId)).toEqual([a]);
  await act(a,'friend_remove',{id:(await dash(a)).friends.find(f=>f.userId===b).id});
  expect((await dash(b)).weeklyRanking.participants).toEqual([]);
+});
+
+it('serves compact summaries after unrelated writes and refreshes them after a tracking edit',async()=>{
+ await act(a,'visit',{timezone:'UTC'});
+ const first=summaryReads.filter(r=>r.kind==='ranking'||r.kind==='milestones');
+ expect(first).toHaveLength(2);
+ expect(first.every(r=>!r.hit&&r.records.length>0)).toBe(true);
+ expect(JSON.stringify(first)).not.toContain('PRIVATE-NOTE');
+ const journal={record_key:'["checkly-data-v1","journal"]',value:{node:'object'}};
+ await db.query('select myspace_account_apply($1,$2::jsonb)',[a,JSON.stringify([journal])]);
+ summaryReads.length=0;
+ await dash(a);
+ expect(summaryReads).toHaveLength(2);
+ expect(summaryReads.every(r=>r.hit&&r.records===null&&r.policy===null)).toBe(true);
+
+ const entryPath=['checkly-data-v1','mapping','entries','2026-10-23'];
+ const log=[{record_key:JSON.stringify(entryPath),value:{node:'object'}},
+  {record_key:JSON.stringify([...entryPath,'tennis-test']),value:{node:'object'}},
+  {record_key:JSON.stringify([...entryPath,'tennis-test','kind']),value:{node:'value',value:'check'}}];
+ await db.query('select myspace_account_apply($1,$2::jsonb)',[a,JSON.stringify(log)]);
+ summaryReads.length=0;
+ await dash(a);
+ expect(summaryReads).toHaveLength(2);
+ expect(summaryReads.every(r=>!r.hit)).toBe(true);
+ const [{last_visit}]=(await db.query('select last_visit::text from myspace_profiles where user_id=$1',[a])).rows;
+ expect(last_visit).toBe('2026-10-23');
 });

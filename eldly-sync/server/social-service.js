@@ -13,36 +13,58 @@ const schema=readFileSync(new URL('./social-schema.sql',import.meta.url),'utf8')
 const pushSchema=readFileSync(new URL('./push-schema.sql',import.meta.url),'utf8');
 const actions=readFileSync(new URL('./social-actions.sql',import.meta.url),'utf8');
 const retention=readFileSync(new URL('./task-retention.sql',import.meta.url),'utf8');
-export const socialMigration=`DO $migration$ BEGIN PERFORM pg_advisory_xact_lock(782630); EXECUTE $schema$${schema}\n${pushSchema}$schema$; EXECUTE $actions$${actions}\n${retention}$actions$; END $migration$;`;
+const summarySchema=readFileSync(new URL('./social-summary.sql',import.meta.url),'utf8');
+export const socialMigration=`DO $migration$ BEGIN PERFORM pg_advisory_xact_lock(782630); EXECUTE $schema$${schema}\n${pushSchema}$schema$; EXECUTE $actions$${actions}\n${retention}\n${summarySchema}$actions$; END $migration$;`;
 const uuid=v=>typeof v==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
 export function dayAt(timezone,now=new Date()){
  return new Intl.DateTimeFormat('en-CA',{timeZone:timezone,year:'numeric',month:'2-digit',day:'2-digit'}).format(now);
 }
 function addDay(day,days){const d=new Date(day+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+days);return d.toISOString().slice(0,10);}
 function monday(day){const d=new Date(day+'T12:00:00Z');return addDay(day,-((d.getUTCDay()+6)%7));}
+function sortedObject(_key,value){
+ return value&&typeof value==='object'&&!Array.isArray(value)
+  ? Object.fromEntries(Object.entries(value).sort(([a],[b])=>a.localeCompare(b)))
+  : value;
+}
 function streak(profile,now){if(!profile?.timezone||!profile.last_visit)return 0;const today=dayAt(profile.timezone,now);return profile.last_visit&&profile.last_visit>=addDay(today,-1)&&profile.last_visit<=today?profile.streak:0;}
 export function createSocialService(sql,{now=()=>new Date()}={}){
  let ready;
  const ensure=()=>ready||(ready=sql.query(socialMigration).catch(e=>{ready=undefined;throw e;}));
  const run=async(actor,action,p)=>sql.query('select myspace_social_action($1::uuid,$2,$3::jsonb) as data',[actor,action,JSON.stringify(p)]);
- async function accountData(id){
-  const rows=await sql.query('select record_key,value,deleted from eldinos_account_records where user_id=$1',[id]);
-  return inflateRecords(rows)['checkly-data-v1']||{};
+ async function cachedSummary(id, kind, day, compute) {
+  const [snapshot] = await sql.query(
+   'select * from myspace_social_summary($1::uuid,$2,$3)', [id,kind,day]
+  );
+  if (!snapshot) return compute({},null,false);
+  if (snapshot.hit) return snapshot.summary;
+  const data = inflateRecords(snapshot.records)['checkly-data-v1'] || {};
+  const summary = await compute(data,snapshot.policy,snapshot.owner === true);
+  await sql.query(`insert into myspace_social_summaries(user_id,kind,source_version,summary)
+   values($1,$2,$3,$4::jsonb)
+   on conflict(user_id,kind) do update set source_version=excluded.source_version,summary=excluded.summary
+   where myspace_social_summaries.source_version is distinct from excluded.source_version`,
+   [id,kind,snapshot.source_version,JSON.stringify(summary)]);
+  return summary;
  }
- async function config(id){const [data,rows]=await Promise.all([accountData(id),sql.query('select app_metadata from myspace_users where id=$1',[id])]);return coinConfig(data,rows[0]?.app_metadata.legacy_owner===true);}
+ const config=id=>cachedSummary(id,'rules','', (data,_policy,owner)=>coinConfig(data,owner));
+ const giftOffer=id=>cachedSummary(id,'gift','',celebrationCoins);
  async function policy(id){await ensure();return (await sql.query('select starts_on::text,legacy,periods,revision from myspace_coin_controls where user_id=$1',[id]))[0]||null;}
  async function milestones(id){
-  await ensure();const profiles=await sql.query('select timezone from myspace_profiles where user_id=$1',[id]);
-  if(!profiles[0])return;
-  const day=dayAt(profiles[0].timezone,now()),from=monday(day),data=await accountData(id);
-  const tracking=trackingStreak(data.mapping,day);
-  await run(id,'track_streak',{...tracking,day});
-  const previous=addDay(from,-7),control=await policy(id);
-  const events=[...achievedGoals(effectiveData(data,from,control),from,day).map(goal=>`${from}:${goal}`),...(data.mapping&&(data.mapping.startedOn||'2026-10-15')<=previous?achievedGoals(effectiveData(data,previous,control),previous,addDay(from,-1),true).map(goal=>`${previous}:${goal}`):[])];
-  // Friends receive only generic milestones. Goal names stay in the owner’s private inbox.
-  if(events.length){const ownGoals=Object.fromEntries(events.map(event=>{const goal=event.slice(11),legacy=legacyGoals.find(g=>g[0]===goal);return [event,data.mapping?.habits?.find(h=>h.id===goal)?.label||(legacy?defaults.find(d=>d[0]===legacy[1])?.[1]||'Weekly goal':'Weekly goal')];}));await run(id,'goal_events',{events,ownGoals});}
-  const weeks=ledgerWeeks(data,day,control),earned=weeks.reduce((total,week)=>total+week.total,0),goals=weeks.reduce((total,week)=>total+week.goalsMet.length,0),purchases=(data.rewardPurchases||[]).filter(p=>!p.refunded).length;
-  await run(id,'badge_events',{badges:profileBadges(tracking.longest,earned,goals,purchases).filter(badge=>badge.id!=='welcome').map(({id,name,level})=>({id,name,level}))});
+  await ensure();
+  const [profile]=await sql.query('select timezone from myspace_profiles where user_id=$1',[id]);
+  if(!profile)return;
+  const day=dayAt(profile.timezone,now()),from=monday(day),previous=addDay(from,-7);
+  await cachedSummary(id,'milestones',day,async(data,control)=>{
+   const tracking=trackingStreak(data.mapping,day);
+   await run(id,'track_streak',{...tracking,day});
+   const events=[...achievedGoals(effectiveData(data,from,control),from,day).map(goal=>`${from}:${goal}`),...(data.mapping&&(data.mapping.startedOn||'2026-10-15')<=previous?achievedGoals(effectiveData(data,previous,control),previous,addDay(from,-1),true).map(goal=>`${previous}:${goal}`):[])];
+   // Friends receive only generic milestones. Goal names stay in the owner’s private inbox.
+   if(events.length){const ownGoals=Object.fromEntries(events.map(event=>{const goal=event.slice(11),legacy=legacyGoals.find(g=>g[0]===goal);return [event,data.mapping?.habits?.find(h=>h.id===goal)?.label||(legacy?defaults.find(d=>d[0]===legacy[1])?.[1]||'Weekly goal':'Weekly goal')];}));await run(id,'goal_events',{events,ownGoals});}
+   const weeks=ledgerWeeks(data,day,control),earned=weeks.reduce((total,week)=>total+week.total,0),goals=weeks.reduce((total,week)=>total+week.goalsMet.length,0),purchases=(data.rewardPurchases||[]).filter(p=>!p.refunded).length;
+   const badges=profileBadges(tracking.longest,earned,goals,purchases).filter(badge=>badge.id!=='welcome').map(({id,name,level})=>({id,name,level}));
+   await run(id,'badge_events',{badges});
+   return null;
+  });
  }
  async function gifts(id){await ensure();return Number((await sql.query('select coalesce(sum(amount),0) as total from myspace_celebration_coins where recipient=$1',[id]))[0]?.total||0);}
  async function giftWeek(id){const profile=(await sql.query('select timezone from myspace_profiles where user_id=$1',[id]))[0];return monday(dayAt(profile?.timezone||'UTC',now()));}
@@ -61,7 +83,7 @@ export function createSocialService(sql,{now=()=>new Date()}={}){
   if(!pair)return null;
   await activateApproved(pair.other);
   const [raw,control,state]=await Promise.all([config(pair.other),policy(pair.other),sql.query('select revision from eldinos_account_state where user_id=$1',[pair.other])]);
-  const week=await giftWeek(pair.other),version=`${pair.id}:${createHash('sha256').update(JSON.stringify(raw)).digest('hex')}:${control?.revision||0}`;
+  const week=await giftWeek(pair.other),version=`${pair.id}:${createHash('sha256').update(JSON.stringify(raw,sortedObject)).digest('hex')}:${control?.revision||0}`;
   const needsApproval=!control?.periods?.some(p=>p.from<=week);
   const starting=control&&!control.periods.length?{...control,starts_on:'9999-12-31'}:control;
   const baseline=currentFriendConfig(raw,starting,week),editing={...baseline,goalPlans:raw.goalPlans,habits:baseline.habits.map(h=>{const draft=raw.habits.find(d=>d.id===h.id);return {...h,goal:draft?.goal,previousGoals:draft?.previousGoals};})};
@@ -83,12 +105,13 @@ export function createSocialService(sql,{now=()=>new Date()}={}){
   const week=await giftWeek(user.id),used=await sql.query('select recipient from myspace_celebration_coins where sender=$1 and week=$2',[user.id,week]);
   const offers=new Map();
   const gifted=new Set(used.map(g=>g.recipient));
-  for(const n of notifications.filter(n=>['goal','badge'].includes(n.kind)&&!n.celebrated&&friends.some(f=>f.username===n.username&&f.status==='accepted'&&!gifted.has(f.user_id)))){if(!offers.has(n.username)){const friend=friends.find(f=>f.username===n.username);offers.set(n.username,celebrationCoins(await accountData(friend.user_id)));}}
+  for(const n of notifications.filter(n=>['goal','badge'].includes(n.kind)&&!n.celebrated&&friends.some(f=>f.username===n.username&&f.status==='accepted'&&!gifted.has(f.user_id)))){if(!offers.has(n.username)){const friend=friends.find(f=>f.username===n.username);offers.set(n.username,await giftOffer(friend.user_id));}}
   const rankingDay=dayAt(profiles[0]?.timezone||'UTC',now()),rankingFrom=monday(rankingDay);
   const participants=[{userId:user.id,username:user.username,avatar_preset:profiles[0]?.avatar_preset},...friends.filter(f=>f.status==='accepted').map(f=>({...f,userId:f.user_id}))];
   const ranking=rankWeeklyGoals(await Promise.all(participants.map(async person=>{
-   const [data,personPolicy]=await Promise.all([accountData(person.userId),person.userId===user.id?control:policy(person.userId)]);
-   return {userId:person.userId,username:person.username,avatar:avatarPreset(person.avatar_preset||'original').style,...weeklyGoalSummary(data,rankingFrom,rankingDay,personPolicy)};
+   const summary=await cachedSummary(person.userId,'ranking',rankingDay,
+    (data,personPolicy)=>weeklyGoalSummary(data,rankingFrom,rankingDay,personPolicy));
+   return {userId:person.userId,username:person.username,avatar:avatarPreset(person.avatar_preset||'original').style,...summary};
   })));
   return {weeklyRanking:{from:rankingFrom,to:addDay(rankingFrom,6),participants:ranking},bestFriendRules:await friendRules(user.id),giftBalance:await gifts(user.id),giftedFriends:[...gifted],profile:{homeName:user.app_metadata?.home_name||null,id:user.id,username:user.username,avatarId:profiles[0]?.avatar_preset||'original',avatarIntroEligible:!!profiles[0]&&profiles[0].avatar_preset==='original'&&!profiles[0].avatar_changed_at&&!profiles[0].avatar_intro_seen_at,avatar:avatarPreset(profiles[0]?.avatar_preset).style,streak:streak(profiles[0],now()),longest:profiles[0]?.longest||0,timezone:profiles[0]?.timezone||null},friends:friends.map(f=>({id:f.id,userId:f.user_id,username:f.username,avatar:avatarPreset(f.avatar_preset||'original').style,status:f.status,incoming:f.requested_by!==user.id,streak:streak(f,now())})),bestRequests:bestRequests.map(r=>({id:r.id,username:r.username,incoming:r.recipient===user.id})),bestFriend:pairs[0]?{id:pairs[0].id,userId:pairs[0].user_id,username:pairs[0].username,startsOn:pairs[0].starts_on}:null,proposals:proposals.map(p=>({id:p.id,ownerId:p.owner_id,ownerUsername:p.owner_username,incoming:p.reviewer_id===user.id,config:p.config,status:p.status,reviewedConfig:p.reviewed_config,effectiveFrom:p.effective_from,createdAt:p.created_at})),notifications:notifications.map(n=>({id:n.id,kind:n.kind,milestone:n.milestone,ruleChanges:n.rule_changes||[],giftAmount:Number(n.gift_amount||0),sentGiftAmount:Number(n.sent_gift_amount||0),giftOffer:offers.get(n.username)||null,celebrated:n.celebrated,read:!!n.read_at,createdAt:n.created_at,username:n.username,avatar:avatarPreset(n.avatar_preset||'original').style})),coinPolicy:control};
  }
@@ -136,7 +159,7 @@ export function createSocialService(sql,{now=()=>new Date()}={}){
    if(body.withCoins===true){
     const n=(await sql.query("select actor,kind,celebrated from myspace_notifications where id=$1 and recipient=$2",[p.id,user.id]))[0];
     if(!n||!['goal','badge'].includes(n.kind)||n.celebrated)throw Error('SOCIAL: Only an uncelebrated goal or badge can receive coins.');
-    p.giftAmount=celebrationCoins(await accountData(n.actor));
+    p.giftAmount=await giftOffer(n.actor);
     if(!p.giftAmount)throw Error('SOCIAL: This friend has no active reward. Send congratulations instead.');
     if(body.expectedGiftAmount!==undefined&&body.expectedGiftAmount!==p.giftAmount)throw Error('SOCIAL: Their next reward changed. Check the refreshed gift amount and try again.');
     p.week=await giftWeek(user.id);
