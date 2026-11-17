@@ -1,4 +1,4 @@
-const CACHE = "myspace-shell-v47-journal-grid";
+const CACHE = "myspace-shell-v48-hide-sync-warning";
 const SHELL = [
   "/audio/coin-pickup.wav",
   "/",
